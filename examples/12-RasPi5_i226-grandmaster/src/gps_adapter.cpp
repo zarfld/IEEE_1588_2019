@@ -9,6 +9,7 @@
 #include <cstring>
 #include <cerrno>
 #include <iostream>
+#include <iomanip>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
@@ -438,6 +439,15 @@ bool GpsAdapter::update_pps_data()
         return false;
     }
     
+    // DEBUG: Show state BEFORE update
+    static int update_call_count = 0;
+    update_call_count++;
+    if (update_call_count <= 10 || update_call_count % 50 == 0) {
+        std::cout << "[update_pps_data #" << update_call_count 
+                  << "] BEFORE: valid=" << pps_data_.valid
+                  << " seq=" << pps_data_.sequence << "\n";
+    }
+    
     struct pps_info pps_info{};
     struct timespec timeout{};
     timeout.tv_sec = 0;
@@ -446,7 +456,18 @@ bool GpsAdapter::update_pps_data()
     // Fetch PPS event (non-blocking - returns old data if no new pulse)
     int ret = time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout);
     
+    // DEBUG: Show ioctl result
+    if (update_call_count <= 10 || update_call_count % 50 == 0) {
+        std::cout << "[update_pps_data #" << update_call_count
+                  << "] ioctl ret=" << ret
+                  << " assert_seq=" << pps_info.assert_sequence
+                  << " (prev_seq=" << pps_data_.sequence << ")\n";
+    }
+    
     if (ret < 0) {
+        std::cout << "[update_pps_data #" << update_call_count
+                  << "] ERROR: time_pps_fetch failed (ret=" << ret 
+                  << ", errno=" << errno << ")\n";
         pps_data_.valid = false;
         return false;
     }
@@ -454,6 +475,11 @@ bool GpsAdapter::update_pps_data()
     // Check if we got a new PPS pulse (sequence number incremented)
     if (pps_info.assert_sequence == pps_data_.sequence) {
         // No new PPS pulse since last fetch - this is normal
+        if (update_call_count <= 10 || update_call_count % 50 == 0) {
+            std::cout << "[update_pps_data #" << update_call_count
+                      << "] No new pulse (seq still " << pps_data_.sequence 
+                      << ") returning valid=" << pps_data_.valid << "\n";
+        }
         return pps_data_.valid;
     }
     
@@ -504,6 +530,15 @@ bool GpsAdapter::update_pps_data()
     pps_data_.dropout_detected = dropout_detected;  // EXPERT FIX: Track dropout
     pps_data_.seq_delta = static_cast<uint32_t>(seq_delta);
     
+    // DEBUG: Show AFTER update
+    if (update_call_count <= 10 || update_call_count % 50 == 0) {
+        std::cout << "[update_pps_data #" << update_call_count
+                  << "] AFTER: ✅ NEW PULSE seq=" << pps_data_.sequence
+                  << " (delta=" << seq_delta << ")"
+                  << " dropout=" << dropout_detected
+                  << " jitter=" << current_jitter << "ns\n";
+    }
+    
     // Track max jitter (output handled by caller)
     static uint32_t max_jitter = 0;
     max_jitter = std::max(max_jitter, current_jitter);
@@ -513,7 +548,7 @@ bool GpsAdapter::update_pps_data()
 
 bool GpsAdapter::get_pps_data(PpsData* pps_data, uint32_t* max_jitter_ns)
 {
-    if (!pps_data || !max_jitter_ns) {
+    if (!pps_data) {
         return false;
     }
     
@@ -523,21 +558,27 @@ bool GpsAdapter::get_pps_data(PpsData* pps_data, uint32_t* max_jitter_ns)
     
     *pps_data = pps_data_;
     
-    // Get max jitter from static tracking
-    static uint32_t tracked_max_jitter = 0;
-    static uint64_t last_reported_seq = 0;
-    
-    // Every 10 pulses, report and reset
-    if (pps_data_.sequence - last_reported_seq >= 10) {
-        *max_jitter_ns = tracked_max_jitter;
-        tracked_max_jitter = 0;
-        last_reported_seq = pps_data_.sequence;
-        return true;  // Signal: ready to output
+    // Get max jitter from static tracking (optional output)
+    if (max_jitter_ns) {
+        static uint32_t tracked_max_jitter = 0;
+        static uint64_t last_reported_seq = 0;
+        
+        // Update max jitter tracker
+        tracked_max_jitter = std::max(tracked_max_jitter, pps_data_.jitter_nsec);
+        
+        // Every 10 pulses, report accumulated max jitter and reset
+        if (pps_data_.sequence - last_reported_seq >= 10) {
+            *max_jitter_ns = tracked_max_jitter;
+            tracked_max_jitter = 0;
+            last_reported_seq = pps_data_.sequence;
+        } else {
+            // Not a reporting cycle - set jitter to 0
+            *max_jitter_ns = 0;
+        }
     }
     
-    // Update max but don't report yet
-    tracked_max_jitter = std::max(tracked_max_jitter, pps_data_.jitter_nsec);
-    return false;  // Signal: not ready to output yet
+    // CRITICAL FIX: Always return true when PPS data is valid
+    return true;  // PPS data is valid
 }
 
 bool GpsAdapter::initialize_pps()
@@ -725,7 +766,21 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
     // - NMEA only initializes/re-anchors the UTC label
     // - Atomic pairing prevents association ambiguity
     
+    // DEBUG: Show get_ptp_time() calls
+    static int get_time_call_count = 0;
+    get_time_call_count++;
+    if (get_time_call_count <= 10 || get_time_call_count % 50 == 0) {
+        std::cout << "[get_ptp_time #" << get_time_call_count
+                  << "] Called: pps_data_.valid=" << pps_data_.valid
+                  << " seq=" << pps_data_.sequence
+                  << " locked=" << pps_utc_locked_ << "\n";
+    }
+    
     if (!pps_data_.valid) {
+        if (get_time_call_count <= 10) {
+            std::cout << "[get_ptp_time #" << get_time_call_count
+                      << "] ❌ Returning false (pps_data_.valid=false)\n";
+        }
         return false;  // No PPS = no reliable time
     }
     
@@ -821,11 +876,37 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         uint64_t utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
-        *nanoseconds = pps_data_.assert_nsec;
+        
+        // Adjust PPS timestamp for PHC timescale changes
+        // PPS timestamps are PHC hardware captures. After PHC step corrections,
+        // we must adjust the timestamp to account for the timescale change.
+        int64_t adjusted_nsec = static_cast<int64_t>(pps_data_.assert_nsec) + cumulative_phc_steps_ns_;
+        
+        // Normalize to valid nanosecond range [0, 999999999]
+        while (adjusted_nsec < 0) {
+            adjusted_nsec += 1000000000LL;
+            (*seconds)--;
+        }
+        while (adjusted_nsec >= 1000000000LL) {
+            adjusted_nsec -= 1000000000LL;
+            (*seconds)++;
+        }
+        
+        *nanoseconds = static_cast<uint32_t>(adjusted_nsec);
         return true;
     }
     
     return false;  // Not initialized yet
+}
+
+void GpsAdapter::notify_phc_stepped(int64_t step_delta_ns)
+{
+    cumulative_phc_steps_ns_ += step_delta_ns;
+    std::cout << "[GpsAdapter] PHC stepped by " << (step_delta_ns / 1000000000LL) 
+              << "." << std::setw(9) << std::setfill('0') << (std::abs(step_delta_ns) % 1000000000LL)
+              << "s, cumulative=" << (cumulative_phc_steps_ns_ / 1000000000LL)
+              << "." << std::setw(9) << std::setfill('0') << (std::abs(cumulative_phc_steps_ns_) % 1000000000LL)
+              << "s\n";
 }
 
 bool GpsAdapter::read_gps_data(GpsData* gps_data)

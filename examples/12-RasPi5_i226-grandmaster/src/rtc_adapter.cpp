@@ -99,8 +99,8 @@ bool RtcAdapter::initialize()
     }
 
     // Open I2C bus for DS3231 direct access (aging offset)
-    // Raspberry Pi 5: DS3231 on GPIO I2C bus 15 (dtoverlay=i2c-rtc-gpio, dmesg shows 15-0068)
-    const char* i2c_device = "/dev/i2c-15";
+    // Raspberry Pi 5: DS3231 on GPIO I2C bus 14 (dtoverlay=i2c-rtc-gpio, dmesg shows 14-0068)
+    const char* i2c_device = "/dev/i2c-14";
     i2c_fd_ = open(i2c_device, O_RDWR);
     if (i2c_fd_ < 0) {
         std::cerr << "[RTC Init] ERROR: Failed to open I2C device " << i2c_device 

@@ -30,6 +30,12 @@ set(GRANDMASTER_SOURCES
     src/linux_ptp_hal.cpp
     src/gps_adapter.cpp
     src/rtc_adapter.cpp
+    src/phc_adapter.cpp
+    src/network_adapter.cpp
+    src/pi_servo.cpp
+    src/phc_calibrator.cpp
+    src/servo_state_machine.cpp
+    # Note: grandmaster_controller.cpp excluded - used only by test_grandmaster_controller_simple
 )
 
 # Executable
@@ -70,8 +76,51 @@ target_compile_options(ptp_grandmaster PRIVATE
     -march=armv8-a  # ARM64 optimization
 )
 
-# Install rules
-install(TARGETS ptp_grandmaster
+# ===================================================================
+# ptp_grandmaster_v2 - REFACTORED ARCHITECTURE (Modular Components)
+# ===================================================================
+
+set(ADAPTER_SOURCES
+    src/gps_adapter.cpp
+    src/rtc_adapter.cpp
+    src/phc_adapter.cpp
+    src/network_adapter.cpp
+    src/linux_ptp_hal.cpp
+)
+
+set(REFACTORED_CONTROLLER_SOURCES
+    src/grandmaster_controller.cpp
+    src/pi_servo.cpp
+    src/phc_calibrator.cpp
+    src/servo_state_machine.cpp
+)
+
+add_executable(ptp_grandmaster_v2
+    src/ptp_grandmaster_v2.cpp
+    ${ADAPTER_SOURCES}
+    ${REFACTORED_CONTROLLER_SOURCES}
+)
+
+target_include_directories(ptp_grandmaster_v2 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${IEEE1588_2019_INCLUDE_DIR}
+)
+
+target_link_libraries(ptp_grandmaster_v2
+    pthread  # Thread support
+    rt       # Real-time library
+)
+
+# Compiler flags for real-time performance
+target_compile_options(ptp_grandmaster_v2 PRIVATE
+    -Wall
+    -Wextra
+    -O3
+    -march=armv8-a  # ARM64 optimization
+)
+
+# Install both versions
+install(TARGETS ptp_grandmaster ptp_grandmaster_v2
     RUNTIME DESTINATION /usr/local/bin
 )
 
@@ -94,6 +143,43 @@ install(FILES
     README.md
     DESTINATION /usr/local/share/doc/ptp_grandmaster
 )
+
+# Unit tests
+add_executable(test_phc_adapter tests/test_phc_adapter.cpp src/phc_adapter.cpp)
+target_link_libraries(test_phc_adapter pthread rt)
+target_compile_options(test_phc_adapter PRIVATE -Wall -Wextra -O2)
+
+add_executable(test_pi_servo tests/test_pi_servo.cpp src/pi_servo.cpp)
+target_link_libraries(test_pi_servo pthread)
+target_compile_options(test_pi_servo PRIVATE -Wall -Wextra -O2)
+
+add_executable(test_phc_calibrator tests/test_phc_calibrator.cpp src/phc_calibrator.cpp src/phc_adapter.cpp)
+target_link_libraries(test_phc_calibrator pthread rt)
+target_compile_options(test_phc_calibrator PRIVATE -Wall -Wextra -O2)
+
+add_executable(test_servo_state_machine tests/test_servo_state_machine.cpp src/servo_state_machine.cpp)
+target_link_libraries(test_servo_state_machine pthread)
+target_compile_options(test_servo_state_machine PRIVATE -Wall -Wextra -O2)
+
+add_executable(test_network_adapter tests/test_network_adapter.cpp src/network_adapter.cpp)
+target_link_libraries(test_network_adapter pthread rt)
+target_compile_options(test_network_adapter PRIVATE -Wall -Wextra -O2)
+
+# Simplified controller test (structural validation only)
+add_executable(test_grandmaster_controller_simple
+    tests/test_grandmaster_controller_simple.cpp
+    src/grandmaster_controller.cpp
+    src/gps_adapter.cpp
+    src/rtc_adapter.cpp
+    src/phc_adapter.cpp
+    src/network_adapter.cpp
+    src/pi_servo.cpp
+    src/phc_calibrator.cpp
+    src/servo_state_machine.cpp
+)
+target_link_libraries(test_grandmaster_controller_simple pthread rt)
+target_compile_options(test_grandmaster_controller_simple PRIVATE -Wall -Wextra -O2)
+
 
 # Print configuration
 message(STATUS "")
