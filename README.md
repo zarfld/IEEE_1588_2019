@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # IEEE 1588-2019 PTP v2.1 Implementation
 
 This directory contains the hardware-agnostic implementation of IEEE 1588-2019 Precision Time Protocol version 2.1, providing enhanced timing capabilities beyond basic gPTP (802.1AS) with **real-time system compatibility**.
@@ -158,3 +159,7 @@ When contributing to this IEEE 1588-2019 implementation:
 ## License
 
 This implementation follows the same licensing terms as the OpenAvnu project while respecting IEEE copyright and patent policies for the IEEE 1588-2019 standard.
+=======
+# IEEE_1588_2019
+IEEE 1588-2019 Precision Time Protocol (PTPv2) Implementation - Standards-compliant pure protocol implementation
+>>>>>>> eec50f7361fcf513c493265006d768df61a53ab9
