@@ -1,3 +1,10 @@
+---
+specType: traceability-workbook
+title: Orphan Triage Workbook
+date: 2025-11-07
+status: draft
+---
+
 # Orphan Triage Workbook (2025-11-07)
 
 Status: Draft
