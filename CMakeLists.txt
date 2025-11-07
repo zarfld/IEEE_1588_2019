@@ -81,6 +81,12 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
     # Phase 05 TDD tests
     add_subdirectory(05-implementation/tests)
+    # Register example smoke test as part of CTest if examples enabled
+    if(IEEE1588_2019_BUILD_EXAMPLES)
+        # Ensure example targets are created before registering tests
+        # The examples are added below; defer test registration until after examples
+        set(_REGISTER_EXAMPLE_TEST TRUE)
+    endif()
 endif()
 
 # Examples
@@ -139,6 +145,11 @@ if(IEEE1588_2019_BUILD_EXAMPLES)
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/examples
     )
+
+    # If testing is enabled, register the simple test executable as a CTest test
+    if(BUILD_TESTING)
+        add_test(NAME simple_example_smoke COMMAND $<TARGET_FILE:ieee1588_2019_simple_test>)
+    endif()
 endif()
 
 # Export configuration

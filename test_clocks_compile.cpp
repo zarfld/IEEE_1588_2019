@@ -1,6 +1,16 @@
 /**
  * @file test_clocks_compile.cpp
  * @brief Comprehensive compilation test for clocks.hpp IEEE 1588-2019 implementation
+ *
+ * TEST IDs:
+ *   - TEST-CLOCKS-LIFECYCLE-001 (OrdinaryClock initialize/start/stop lifecycle)
+ *   - TEST-CLOCKS-ENUMS-001     (REQ-F-001 message & state enums accessible)
+ *   - TEST-CLOCKS-RESULT-001    (PTPResult success/error semantics)
+ *
+ * Requirements Referenced:
+ *   REQ-F-001 (Message type support)
+ *   REQ-F-005 (HAL abstraction layer baseline)
+ *   REQ-NF-M-001 (Portability / compilation across platforms)
  */
 
 #include "include/clocks.hpp"
@@ -19,7 +29,7 @@ int main() {
     config.sync_receipt_timeout = 3;
     config.delay_mechanism_p2p = false;
     config.version_number = 2;
-    std::cout << "✅ PortConfiguration: PASS" << std::endl;
+    std::cout << "✅ PortConfiguration: PASS (TEST-CLOCKS-LIFECYCLE-001)" << std::endl;
     
     // Test 2: Provide real StateCallbacks stubs (no skipping)
     using namespace IEEE::_1588::PTP::_2019;
@@ -72,7 +82,7 @@ int main() {
     auto r_tick = oc.tick(Types::Timestamp{0});
     auto r_stop = oc.stop();
     if (r_init.hasValue() && r_start.hasValue() && r_tick.hasValue() && r_stop.hasValue()) {
-        std::cout << "✅ StateCallbacks + OrdinaryClock lifecycle: PASS" << std::endl;
+        std::cout << "✅ StateCallbacks + OrdinaryClock lifecycle: PASS (TEST-CLOCKS-LIFECYCLE-001)" << std::endl;
     } else {
         std::cout << "❌ StateCallbacks + OrdinaryClock lifecycle: FAIL" << std::endl;
         return 1;
@@ -83,18 +93,18 @@ int main() {
     PortState state1 = PortState::Initializing;  // PascalCase
     PortState state2 = PortState::Master;
     PortState state3 = PortState::Slave;
-    std::cout << "✅ PortState Enums: PASS (Initializing, Master, Slave)" << std::endl;
+    std::cout << "✅ PortState Enums: PASS (Initializing, Master, Slave) (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     using MessageType = IEEE::_1588::PTP::_2019::Types::MessageType;
     MessageType msg1 = MessageType::Sync;        // PascalCase 
     MessageType msg2 = MessageType::Announce;
     MessageType msg3 = MessageType::Delay_Req;
-    std::cout << "✅ MessageType Enums: PASS (Sync, Announce, Delay_Req)" << std::endl;
+    std::cout << "✅ MessageType Enums: PASS (Sync, Announce, Delay_Req) (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     // Test 4: Message Type Aliases
     using AnnounceMessage = IEEE::_1588::PTP::_2019::Clocks::AnnounceMessage;
     using SyncMessage = IEEE::_1588::PTP::_2019::Clocks::SyncMessage;
-    std::cout << "✅ Message Type Aliases: PASS" << std::endl;
+    std::cout << "✅ Message Type Aliases: PASS (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     // Test 5: PTPResult Usage
     using PTPResult = IEEE::_1588::PTP::_2019::Types::PTPResult<void>;
@@ -102,7 +112,7 @@ int main() {
     PTPResult error_result{IEEE::_1588::PTP::_2019::Types::PTPError::State_Error}; // Error constructor
     bool is_success = success_result.hasValue();
     bool has_error = error_result.hasError();
-    std::cout << "✅ PTPResult API: PASS (success=" << is_success << ", error=" << has_error << ")" << std::endl;
+    std::cout << "✅ PTPResult API: PASS (success=" << is_success << ", error=" << has_error << ") (TEST-CLOCKS-RESULT-001)" << std::endl;
     
     std::cout << std::endl;
     std::cout << "🎉 IEEE 1588-2019 Clock State Machine API Integration: SUCCESS!" << std::endl;
