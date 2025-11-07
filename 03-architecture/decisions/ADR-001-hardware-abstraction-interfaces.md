@@ -14,7 +14,7 @@ id: ADR-001
 phase: 03-architecture
 specType: architecture
 standard: '42010'
-status: draft
+status: accepted
 traceability:
   requirements:
     # Hardware abstraction layer architecture implements HAL and platform independence requirements
@@ -23,10 +23,25 @@ traceability:
 version: 1.0.0
 ---
 
-# Architecture Specification Template
+## ADR-001: Hardware Abstraction Interfaces
+
+## Status
+
+Accepted
+
+- Decision ID: ADR-001
+- Title: Hardware Abstraction Interfaces
+- Date: 2025-10-12
+- Supersedes: None
+- Superseded-by: N/A
+
+Rationale: Establish a stable, platform-agnostic hardware abstraction boundary using C function-pointer based interfaces to satisfy platform independence requirements while preserving standards-only protocol layers.
+
+## Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
 > **Traceability Guardrail**: Ensure every architectural element has IDs:
+>
 > - Components: ARC-C-\d{3}
 > - Processes (runtime): ARC-P-\d{3}
 > - Interfaces: INT-\d{3}
@@ -34,7 +49,8 @@ version: 1.0.0
 > - Deployment nodes: DEP-\d{3}
 > - Decisions: ADR-\d{3}
 > - Quality attribute scenarios: QA-SC-\d{3}
-> Each ADR must reference ≥1 REQ-* or QA-SC-*, and each QA-SC-* must map to ≥1 REQ-NF-*.
+>
+> Each ADR must reference ≥1 `REQ-*` or `QA-SC-*` and each `QA-SC-*` must map to ≥1 `REQ-NF-*`.
 
 ---
 
@@ -254,14 +270,16 @@ C4Component
 **Key Processes**:
 
 1. **Request Processing**:
-   ```
-   User Request → API Gateway → Load Balancer → App Service → Database
-   ```
 
-2. **Async Job Processing**:
-   ```
-   App Service → Message Queue → Worker → Database
-   ```
+```text
+User Request → API Gateway → Load Balancer → App Service → Database
+```
+
+1. **Async Job Processing**:
+
+```text
+App Service → Message Queue → Worker → Database
+```
 
 **Concurrency Strategy**:
 
