@@ -26,6 +26,7 @@
 
 #include <cstdint>
 #include <array>
+#include <cstddef>
 
 namespace IEEE {
 namespace _1588 {

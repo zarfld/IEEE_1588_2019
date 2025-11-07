@@ -10,7 +10,7 @@ using namespace IEEE::_1588::PTP::_2019;
 using namespace IEEE::_1588::PTP::_2019::Types;
 using namespace IEEE::_1588::PTP::_2019::Clocks;
 
-static Timestamp fake_now{0};
+static Timestamp fake_now{}; // default zero initialization (avoids GCC missing-field-initializers warning)
 
 static PTPError noop_send_announce(const AnnounceMessage&) { return PTPError::Success; }
 static PTPError noop_send_sync(const SyncMessage&) { return PTPError::Success; }
@@ -65,7 +65,7 @@ int main() {
     if (port.get_state() != PortState::Master) return 8;
 
     // Master tick should attempt to send announce/sync without error
-    fake_now = Timestamp{0};
+    fake_now = Timestamp{}; // reset to zero timestamp
     if (!port.tick(fake_now).is_success()) return 9;
 
     // Simulate Announce reception list update and BMCA to slave path
@@ -87,7 +87,7 @@ int main() {
     // Timeout path: advance time to trigger announce timeout back to Listening
     // announce timeout = (1s << log2 interval) * timeout multiplier = 1s * 3
     // advance > 3s
-    auto seconds_to_ns = [](std::uint64_t s){ return s * 1000000000ULL; };
+    // Removed unused lambda to avoid -Wunused-but-set-variable warning
     fake_now.setTotalSeconds(0);
     fake_now.nanoseconds = 0;
     Timestamp future = fake_now;
