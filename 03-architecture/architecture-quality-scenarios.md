@@ -38,20 +38,25 @@ status: draft | verified | at-risk
 
 ## Example Scenarios
 
-### QA-SC-001 Performance - API Latency
+ 
+### QA-SC-001 Performance - Timing Operations Latency
+
 ```yaml
 id: QA-SC-001
 qualityAttribute: Performance
-source: User via Web UI
-stimulus: Submits a standard data retrieval request
-stimulusEnvironment: Peak Load (1000 concurrent users)
-artifact: API Gateway + Application Service
-response: Returns requested data
-responseMeasure: p95 < 200ms, p99 < 500ms
+source: PTP-enabled device processing timing events
+stimulus: Executes critical timing operations (offset/delay calc, state transitions)
+stimulusEnvironment: Peak Load (1000+ timing messages/s per port)
+artifact: PTP Core (state machine, algorithms)
+response: Completes timing-critical operations deterministically
+responseMeasure: p95 < 10µs per operation; no dynamic allocation
 relatedRequirements:
-  - REQ-NF-P-001
+  - REQ-NFR-PTP-001
+  - REQ-NFR-PTP-003
+  - REQ-NFR-PTP-005
+  - REQ-SYS-PTP-005
 relatedADRs:
-  - ADR-002
+  - ADR-001
 relatedViews:
   - logical
   - process
@@ -59,55 +64,147 @@ validationMethod: benchmark
 status: draft
 ```
 
-### QA-SC-002 Availability - Primary Database Failure
+ 
+### QA-SC-002 Availability - Timing Service Continuity
+
 ```yaml
 id: QA-SC-002
 qualityAttribute: Availability
-source: Hardware failure in primary DB node
-stimulus: Primary database becomes unreachable
+source: Grandmaster failure or network partition
+stimulus: Current grandmaster becomes unavailable; path changes occur
 stimulusEnvironment: Normal Operation
-artifact: Data Persistence Layer
-response: Automatic failover to standby
-responseMeasure: RTO < 60s, RPO = 0
+artifact: BMCA + Port State Machine
+response: Automatic re-election and resync without timing disruption
+responseMeasure: GM failover < 2s; availability ≥ 99.99%
 relatedRequirements:
-  - REQ-NF-R-002
+  - REQ-NFR-PTP-010
+  - REQ-NFR-PTP-013
+  - REQ-FUN-PTP-013
 relatedADRs:
-  - ADR-003
+  - ADR-001
 relatedViews:
+  - process
   - deployment
-  - data
 validationMethod: chaos test
 status: draft
 ```
 
-### QA-SC-003 Security - Credential Stuffing Attack
+ 
+### QA-SC-003 Security - Timing Message Protection
+
 ```yaml
 id: QA-SC-003
 qualityAttribute: Security
-source: Malicious actor
-stimulus: Automated login attempts (500 req/s distributed across IPs)
+source: Malicious actor on the timing network
+stimulus: Replay/injection of forged PTP messages
 stimulusEnvironment: Normal Operation
-artifact: Authentication subsystem
-response: Rate limiting, anomaly detection triggers, suspicious IPs blocked
-responseMeasure: > 95% attacks blocked, < 1% false positives, no user data compromised
+artifact: PTP Security Extensions
+response: Rejects unauthenticated/forged messages; preserves timing integrity
+responseMeasure: 0 accepted forged messages; integrity maintained under attack
 relatedRequirements:
-  - REQ-NF-S-001
+  - REQ-NFR-PTP-033
+  - REQ-NFR-PTP-039
 relatedADRs:
-  - ADR-004
+  - ADR-001
 relatedViews:
   - security
 validationMethod: security test
 status: draft
 ```
 
+ 
+### QA-SC-004 Reliability - Timing Accuracy Under Load
+
+```yaml
+id: QA-SC-004
+qualityAttribute: Reliability
+source: Network load and jitter
+stimulus: Background traffic at 80% utilization with bursty patterns
+stimulusEnvironment: Peak Load
+artifact: Timing algorithms (offset/delay, servo)
+response: Maintains specified timing accuracy
+responseMeasure: ±1µs (typical), ±100ns with HW timestamping
+relatedRequirements:
+  - REQ-NFR-PTP-001
+  - REQ-NFR-PTP-002
+  - REQ-NFR-PTP-003
+  - REQ-SYS-PTP-001
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - logical
+  - process
+validationMethod: benchmark
+status: draft
+```
+
+ 
+### QA-SC-005 Performance - Deterministic Execution
+
+```yaml
+id: QA-SC-005
+qualityAttribute: Performance
+source: Real-time scheduler
+stimulus: Repeated execution of critical code paths (state transitions, BMCA compare)
+stimulusEnvironment: Normal Operation
+artifact: PTP core execution paths
+response: Deterministic execution without dynamic allocation
+responseMeasure: Worst-case < 10µs; zero heap allocations
+relatedRequirements:
+  - REQ-NFR-PTP-005
+  - REQ-NFR-PTP-006
+  - REQ-NFR-PTP-007
+  - REQ-SYS-PTP-007
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - process
+validationMethod: benchmark
+status: draft
+```
+
+ 
+### QA-SC-006 Scalability - Large Network
+
+```yaml
+id: QA-SC-006
+qualityAttribute: Scalability
+source: System integrator
+stimulus: Deploy to a network of 1000+ PTP devices across 10+ domains
+stimulusEnvironment: Normal Operation
+artifact: PTP timing distribution (BC/TC/OC)
+response: Maintains accuracy and bounded CPU/memory usage
+responseMeasure: Accuracy meets REQ-NFR-PTP-001; CPU < 5%; memory < 1MB
+relatedRequirements:
+  - REQ-NFR-PTP-017
+  - REQ-NFR-PTP-018
+  - REQ-NFR-PTP-019
+  - REQ-NFR-PTP-021
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - deployment
+  - logical
+validationMethod: simulation
+status: draft
+```
+
+ 
 ## Coverage Matrix
+
 | Scenario ID | Quality Attribute | Requirements | ADRs | Views | Validation Method | Status |
 |-------------|-------------------|--------------|------|-------|-------------------|--------|
-| QA-SC-001 | Performance | REQ-NF-P-001 | ADR-002 | logical, process | benchmark | draft |
-| QA-SC-002 | Availability | REQ-NF-R-002 | ADR-003 | deployment, data | chaos test | draft |
-| QA-SC-003 | Security | REQ-NF-S-001 | ADR-004 | security | security test | draft |
+ 
+| QA-SC-001 | Performance | REQ-NFR-PTP-001, REQ-NFR-PTP-003, REQ-NFR-PTP-005, REQ-SYS-PTP-005 | ADR-001 | logical, process | benchmark | draft |
+| QA-SC-002 | Availability | REQ-NFR-PTP-010, REQ-NFR-PTP-013, REQ-FUN-PTP-013 | ADR-001 | process, deployment | chaos test | draft |
+| QA-SC-003 | Security | REQ-NFR-PTP-033, REQ-NFR-PTP-039 | ADR-001 | security | security test | draft |
+| QA-SC-004 | Reliability | REQ-NFR-PTP-001, REQ-NFR-PTP-002, REQ-NFR-PTP-003, REQ-SYS-PTP-001 | ADR-001 | logical, process | benchmark | draft |
+| QA-SC-005 | Performance | REQ-NFR-PTP-005, REQ-NFR-PTP-006, REQ-NFR-PTP-007, REQ-SYS-PTP-007 | ADR-001 | process | benchmark | draft |
+| QA-SC-006 | Scalability | REQ-NFR-PTP-017, REQ-NFR-PTP-018, REQ-NFR-PTP-019, REQ-NFR-PTP-021 | ADR-001 | deployment, logical | simulation | draft |
 
+ 
 ## Definition of Done
+ 
 - At least one scenario per prioritized quality attribute
 - Each scenario traces to at least one requirement
 - Each scenario traces to at least one architecture view and ADR
@@ -115,7 +212,9 @@ status: draft
 - Validation method defined
 - Gaps identified for missing attributes (mark as TODO)
 
+ 
 ## Review Checklist
+ 
 - [ ] Scenarios follow structured template
 - [ ] Metrics are quantifiable
 - [ ] No ambiguous adjectives ("fast", "secure") without metrics
