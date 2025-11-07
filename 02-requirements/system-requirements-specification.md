@@ -184,12 +184,12 @@ Scenario: Serialize Delay_Req message
   And Wireshark PTP dissector SHALL parse packet without errors
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - HAL network interface for packet send/receive
 - HAL timestamp interface for ingress/egress capture
 
-**Risks**: 
+**Risks**:
 
 - Message format correctness is critical for interoperability
 - Wireshark dissector used for validation (requires test infrastructure)
@@ -262,12 +262,12 @@ Scenario: Ignore inferior masters
   And no state transition callback emitted
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - REQ-F-001 (Announce message parsing)
 - HAL timer interface for announce timeout detection
 
-**Risks**: 
+**Risks**:
 
 - BMCA state machine has complex edge cases (e.g., simultaneous master loss and new master appearance)
 - Announce timeout must be configurable (2-10 intervals typical)
@@ -338,7 +338,7 @@ Scenario: Handle missing Follow_Up
   And wait for next Sync message
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - REQ-F-001 (message parsing: Sync, Follow_Up, Delay_Req, Delay_Resp)
 - HAL timestamp interface for T2 and T3 capture (hardware timestamping)
@@ -413,12 +413,12 @@ Scenario: Clamp frequency adjustment to hardware limits
   And integral term SHALL not continue growing (anti-windup)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - REQ-F-003 (clock offset calculation provides servo input)
 - HAL clock interface for frequency adjustment
 
-**Risks**: 
+**Risks**:
 
 - PI tuning is hardware-dependent (oscillator quality, network jitter)
 - Poor tuning causes slow convergence or instability (oscillation)
@@ -529,6 +529,70 @@ Scenario: Mock HAL for unit testing
 
 - HAL abstraction adds indirection (function pointer overhead ~2-5 CPU cycles)
 - Complex HALs may leak hardware details (e.g., timestamp buffer management)
+
+---
+
+### 2.4 System Behavior
+
+#### REQ-S-001: Graceful BMCA State Transitions
+
+**Trace to**: STR-STD-003, UC-002, ADR-002  
+**Priority**: P1 (High)  
+**Category**: System Behavior
+
+**Description**: The system SHALL perform graceful state transitions during BMCA re-evaluation (e.g., master changeover), ensuring no abrupt clock steps and no loss of synchronization beyond acceptable bounds.
+
+**Rationale**: BMCA changes may occur due to network dynamics or master failure. Graceful transitions minimize service disruption and time discontinuities.
+
+**Acceptance Criteria**:
+
+```gherkin
+Scenario: Master changeover without time discontinuity
+  Given the node is in SLAVE state synchronized to Master A
+  And a superior Master B begins transmitting Announce messages
+  When BMCA selects Master B and state transitions occur
+  Then the node SHALL avoid phase steps > 1 µs
+  And servo adjustments SHALL remain within hardware limits
+  And log "bmca_transition" with old/new master identities
+
+Scenario: Graceful demotion from MASTER to SLAVE
+  Given the node is MASTER and receives superior Announce
+  When BMCA demotes the node to SLAVE
+  Then transmission of Sync SHALL cease within 2 announce intervals
+  And the node SHALL enter LISTENING/UNCALIBRATED before SLAVE
+```
+
+**Dependencies**: REQ-F-002 (BMCA), REQ-F-004 (Servo)
+
+---
+
+#### REQ-S-004: Interoperability and Configuration Compatibility
+
+**Trace to**: STR-STD-004, UC-002, ADR-003  
+**Priority**: P1 (High)  
+**Category**: System Behavior
+
+**Description**: The system SHALL interoperate with commercial IEEE 1588 devices and support configuration parameters required for typical deployments (e.g., Priority1, domainNumber, announce/sync intervals) via management/configuration APIs.
+
+**Rationale**: Interoperability ensures adoption in mixed-vendor environments; configuration compatibility enables deployment without vendor lock-in.
+
+**Acceptance Criteria**:
+
+```gherkin
+Scenario: Accept Announce from commercial devices
+  Given a commercial PTP Grandmaster broadcasting Announce
+  When receiving and validating Announce
+  Then fields SHALL be parsed per REQ-F-001
+  And interoperability SHALL be documented for vendor devices used in tests
+
+Scenario: Configure BMCA parameters
+  Given configuration API access
+  When setting Priority1, domainNumber, and logAnnounceInterval
+  Then values SHALL take effect within one announce interval
+  And BMCA decisions SHALL reflect updated parameters
+```
+
+**Dependencies**: REQ-F-001 (message parsing), REQ-F-002 (BMCA)
 
 ---
 
@@ -883,6 +947,37 @@ Scenario: Null pointer safety
 
 ---
 
+### 3.4 Usability
+
+#### REQ-NF-U-001: Learnability and Developer Usability
+
+**Trace to**: STR-017, STR-018, STR-019; STORY-001, STORY-002  
+**Priority**: P2 (Medium)  
+**Category**: Usability
+
+**Description**: The API and documentation SHALL enable a new developer to integrate and obtain basic synchronization within one working day, with a quick-start guide and runnable examples.
+
+**Rationale**: Clear APIs and documentation reduce integration time and errors for adopters.
+
+**Acceptance Criteria**:
+
+```gherkin
+Scenario: Quick-start integration
+  Given the quick-start guide and example projects
+  When a developer follows the documented steps on a supported platform
+  Then the example SHALL build and run without code changes
+  And the node SHALL reach SLAVE state and report offset within 10 minutes
+
+Scenario: API discoverability
+  Given the public headers and docs
+  When searching for functions to initialize and start PTP
+  Then functions ptp_init(), ptp_start() SHALL be clearly documented with parameters and return codes
+```
+
+**Dependencies**: REQ-F-005 (HAL interfaces), build system docs (REQ-NF-M-002)
+
+---
+
 ### 3.3 Portability
 
 #### REQ-NF-M-001: Platform Independence
@@ -1047,11 +1142,11 @@ Scenario: Cross-compile for ARM Cortex-M7
 **Addressing**:
 
 - **Unicast**: Individual PTP clock MAC addresses
-- **Multicast**: 
+- **Multicast**:
   - `01:1B:19:00:00:00` (PTP multicast, Event messages)
   - `01:80:C2:00:00:0E` (PTP peer delay, Link-local)
 
-**Message Types**: 
+**Message Types**:
 
 - Event messages (timestamped): Sync, Delay_Req, Pdelay_Req, Pdelay_Resp
 - General messages (not timestamped): Follow_Up, Delay_Resp, Announce, Signaling, Management
@@ -1189,6 +1284,9 @@ void ptp_set_log_callback(ptp_log_callback_t callback);
 | **REQ-NF-S-002** | STR-SEC-002 | P0 | 01A |
 | **REQ-NF-M-001** | STR-PORT-003 | P0 | 01A |
 | **REQ-NF-M-002** | STR-PORT-004 | P1 | 01A |
+| **REQ-S-001** | STR-STD-003 | P1 | 01B |
+| **REQ-S-004** | STR-STD-004 | P1 | 01B |
+| **REQ-NF-U-001** | STR-017, STR-018, STR-019 | P2 | 01A |
 
 ### 6.2 Requirements → Architecture Decisions (To Be Created)
 
@@ -1278,7 +1376,7 @@ void ptp_set_log_callback(ptp_log_callback_t callback);
 **Next Review**: 2025-11-08 (Team meeting)  
 **Approval Required**: Technical Lead, Project Sponsor
 
-**Traceability Status**: 
+**Traceability Status**:
 
 - ✅ All requirements trace to stakeholder requirements
 - ⏳ Architecture decisions (ADR-XXX) to be created in Phase 03

@@ -5,7 +5,7 @@ phase: "02-requirements"
 version: "1.0.0"
 author: "Requirements Engineering Team"
 date: "2025-10-10"
-status: "deprecated"
+status: "deferred"  # Archived Post-MVP scope per orphan triage (ADR-013)
 traceability:
   stakeholderRequirements:
     # DEFERRED TO POST-MVP: Cross-architecture requirements out of scope for Phase 01 MVP
@@ -336,6 +336,9 @@ The system shall provide integration documentation including standards traceabil
 
 ### REQ-F-CROSSARCH-002: Network Infrastructure Integration and Coordination
 
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013 (multi-layered architecture), REQ-F-005 (HAL), REQ-NF-M-001 (platform independence)
+
 #### REQ-F-CROSSARCH-002.001: Network Layer Integration and Coordination
 
 The system shall integrate network layers including Layer 2 bridging coordination, Layer 3 routing integration, protocol coordination, and comprehensive network layer management.
@@ -377,6 +380,9 @@ The system shall coordinate network configuration including policy integration, 
 The system shall manage network scalability including scalability coordination, evolution support, migration management, and comprehensive network evolution integration.
 
 ### REQ-F-CROSSARCH-003: Professional Audio Integration and Workflow Coordination
+
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-F-001 (message foundation), REQ-NF-P-001 (timing accuracy)
 
 #### REQ-F-CROSSARCH-003.001: Audio Protocol Integration and Coordination
 
@@ -420,6 +426,9 @@ The system shall coordinate audio evolution including standards evolution, techn
 
 ### REQ-F-CROSSARCH-004: Real-Time System Coordination and TSN Integration
 
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-F-003 (offset calc), REQ-F-004 (servo), REQ-NF-P-002 (determinism)
+
 #### REQ-F-CROSSARCH-004.001: Time-Sensitive Network Orchestration
 
 The system shall orchestrate TSN including TSN profile coordination, timing integration, deterministic behavior management, and comprehensive TSN orchestration across standards.
@@ -461,6 +470,9 @@ The system shall validate deterministic behavior including behavior verification
 The system shall evolve real-time systems including optimization coordination, evolution management, performance enhancement, and comprehensive real-time system evolution.
 
 ### REQ-F-CROSSARCH-005: Security Architecture Integration and Coordination
+
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-NF-S-001 (input validation), REQ-NF-S-002 (memory safety)
 
 #### REQ-F-CROSSARCH-005.001: Multi-Layer Security Architecture Coordination
 
@@ -504,6 +516,9 @@ The system shall coordinate security evolution including security standards coor
 
 ### REQ-F-CROSSARCH-006: Quality of Service and Performance Integration
 
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-NF-P-001 (accuracy), REQ-NF-P-002 (WCET), REQ-NF-P-003 (resource efficiency)
+
 #### REQ-F-CROSSARCH-006.001: Cross-Standards QoS Coordination
 
 The system shall coordinate QoS including QoS integration across standards, performance coordination, quality management integration, and comprehensive QoS coordination framework.
@@ -546,6 +561,9 @@ The system shall coordinate performance evolution including evolution integratio
 
 ### REQ-F-CROSSARCH-007: Management and Monitoring Integration Framework
 
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-NF-M-002 (build portability), REQ-NF-U-001 (learnability)
+
 #### REQ-F-CROSSARCH-007.001: Unified Management Interface Integration
 
 The system shall integrate management interfaces including unified management coordination, interface integration, management coordination, and comprehensive management interface integration across standards.
@@ -587,6 +605,9 @@ The system shall integrate performance dashboards including visualization coordi
 The system shall coordinate management evolution including evolution integration, standards coordination, management enhancement coordination, and comprehensive management evolution across standards.
 
 ### REQ-F-CROSSARCH-008: Compliance, Certification, and Evolution Framework
+
+**Status:** deferred (Post-MVP)
+**Traces to:** ADR-013, REQ-F-002 (BMCA robustness), REQ-NF-S-001 (validation), REQ-NF-M-001 (platform independence)
 
 #### REQ-F-CROSSARCH-008.001: Multi-Standard Compliance Coordination
 
@@ -633,49 +654,105 @@ The system shall prepare future standards including future integration, standard
 ### Integration Performance Requirements
 
 - **REQ-NF-CROSSARCH-001:** Cross-standards integration overhead shall not exceed 5% additional processing latency for any integrated standard
-- **REQ-NF-CROSSARCH-002:** System startup and integration initialization shall complete within 60 seconds for full system coordination
-- **REQ-NF-CROSSARCH-003:** Standards coordination and synchronization shall complete within 10 seconds for configuration changes
-- **REQ-NF-CROSSARCH-004:** Real-time integration performance shall maintain deterministic behavior with bounded integration latency
-- **REQ-NF-CROSSARCH-005:** Multi-standard operation shall support 1000+ concurrent integrated operations with maintained performance
+- **REQ-NF-CROSSARCH-002:** System startup and integration initialization shall complete within 60 seconds for full system coordination  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-P-003
+- **REQ-NF-CROSSARCH-003:** Standards coordination and synchronization shall complete within 10 seconds for configuration changes  
+  Status: deferred  
+  Traces to: ADR-013, REQ-F-002
+- **REQ-NF-CROSSARCH-004:** Real-time integration performance shall maintain deterministic behavior with bounded integration latency  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-P-002
+- **REQ-NF-CROSSARCH-005:** Multi-standard operation shall support 1000+ concurrent integrated operations with maintained performance  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-P-003
 
 ### Scalability and Capacity Requirements
 
-- **REQ-NF-CROSSARCH-006:** Architecture integration shall scale to support minimum 100 concurrent standards implementations
-- **REQ-NF-CROSSARCH-007:** Network integration shall support minimum 100,000 managed network elements with coordinated operation
-- **REQ-NF-CROSSARCH-008:** Audio integration shall support minimum 10,000 concurrent audio streams with full coordination
-- **REQ-NF-CROSSARCH-009:** Security integration shall support minimum 1,000,000 concurrent security sessions with coordination
-- **REQ-NF-CROSSARCH-010:** Management integration shall support minimum 10,000 concurrent management sessions with unified control
+- **REQ-NF-CROSSARCH-006:** Architecture integration shall scale to support minimum 100 concurrent standards implementations  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-007:** Network integration shall support minimum 100,000 managed network elements with coordinated operation  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-008:** Audio integration shall support minimum 10,000 concurrent audio streams with full coordination  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-009:** Security integration shall support minimum 1,000,000 concurrent security sessions with coordination  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-010:** Management integration shall support minimum 10,000 concurrent management sessions with unified control  
+  Status: deferred  
+  Traces to: ADR-013
 
 ### Reliability and Availability Requirements
 
-- **REQ-NF-CROSSARCH-011:** Integrated system availability shall exceed 99.99% with coordinated high-availability operation
-- **REQ-NF-CROSSARCH-012:** Integration failure recovery shall complete within 30 seconds with automatic coordination restoration
-- **REQ-NF-CROSSARCH-013:** Standards coordination consistency shall maintain 100% accuracy across all integrated standards
-- **REQ-NF-CROSSARCH-014:** Cross-standards data integrity shall achieve 100% accuracy with comprehensive validation
-- **REQ-NF-CROSSARCH-015:** Integration fault tolerance shall provide graceful degradation with maintained core functionality
+- **REQ-NF-CROSSARCH-011:** Integrated system availability shall exceed 99.99% with coordinated high-availability operation  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-012:** Integration failure recovery shall complete within 30 seconds with automatic coordination restoration  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-013:** Standards coordination consistency shall maintain 100% accuracy across all integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-014:** Cross-standards data integrity shall achieve 100% accuracy with comprehensive validation  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-S-001
+- **REQ-NF-CROSSARCH-015:** Integration fault tolerance shall provide graceful degradation with maintained core functionality  
+  Status: deferred  
+  Traces to: ADR-013
 
 ### Interoperability and Compatibility Requirements
 
-- **REQ-NF-CROSSARCH-016:** Multi-standard interoperability shall achieve 100% compatibility across all implemented standards
-- **REQ-NF-CROSSARCH-017:** Cross-platform integration shall support Windows, Linux, macOS, embedded systems with consistent operation
-- **REQ-NF-CROSSARCH-018:** Vendor interoperability shall support minimum 20 major vendor implementations with seamless integration
-- **REQ-NF-CROSSARCH-019:** Version compatibility shall maintain backward compatibility with previous standards versions
-- **REQ-NF-CROSSARCH-020:** Future compatibility shall support standards evolution with migration pathways and compatibility assurance
+- **REQ-NF-CROSSARCH-016:** Multi-standard interoperability shall achieve 100% compatibility across all implemented standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-017:** Cross-platform integration shall support Windows, Linux, macOS, embedded systems with consistent operation  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-M-001
+- **REQ-NF-CROSSARCH-018:** Vendor interoperability shall support minimum 20 major vendor implementations with seamless integration  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-019:** Version compatibility shall maintain backward compatibility with previous standards versions  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-020:** Future compatibility shall support standards evolution with migration pathways and compatibility assurance  
+  Status: deferred  
+  Traces to: ADR-013
 
 ### Security and Compliance Requirements
 
-- **REQ-NF-CROSSARCH-021:** Integration security shall maintain security posture across all integrated standards without degradation
-- **REQ-NF-CROSSARCH-022:** Cross-standards authentication shall provide unified security with comprehensive access control
-- **REQ-NF-CROSSARCH-023:** Compliance coordination shall maintain 100% compliance across all integrated standards
-- **REQ-NF-CROSSARCH-024:** Security integration overhead shall not exceed 3% additional processing for security coordination
-- **REQ-NF-CROSSARCH-025:** Audit trail integration shall provide comprehensive audit trails across all integrated standards
+- **REQ-NF-CROSSARCH-021:** Integration security shall maintain security posture across all integrated standards without degradation  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-S-001, REQ-NF-S-002
+- **REQ-NF-CROSSARCH-022:** Cross-standards authentication shall provide unified security with comprehensive access control  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-S-001
+- **REQ-NF-CROSSARCH-023:** Compliance coordination shall maintain 100% compliance across all integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-024:** Security integration overhead shall not exceed 3% additional processing for security coordination  
+  Status: deferred  
+  Traces to: ADR-013, REQ-NF-P-003
+- **REQ-NF-CROSSARCH-025:** Audit trail integration shall provide comprehensive audit trails across all integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
 
 ### Management and Monitoring Requirements
 
-- **REQ-NF-CROSSARCH-026:** Unified management shall provide single point of control for all integrated standards
-- **REQ-NF-CROSSARCH-027:** Monitoring integration shall provide comprehensive visibility across all integrated standards
-- **REQ-NF-CROSSARCH-028:** Configuration management shall support atomic configuration changes across integrated standards
-- **REQ-NF-CROSSARCH-029:** Event correlation shall process 100,000+ events per second with cross-standards correlation
+- **REQ-NF-CROSSARCH-026:** Unified management shall provide single point of control for all integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-027:** Monitoring integration shall provide comprehensive visibility across all integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-028:** Configuration management shall support atomic configuration changes across integrated standards  
+  Status: deferred  
+  Traces to: ADR-013
+- **REQ-NF-CROSSARCH-029:** Event correlation shall process 100,000+ events per second with cross-standards correlation  
+  Status: deferred  
+  Traces to: ADR-013
 - **REQ-NF-CROSSARCH-030:** Management response time shall not exceed 5 seconds for any management operation across standards
 
 ## 5. Interface Requirements (IR)
