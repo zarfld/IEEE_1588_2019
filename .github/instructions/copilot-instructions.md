@@ -2,70 +2,68 @@
 applyTo: "**"
 ---
 
-# Standards Layer AI Coding Instructions
+# IEEE 1588-2019 PTP Implementation - AI Coding Instructions
 
 ## CRITICAL: Hardware-Agnostic Protocol Implementation
 
-The Standards layer (`lib/Standards/`) is the **pure protocol implementation layer** that MUST remain completely hardware and vendor agnostic.
+This repository implements the **IEEE 1588-2019 Precision Time Protocol (PTP)** as a pure, hardware and platform agnostic library that MUST remain completely independent of vendor-specific code and operating systems.
 
-## Working Principles for Standards Layer
+## Working Principles for IEEE 1588-2019 Implementation
 
-- **Understand protocols before implementing** - study IEEE specifications and state machines thoroughly
-- **No Fake, No Stubs, no Simulations** - implement complete protocol logic, not simplified placeholders
-- **No implementation-based assumptions** - use IEEE specification or analysis results only (ask if required)
-- **No false advertising** - prove and ensure protocol compliance and correctness
-- **Never break protocol APIs** in ways that violate IEEE standards - prefer fixing implementation instead
+- **Understand IEEE 1588-2019 PTP protocol before implementing** - study specification thoroughly
+- **No Fake, No Stubs, no Simulations** - implement complete PTP protocol logic, not simplified placeholders
+- **No implementation-based assumptions** - use IEEE 1588-2019 specification or analysis results only (ask if required)
+- **No false advertising** - prove and ensure IEEE 1588-2019 compliance and correctness
+- **Never break PTP protocol APIs** in ways that violate IEEE 1588-2019 - prefer fixing implementation instead
 - **Prevent dead code or orphan files** - fix code rather than creating new versions, ensure ALL code compiles
-- **Always reference ### Documentation Requirements with Copyright Compliance
+- **Always reference IEEE 1588-2019 specification sections** when implementing PTP protocol features
 
-### Function Documentation with IEEE Context
+### Function Documentation with IEEE 1588-2019 Context
 ```cpp
 /**
- * @brief Parse IEEE 1722.1 AVDECC Entity descriptor from network packet
+ * @brief Parse IEEE 1588-2019 PTP Sync message from network packet
  * 
- * Validates and extracts entity descriptor according to IEEE 1722.1-2021
- * specification section 7.2.1. Performs integrity checks including AEM
- * checksum validation per specification requirements.
+ * Validates and extracts Sync message according to IEEE 1588-2019
+ * specification section 13.6. Performs integrity checks including
+ * timestamp validation per specification requirements.
  *
- * @param packet_data Raw ethernet packet data
+ * @param packet_data Raw network packet data
  * @param packet_length Length of packet data in bytes
- * @param entity_desc Output buffer for parsed descriptor
+ * @param sync_msg Output buffer for parsed Sync message
  * @return 0 on success, negative error code on failure
  * 
- * @note Implements IEEE 1722.1-2021 Table 7.1 entity descriptor format
- * @see IEEE 1722.1-2021, Section 7.2.1 "ENTITY descriptor"
- * @see IEEE 1722.1-2021, Section 7.3.5 "AEM checksum calculation"
+ * @note Implements IEEE 1588-2019 Table 34 Sync message format
+ * @see IEEE 1588-2019, Section 13.6 "Sync message"
+ * @see IEEE 1588-2019, Section 11.3 "Delay request-response mechanism"
  * 
- * IMPORTANT: This implementation is based on understanding of IEEE 1722.1-2021
+ * IMPORTANT: This implementation is based on understanding of IEEE 1588-2019
  * specification. No copyrighted content from IEEE documents is reproduced.
  * Refer to original IEEE specification for authoritative requirements.
  */
-int avdecc_parse_entity_descriptor(const uint8_t* packet_data, 
-                                   size_t packet_length,
-                                   avdecc_entity_descriptor_t* entity_desc);
+int ptp_parse_sync_message(const uint8_t* packet_data, 
+                          size_t packet_length,
+                          ptp_sync_message_t* sync_msg);
 ```
 
 ### Copyright-Compliant Implementation Comments
 ```cpp
 // ✅ CORRECT - Reference without reproduction
-// Implements entity descriptor parsing per IEEE 1722.1-2021 Section 7.2.1
-#define ENTITY_DESCRIPTOR_TYPE 0x0000  // As specified in IEEE 1722.1-2021
+// Implements Sync message parsing per IEEE 1588-2019 Section 13.6
+#define PTP_MESSAGETYPE_SYNC 0x0  // As specified in IEEE 1588-2019
 
 // ❌ WRONG - Reproducing copyrighted content
 /*
 // DON'T DO THIS - This reproduces copyrighted IEEE content:
-// "The entity_descriptor field shall contain the following sub-fields:
-//  descriptor_type (16 bits): shall be set to ENTITY (0x0000)
-//  descriptor_index (16 bits): shall be set to 0x0000..."
+// "The Sync message shall be transmitted by a PTP Port in the MASTER state.
+//  It shall include the precise time that the message was transmitted..."
 // This is direct reproduction of IEEE copyrighted text!
 */
 
 // ✅ CORRECT - Original implementation based on specification understanding
-struct entity_descriptor {
-    uint16_t descriptor_type;    // IEEE 1722.1-2021 Table 7.1 
-    uint16_t descriptor_index;   // IEEE 1722.1-2021 Table 7.1
-    uint64_t entity_id;         // IEEE 1722.1-2021 Table 7.1
-    uint64_t entity_model_id;   // IEEE 1722.1-2021 Table 7.1
+struct ptp_sync_message {
+    uint8_t message_type;        // IEEE 1588-2019 Table 19
+    uint8_t version_ptp;        // IEEE 1588-2019 Table 19
+    uint64_t origin_timestamp;  // IEEE 1588-2019 Table 34
     // ... implementation based on specification understanding
 };
 ```
@@ -94,7 +92,7 @@ struct entity_descriptor {
 ```cpp
 // ❌ NEVER include vendor-specific headers
 #include "intel_ethernet_hal.h"           // NO - Intel specific
-#include "../../intel_avb/include/*.h"    // NO - Intel specific  
+#include "../../vendor_specific/include/*.h"    // NO - Vendor specific  
 #include "../../common/hal/network_hal.h" // NO - HAL abstraction
 #include <linux/if_packet.h>              // NO - OS specific
 #include <winsock2.h>                     // NO - OS specific
@@ -102,21 +100,22 @@ struct entity_descriptor {
 
 ### REQUIRED in Standards Layer
 ```cpp
-// ✅ Only standards and protocol headers
-#include "jdksavdecc.h"                   // IEEE 1722.1 protocol
-#include "ieee1722_avtp.h"                // IEEE 1722 AVTP
-#include "ieee8021as_gptp.h"              // IEEE 802.1AS gPTP
-#include "avnu_milan.h"                   // AVnu Milan extensions
+// ✅ Only IEEE 1588-2019 protocol headers
+#include "ptp_types.h"                    // IEEE 1588-2019 data types
+#include "ptp_messages.h"                 // IEEE 1588-2019 message formats
+#include "ptp_clock.h"                    // IEEE 1588-2019 clock model
+#include "ptp_bmca.h"                     // IEEE 1588-2019 BMCA
 ```
 
 ## Architecture Compliance
 
 ### Standards Layer Responsibility
-- **Protocol state machines** (IEEE 1722.1 AVDECC, IEEE 1722 AVTP, IEEE 802.1AS gPTP)
-- **Packet format handling** (parsing, validation, construction)
-- **Protocol calculations** (timing, addressing, checksums)
-- **Standard-defined structures** and constants
-- **Protocol compliance validation**
+- **Protocol state machines** (IEEE 1588-2019 PTP state protocol per Section 9.2)
+- **Packet format handling** (parsing, validation, construction per Section 13)
+- **Protocol calculations** (offset computation, delay mechanisms per Section 11)
+- **Standard-defined structures** and constants (data types per Section 5)
+- **Clock synchronization** (Best Master Clock Algorithm per Section 9.3)
+- **Protocol compliance validation** (conformance requirements per Section 20)
 
 ### Interface Pattern for Hardware Access
 ```cpp
@@ -285,27 +284,35 @@ if (net_interface->capabilities & NETWORK_CAP_HARDWARE_TIMESTAMP) {
 
 ## Protocol Implementation Guidelines
 
-### IEEE 1722.1 AVDECC
-- Use jdksavdecc-c library for all packet structures
-- Implement AEM command/response state machines according to IEEE 1722.1-2021
-- Handle Milan extensions (GET_DYNAMIC_INFO command 0x004b, etc.)
-- Calculate proper AEM checksums using CRC32 over descriptor excluding checksum field
-- Support available_index increment correctly (only on actual state change)
-- Include all mandatory descriptors (ENTITY, CONFIGURATION, STREAM_INPUT/OUTPUT, AVB_INTERFACE)
+### IEEE 1588-2019 PTP Core
+- Implement PTP message formats per IEEE 1588-2019 Section 13 (Header, Sync, Delay_Req, Follow_Up, Delay_Resp, Pdelay_Req, Pdelay_Resp, Pdelay_Resp_Follow_Up, Announce, Signaling, Management)
+- Implement Best Master Clock Algorithm (BMCA) according to IEEE 1588-2019 Section 9.3
+- Handle delay request-response mechanism per Section 11.3 with nanosecond precision
+- Handle peer-to-peer delay mechanism per Section 11.4 with path delay corrections  
+- Support clock synchronization accuracy in sub-microsecond range (Section 1 scope)
+- Implement PTP state machine per Section 9.2 (INITIALIZING, FAULTY, DISABLED, LISTENING, PRE_MASTER, MASTER, PASSIVE, UNCALIBRATED, SLAVE)
+- Support Ordinary Clock, Boundary Clock, and Transparent Clock device types (Section 6.5)
+- Validate packet headers against IEEE specification message formats per Section 13
+- Implement timestamp handling with correctionField updates per specification
 
-### IEEE 1722 AVTP
-- Support all defined stream formats (AAF, CRF, TSCF) per IEEE 1722-2016
-- Implement proper timestamp handling with presentation time validation
-- Handle stream reservation coordination with accurate timing requirements
-- Support Milan redundancy requirements (primary/secondary stream pairs)
-- Validate packet headers against IEEE specification table formats
+### IEEE 1588-2019 Data Sets and Management
+- Implement all mandatory data sets per Section 8 (defaultDS, currentDS, parentDS, timePropertiesDS, portDS)
+- Support optional management messages per Section 15 for configuration and monitoring
+- Handle TLV (Type-Length-Value) entities per Section 14 for extensibility
+- Support UTC offset and leap second handling per timescale requirements (Section 7.2)
 
-### IEEE 802.1AS gPTP
-- Implement PTP state machines (Master/Slave selection) per IEEE 802.1AS
-- Handle sync/follow_up/pdelay message processing with nanosecond precision
-- Calculate path delay and offset corrections according to specification algorithms
-- Support grandmaster clock selection algorithm with proper priority comparisons
-- Maintain ±80ns synchronization accuracy for Milan compliance
+### IEEE 1588-2019 Transport Mappings
+- Support UDP/IPv4 transport per Annex C (multicast addresses, port numbers)
+- Support UDP/IPv6 transport per Annex D (multicast addresses, scope)
+- Support IEEE 802.3 Ethernet transport per Annex E (Layer 2 with Ethertype)
+- Implement proper timestamp points per Section 7.3.4 for each transport
+
+### IEEE 1588-2019 Profiles and Optional Features
+- Support Default PTP Profiles per Annex I (Delay Request-Response, Peer-to-Peer)
+- Implement unicast message negotiation per Section 16.1 (optional)
+- Support path trace mechanism per Section 16.2 (optional)
+- Implement alternate timescale offsets per Section 16.3 (optional)
+- Support security mechanisms per Section 16.14 and Annex P (optional)
 
 ## Clean Submit Rules for Standards
 
@@ -322,24 +329,24 @@ if (net_interface->capabilities & NETWORK_CAP_HARDWARE_TIMESTAMP) {
 ### Function Documentation with IEEE Context
 ```cpp
 /**
- * @brief Parse IEEE 1722.1 AVDECC Entity descriptor from network packet
+ * @brief Parse IEEE 1588-2019 PTP Announce message from network packet
  * 
- * Validates and extracts entity descriptor according to IEEE 1722.1-2021
- * specification section 7.2.1. Performs integrity checks including AEM
- * checksum validation per specification requirements.
+ * Validates and extracts Announce message according to IEEE 1588-2019
+ * specification section 13.5. Performs integrity checks including BMCA
+ * data validation per specification requirements.
  *
- * @param packet_data Raw ethernet packet data
+ * @param packet_data Raw network packet data
  * @param packet_length Length of packet data in bytes
- * @param entity_desc Output buffer for parsed descriptor
+ * @param announce_msg Output buffer for parsed Announce message
  * @return 0 on success, negative error code on failure
  * 
- * @note Implements IEEE 1722.1-2021 Table 7.1 entity descriptor format
- * @see IEEE 1722.1-2021, Section 7.2.1 "ENTITY descriptor"
- * @see IEEE 1722.1-2021, Section 7.3.5 "AEM checksum calculation"
+ * @note Implements IEEE 1588-2019 Table 27 Announce message format
+ * @see IEEE 1588-2019, Section 13.5 "Announce message"
+ * @see IEEE 1588-2019, Section 9.3 "Best master clock algorithm"
  */
-int avdecc_parse_entity_descriptor(const uint8_t* packet_data, 
-                                   size_t packet_length,
-                                   avdecc_entity_descriptor_t* entity_desc);
+int ptp_parse_announce_message(const uint8_t* packet_data, 
+                               size_t packet_length,
+                               ptp_announce_message_t* announce_msg);
 ```
 
 ### Standards Compliance Notes
@@ -354,38 +361,82 @@ int avdecc_parse_entity_descriptor(const uint8_t* packet_data,
 The Standards layer should compile independently:
 ```cmake
 # Standards layer has NO hardware dependencies
-add_library(openavnu_standards STATIC
-    src/ieee1722_avtp.c
-    src/ieee1722_1_avdecc.c  
-    src/ieee8021as_gptp.c
-    src/avnu_milan.c
+add_library(ieee1588_2019_ptp STATIC
+    src/ptp_messages.c
+    src/ptp_clock.c  
+    src/ptp_bmca.c
+    src/ptp_state_machine.c
 )
 
 # Only protocol headers, no hardware/HAL
-target_include_directories(openavnu_standards PUBLIC
+target_include_directories(ieee1588_2019_ptp PUBLIC
     include/
-    ../thirdparty/jdksavdecc-c/include/
 )
 
 # NO hardware libraries linked to Standards
-# target_link_libraries(openavnu_standards intel_ethernet_hal)  # ❌ WRONG
+# target_link_libraries(ieee1588_2019_ptp vendor_hal)  # ❌ WRONG
 ```
 
 ### Testing Framework Integration
 Use unified testing framework for protocol validation:
 ```cmake
 # Protocol compliance tests (hardware-independent)
-add_executable(standards_protocol_tests
-    tests/test_ieee1722_compliance.c
-    tests/test_avdecc_state_machines.c
-    tests/test_milan_extensions.c
+add_executable(ptp_protocol_tests
+    tests/test_ptp_messages.c
+    tests/test_ptp_bmca.c
+    tests/test_ptp_state_machine.c
 )
 
-target_link_libraries(standards_protocol_tests 
-    openavnu_standards 
-    CppUTest
+target_link_libraries(ptp_protocol_tests 
+    ieee1588_2019_ptp 
+    GTest::gtest_main
+    unity
 )
 ```
+
+## Project Stakeholders
+
+### Primary Stakeholders
+- **Makers & Developers** - Integrate library into products; need easy API, clear docs, examples
+- **Audio Equipment Manufacturers** - Adopt in products; need certification-ready, reliable implementations
+- **System Integrators** - Build multi-vendor systems; need interoperability
+- **QA/Test Engineers** - Validate conformity; need conformity test suite
+- **Standards Bodies** - Ensure compliance; need conformity documentation
+- **Project Maintainers** - Long-term support; need sustainable architecture
+
+## Technical Requirements
+
+### Platform Independence (CRITICAL)
+- **Hardware agnostic** - compilable without any vendor drivers or hardware headers
+- **OS agnostic** - NO platform-specific code (Windows, Linux, RTOS)
+- **Vendor agnostic** - NO vendor-specific implementations
+- Platform-specific code belongs in OS/Vendor specific wrappers/abstractions
+
+### Real-Time Constraints
+- **Memory allocation** - Static allocation preferred, avoid dynamic allocation in critical paths
+- **Non-blocking calls** - No blocking operations in protocol processing
+- **Deterministic timing** - Predictable execution times for time-critical operations
+- **Jitter minimization** - Priority: Jitter > Latency > Throughput
+
+### HAL (Hardware Abstraction Layer)
+- **Interface Style**: C function pointers (not C++ virtual functions)
+- **Error Handling**: Return codes (not exceptions or callbacks)
+- **Packaging**: Monolithic library with modular optional features
+
+### Build System
+- **System**: CMake (primary build system)
+- **Dependencies**: Self-contained (minimal external dependencies)
+- **Test Framework**: Google Test + Unity for comprehensive testing
+
+### Implementation Approach
+- **Phase**: Vertical slice (complete features end-to-end)
+- **Testing**: TDD (Test-Driven Development) with unit tests + conformance suite
+- **Optional Features**: Compile-time selection (via CMake options)
+
+### Performance Targets
+- **RT Target CPU**: ARM Cortex-M7 (embedded real-time systems)
+- **Windows Target CPU**: x86-64 (desktop/server systems)
+- **Profiling**: Built-in performance monitoring + external tools (SystemView compatible)
 
 ## Performance and Correctness
 
