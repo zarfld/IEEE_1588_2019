@@ -35,27 +35,36 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 ## 🎯 **Functional Requirements Analysis**
 
 ### **REQ-FR-PTPA-001: Clock Synchronization**
+
+**Traces to:** REQ-F-003 (offset computation), REQ-NF-P-001 (accuracy), ADR-003
 **Description**: Implement precise time synchronization between network nodes
 **Current Status**: ⚠️ PARTIAL - Basic types exist, state machines missing
 **Requirements**:
+
 - Clock state machine (Master/Slave/Passive/Listening/Initializing/Faulty/Disabled)
 - Synchronization message handling (Sync, Follow_Up, Delay_Req, Delay_Resp)
 - Path delay measurement mechanisms
 - Offset and drift calculations
 
 ### **REQ-FR-PTPA-002: Best Master Clock Algorithm (BMCA)**
+
+**Traces to:** REQ-F-002 (BMCA), REQ-NF-P-002 (determinism), ADR-003
 **Description**: Implement grandmaster selection and failover
 **Current Status**: 🔴 MISSING - No BMCA implementation found
 **Requirements**:
+
 - Dataset comparison algorithm per IEEE 1588-2019 Section 9.3
 - Announce message processing
 - Clock quality evaluation (Class, Accuracy, OffsetScaledLogVariance)
 - State decision algorithm
 
 ### **REQ-FR-PTPA-003: Message Processing**
+
+**Traces to:** REQ-F-001 (message types), REQ-NF-S-001 (validation), ADR-003
 **Description**: Handle all PTP message types per specification
 **Current Status**: ⚠️ PARTIAL - MessageType enum exists, handlers missing
 **Requirements**:
+
 - Sync message generation and processing
 - Announce message handling  
 - PDelay_Req/Resp mechanism
@@ -63,9 +72,12 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Signaling message support
 
 ### **REQ-FR-PTPA-004: Transport Layer Support**
+
+**Traces to:** REQ-F-001 (PTP messages), REQ-NF-M-001 (portability), ADR-002
 **Description**: Support required transport mechanisms
 **Current Status**: 🔴 MISSING - No transport layer found
 **Requirements**:
+
 - IEEE 802.3 Ethernet transport (mandatory)
 - UDP/IPv4 transport (optional but common)
 - UDP/IPv6 transport (optional)
@@ -73,9 +85,12 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Hardware timestamping interface
 
 ### **REQ-FR-PTPA-005: Management Protocol**
+
+**Traces to:** REQ-FUN-PTP-033..040 (management set), REQ-NF-M-002 (config), ADR-003
 **Description**: Configuration and monitoring capabilities
 **Current Status**: 🔴 MISSING - No management found
 **Requirements**:
+
 - Management TLV processing
 - GET/SET operations for configuration
 - Clock dataset management
@@ -83,18 +98,25 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Subscription handling
 
 ### **REQ-FR-PTPA-006: Security Features (IEEE 1588-2019 Enhancements)**
+
+**Traces to:** REQ-FUN-PTP-025..032 (security TLVs), REQ-NF-S-001/002, ADR-003
 **Description**: Authentication and integrity protection
 **Current Status**: 🔴 MISSING - No security implementation
 **Requirements**:
+
 - Authentication TLV support
 - Security associations
 - Key management interface
 - Integrity protection mechanisms
 
 ### **REQ-FR-PTPA-007: Multi-Domain Support (IEEE 1588-2019 Enhancement)**
+
+**Status:** deferred (Post-MVP)
+**Traces to:** REQ-FUN-PTP-021..024 (multi-domain), ADR-013
 **Description**: Support multiple PTP domains
 **Current Status**: 🔴 MISSING - Single domain only
 **Requirements**:
+
 - Domain isolation mechanisms
 - Cross-domain time distribution
 - Domain dataset management
@@ -103,32 +125,40 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 ## 🔧 **Non-Functional Requirements Analysis**
 
 ### **NFR-1588-001: Timing Accuracy**
+
 **Description**: Achieve required synchronization precision
 **Requirements**:
+
 - Sub-microsecond accuracy (target: ±1µs for software-only)
 - Nanosecond precision with hardware timestamping
 - Jitter minimization (<100ns variation)
 - Frequency stability maintenance
 
 ### **NFR-1588-002: Performance Requirements**
+
 **Description**: Real-time operation constraints  
 **Requirements**:
+
 - Deterministic message processing (<10ms)
 - Scalable to 100+ network nodes
 - Low CPU overhead (<5% system load)
 - Memory efficiency (bounded allocation)
 
 ### **NFR-1588-003: Hardware Abstraction**
+
 **Description**: Support multiple hardware platforms
 **Requirements**:
+
 - Generic network interface abstraction
 - Hardware timestamping abstraction  
 - Timer/clock interface abstraction
 - OS-agnostic implementation
 
 ### **NFR-1588-004: Standards Compliance**
+
 **Description**: Full IEEE 1588-2019 specification compliance
 **Requirements**:
+
 - All mandatory features implemented
 - Conformance test suite compatibility
 - Interoperability with other implementations
@@ -137,17 +167,20 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 ## 📋 **Gap Assessment Summary**
 
 ### **High Priority Gaps** (Block higher-layer protocols)
+
 1. **Clock State Machines**: Critical for synchronization operation
 2. **Message Handlers**: Required for protocol communication
 3. **Transport Layer**: Network communication foundation
 4. **BMCA Implementation**: Grandmaster selection essential
 
 ### **Medium Priority Gaps** (Important but not blocking)
+
 1. **Management Protocol**: Configuration and monitoring
 2. **Hardware Timestamping**: Performance optimization
 3. **Multi-Domain Support**: Advanced deployment scenarios
 
 ### **Low Priority Gaps** (Enhancement features)
+
 1. **Security Features**: Authentication and integrity
 2. **Advanced Profiles**: Telecom and power profiles
 3. **Redundancy Features**: Fault tolerance mechanisms
@@ -155,6 +188,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 ## ✅ **Completion Criteria**
 
 ### **Phase 02 Exit Criteria**
+
 - [ ] All functional requirements identified and documented
 - [ ] All non-functional requirements specified with metrics
 - [ ] Gap analysis completed with priority assessment
@@ -163,6 +197,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - [ ] Acceptance criteria defined for each requirement
 
 ### **Quality Metrics**
+
 - Requirements Coverage: 100% of IEEE 1588-2019 mandatory features
 - Traceability: Each requirement traces to specification section
 - Testability: Each requirement has measurable acceptance criteria
