@@ -17,6 +17,67 @@ applyTo: "05-implementation/**"
 5. Practice pair programming and collective ownership
 6. Refactor continuously to improve design
 
+## ⚠️ MANDATORY: Implementation Compliance and Traceability
+
+CRITICAL: While YAML front matter applies to specification documents (Phases 02–04), the implementation phase MUST enforce code-level traceability, test structure, and CI quality gates.
+
+Scope: Applies to `05-implementation/**` (code, tests, and implementation docs under this phase).
+
+1) Code Header Traceability (required in source files)
+
+Each source file MUST include a top-of-file comment block with traceability to design and requirements.
+
+Example (TypeScript/JavaScript):
+```typescript
+/*
+Module: src/application/user/UserService.ts
+Phase: 05-implementation
+Traceability:
+  Design: DES-C-001
+  Requirements: REQ-F-001, REQ-NF-004
+  Tests: TEST-UNIT-UserService, TEST-INT-UserWorkflow
+Notes: Keep IDs current when refactoring; maintain links in tests.
+*/
+```
+
+Example (Python):
+```python
+"""
+Module: src/app/user/service.py
+Phase: 05-implementation
+Traceability:
+  Design: DES-C-001
+  Requirements: REQ-F-001, REQ-NF-004
+  Tests: TEST-UNIT-user-service, TEST-INT-user-workflow
+Notes: Keep IDs current when refactoring; maintain links in tests.
+"""
+```
+
+2) Test Structure and Naming (required)
+
+- Co-locate unit tests with code or place under `tests/unit/**` using `<module>.spec.(ts|js|py)` naming.
+- Integration tests under `tests/integration/**` using `<feature>.int.spec.(ts|js|py)` naming.
+- Each test file MUST include a header block listing traced IDs (REQ-*, DES-*) and a stable test identifier (e.g., `TEST-UNIT-<Name>`).
+
+3) CI Quality Gates (required)
+
+- Lint and type check: must pass on every push and PR.
+- Tests: 100% of unit tests must pass; integration tests must pass for changed areas.
+- Coverage threshold: ≥ 80% lines/branches for changed code; fail build if below.
+- Fast red/green feedback: fix broken builds immediately (target ≤ 10 minutes).
+
+4) Reliability Hooks (alignment with IEEE 1633)
+
+- Emit structured logs and metrics necessary for reliability evidence (e.g., error counts, retry counts, circuit-breaker opens) to support Phase 06/07 data collection.
+- Provide feature flags or configuration to enable fault injection in non-prod environments.
+- Avoid swallowing exceptions; propagate with context to support failure analysis.
+
+ENFORCEMENT:
+- PRs without code header traceability will be rejected.
+- Test files must follow naming/location conventions and include traceability.
+- CI must block merges if lint/typecheck/tests/coverage gates fail.
+- Reliability hooks are required for components whose failures impact user-visible reliability targets.
+
 ## 📋 ISO/IEC/IEEE 12207:2017 Compliance
 
 ### Implementation Process Activities
@@ -481,26 +542,39 @@ class UserService {
 ## 🚨 Critical Requirements for This Phase
 
 ### Always Do (XP Practices)
-✅ **Write tests first (TDD)** - Red → Green → Refactor  
-✅ **Integrate continuously** - Multiple times per day  
-✅ **Pair program** - For complex or critical code  
-✅ **Refactor mercilessly** - Keep code clean  
+✅ **Write tests first (TDD)** - Red → Green → Refactor (write failing test BEFORE any code)  
+✅ **Integrate continuously** - Multiple times per day, no code unintegrated >couple hours  
+✅ **Pair program** - Write ALL production code in pairs  
+✅ **Refactor mercilessly** - Refactor early, refactor often (daily activity)  
 ✅ **Follow coding standards** - Use linters and formatters  
-✅ **Collective ownership** - Anyone can modify any code  
-✅ **Keep it simple** - YAGNI, avoid over-engineering  
-✅ **Run all tests** - Before every commit  
+✅ **Collective ownership** - Anyone can modify any code to fix/improve  
+✅ **Keep it simple** - YAGNI, assume simplicity, simplest design that works  
+✅ **Run all tests** - Before every commit; all tests must run flawlessly  
+✅ **Test thoroughly** - Test everything that could possibly break  
+✅ **Deliver frequently** - Small releases on very short cycles  
+✅ **Take small steps** - Always deliberate, check for feedback before proceeding  
 
-### Always Do (Standards Compliance)
+### Always Do (Standards Compliance & Best Practices)
 ✅ Implement per design specifications  
 ✅ Trace code to design elements  
-✅ Document public APIs  
-✅ Handle all error cases  
-✅ Log significant events  
+✅ Document public APIs (but build documentation in, don't bolt it on)  
+✅ Handle all error cases (analyze all errors, don't assume they can't happen)  
+✅ Log significant events (structured logs for reliability evidence)  
 ✅ Validate all inputs  
 ✅ Maintain >80% test coverage  
+✅ Use assertions (preconditions, postconditions, invariants) to document interfaces  
+✅ Use ubiquitous language (domain vocabulary) consistently  
+✅ Eliminate duplication (DRY: single authoritative representation)  
+✅ Write intention-revealing code (clear names, self-documenting)  
+✅ Adhere to SOLID principles  
+✅ Test assumptions; prove them, don't assume  
+✅ Automate everything (operations, tests, deployment)  
+✅ Program deliberately, not by coincidence  
+✅ Communicate clearly (conversation is preferred form)  
 
 ### Never Do
-❌ Write code without tests (breaks TDD)  
+❌ Write code without tests (breaks TDD) - **"Test Later" means "Test Never"**  
+❌ Let time pressure cause you to skip tests  
 ❌ Commit on broken build  
 ❌ Skip refactoring ("we'll do it later")  
 ❌ Create long methods (>50 lines)  
@@ -508,6 +582,17 @@ class UserService {
 ❌ Ignore code smells  
 ❌ Skip error handling  
 ❌ Hard-code configuration  
+❌ Build for tomorrow / gold plate (implement only what's needed today)  
+❌ Duplicate logic (violate DRY)  
+❌ Run on autopilot; constantly think critically  
+❌ Write comments that paraphrase code (explain "why", not "how")  
+❌ Catch and re-raise exceptions unnecessarily  
+❌ Use global data or Singletons as globals  
+❌ Test code from others (unless you distrust it)  
+❌ Store secrets, API keys, or credentials in source code  
+❌ Produce documents that aren't being actively used  
+❌ Leave code unintegrated longer than a few hours  
+❌ Become attached to your own ideas (be ready to replace them)  
 
 ## 📊 Code Quality Metrics
 

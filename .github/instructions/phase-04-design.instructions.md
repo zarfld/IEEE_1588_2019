@@ -16,6 +16,37 @@ applyTo: "04-design/**"
 4. Document design patterns and implementation approaches
 5. Create design specifications enabling implementation
 
+## ⚠️ MANDATORY: YAML Front Matter Schema Compliance
+
+CRITICAL: All design specification files MUST use EXACT YAML front matter format defined in authoritative schema:
+
+Authoritative Schema: `spec-kit-templates/schemas/ieee-design-spec.schema.json`
+
+Required YAML Front Matter Format:
+```yaml
+---
+title: "Component Design Specification Title"
+type: "design_specification"
+standard: "IEEE 1588-2019"  # Use specific IEEE standard 
+phase: "04-design"
+component: "component-name"
+version: "1.0"  # Use X.Y format (NOT semver)
+date: "2025-MM-DD"
+author: "Your Name"
+status: "draft"  # active | draft | review | approved | deprecated
+compliance:
+  section: "Software Design Description"
+traceability:
+---
+```
+
+ENFORCEMENT:
+- Use "type: design_specification" NOT "specType: design" 
+- Version format is "X.Y" NOT semver "X.Y.Z"
+- Traceability IDs must match exact regex patterns
+- Reference authoritative schema file for any questions
+- Validation will FAIL if format deviates from schema
+
 ## 📋 IEEE 1016-2009 Compliance
 
 ### Software Design Description (SDD) Structure
@@ -722,14 +753,25 @@ input CreateUserInput {
 ## 🚨 Critical Requirements for This Phase
 
 ### Always Do
-✅ Follow Simple Design principles (XP)  
+✅ Follow Simple Design principles: runs all tests, no duplication, expresses intent, minimizes elements  
 ✅ Design for testability (TDD-ready)  
 ✅ Document all public interfaces  
 ✅ Trace design to architecture and requirements  
-✅ Use design patterns appropriately  
+✅ Use design patterns appropriately (but let them emerge naturally)  
 ✅ Specify error handling  
 ✅ Define data validation rules  
 ✅ Include algorithm complexity analysis  
+✅ Implement simplest design that could possibly work  
+✅ Eliminate duplication (DRY: Don't Repeat Yourself - single authoritative representation)  
+✅ Follow Open-Closed Principle (open for extension, closed for modification)  
+✅ Follow Single Responsibility Principle (one reason to change)  
+✅ Favor composition over inheritance  
+✅ Program to interfaces, not implementations  
+✅ Depend on abstractions (Dependency Inversion Principle)  
+✅ Encapsulate what varies  
+✅ Use side-effect-free functions where possible  
+✅ Refactor continuously to improve design  
+✅ Strive for loose coupling and high cohesion  
 
 ### Never Do
 ❌ Over-engineer (YAGNI)  
@@ -739,6 +781,15 @@ input CreateUserInput {
 ❌ Create circular dependencies  
 ❌ Design without considering refactoring  
 ❌ Skip documentation of design decisions  
+❌ Duplicate logic (violate DRY)  
+❌ Create train wrecks (chain method calls, more than one ".")  
+❌ Add flexibility or abstraction without demonstrable need today  
+❌ Force design patterns just for the sake of using them  
+❌ Instantiate dependencies directly inside class (Control Freak anti-pattern)  
+❌ Use Service Locator anti-pattern  
+❌ Use global data or Singletons as global variables  
+❌ Create two elements with identical/similar responsibilities  
+❌ Design entire system before implementation  
 
 ## 📊 Phase Entry Criteria
 
