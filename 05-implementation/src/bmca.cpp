@@ -1,0 +1,67 @@
+/**
+ * @file bmca.cpp
+ * @brief Initial BMCA stub implementation (Increment 1)
+ * @details Implements scaffolding for IEEE 1588-2019 Best Master Clock Algorithm (Section 9.3)
+ *          Currently returns placeholder ordering to drive TDD Red phase.
+ *          Traceability: REQ-F-002, DES-C-031, DES-I-032, DES-D-033.
+ * @note This is a minimal stub; logic intentionally incomplete to satisfy Red test state.
+ */
+
+#include <cstdint>
+#include <vector>
+#include <algorithm>
+#include <tuple>
+#include "IEEE/1588/PTP/2019/types.hpp"
+#include "IEEE/1588/PTP/2019/messages.hpp"
+#include "clocks.hpp"
+#include "bmca.hpp"
+
+namespace IEEE {
+namespace _1588 {
+namespace PTP {
+namespace _2019 {
+namespace BMCA {
+
+// Helper constructs the lexicographic priority sequence per IEEE 1588-2019 Section 9.3.
+// Order: priority1, clockClass, clockAccuracy, variance, priority2, stepsRemoved, grandmasterIdentity
+// Rationale: ascending order on each field; earlier field differences dominate.
+// Traceability: REQ-F-002; DES-C-031/ DES-I-032/ DES-D-033.
+static inline auto make_priority_sequence(const PriorityVector& v) {
+    return std::tie(
+        v.priority1,
+        v.clockClass,
+        v.clockAccuracy,
+        v.variance,
+        v.priority2,
+        v.stepsRemoved,
+        v.grandmasterIdentity
+    );
+}
+
+// Compare two priority vectors using the documented sequence helper
+CompareResult comparePriorityVectors(const PriorityVector& a, const PriorityVector& b) {
+    const auto ta = make_priority_sequence(a);
+    const auto tb = make_priority_sequence(b);
+    if (ta < tb) return CompareResult::ABetter;
+    if (tb < ta) return CompareResult::BBetter;
+    return CompareResult::Equal; // identical priority sequence
+}
+
+// Select best from list (stub: returns first)
+int selectBestIndex(const std::vector<PriorityVector>& list) {
+    if (list.empty()) return -1;
+    int best = 0;
+    for (int i = 1; i < static_cast<int>(list.size()); ++i) {
+        auto r = comparePriorityVectors(list[i], list[best]);
+        if (r == CompareResult::ABetter) {
+            best = i;
+        }
+    }
+    return best;
+}
+
+} // namespace BMCA
+} // namespace _2019
+} // namespace PTP
+} // namespace _1588
+} // namespace IEEE

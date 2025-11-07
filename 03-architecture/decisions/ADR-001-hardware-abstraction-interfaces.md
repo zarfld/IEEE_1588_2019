@@ -14,7 +14,7 @@ id: ADR-001
 phase: 03-architecture
 specType: architecture
 standard: '42010'
-status: accepted
+status: approved
 traceability:
   requirements:
     # Hardware abstraction layer architecture implements HAL and platform independence requirements
@@ -27,7 +27,7 @@ version: 1.0.0
 
 ## Status
 
-Accepted
+Approved
 
 - Decision ID: ADR-001
 - Title: Hardware Abstraction Interfaces

@@ -71,6 +71,8 @@ target_include_directories(IEEE1588_2019_interface
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(tests)
+    # Phase 05 TDD tests
+    add_subdirectory(05-implementation/tests)
 endif()
 
 # Examples
