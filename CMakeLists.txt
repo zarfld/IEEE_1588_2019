@@ -10,10 +10,18 @@ project(IEEE1588_2019_PTP
     LANGUAGES CXX
 )
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+# Language standards
+# Allow CI to override CMAKE_CXX_STANDARD/CMAKE_C_STANDARD (e.g., C++17/C11)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(NOT DEFINED CMAKE_C_STANDARD)
+    set(CMAKE_C_STANDARD 11)
+endif()
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Compiler-specific options
 if(MSVC)
