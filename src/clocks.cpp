@@ -310,7 +310,7 @@ Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcep
     case PortState::Listening:
         // Start listening for Announce messages
         // Reset announce timeout
-        announce_timeout_time_ = Types::Timestamp{0};
+        announce_timeout_time_ = Types::Timestamp{};
         break;
         
     case PortState::PreMaster:
@@ -853,7 +853,10 @@ Types::PTPResult<void> BoundaryClock::process_message(Types::PortNumber port_num
     
     // Delegate to the specific port (similar to OrdinaryClock implementation)
     // This is simplified - full implementation would include message parsing
-    
+    (void)message_type;
+    (void)message_data;
+    (void)message_size;
+    (void)rx_timestamp;
     return Types::PTPResult<void>::success();
 }
 
@@ -955,6 +958,8 @@ Types::PTPResult<void> TransparentClock::forward_message(Types::PortNumber ingre
                                                         std::size_t message_size,
                                                         const Types::Timestamp& ingress_timestamp,
                                                         const Types::Timestamp& egress_timestamp) noexcept {
+    (void)ingress_port;
+    (void)egress_port;
     // Calculate residence time
     auto residence_time_result = calculate_residence_time(ingress_timestamp, egress_timestamp);
     if (!residence_time_result.is_success()) {
