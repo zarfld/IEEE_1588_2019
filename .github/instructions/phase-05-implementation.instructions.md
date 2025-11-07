@@ -624,13 +624,219 @@ duplications:
   maximum: 3
 ```
 
-## 📊 Phase Entry Criteria
+## � Reliability Engineering Activities (IEEE 1633)
+
+### 1. Software Reliability Program Plan (SRPP) Review
+
+**Prompt**: Use `.github/prompts/reliability-plan-create.prompt.md`
+
+At the start of Phase 05, review the SRPP created in Phases 01-02:
+- Review reliability objectives (MTBF targets, failure rate limits)
+- Review reliability allocation per component
+- Understand quality gates for this phase:
+  - **Defect Discovery Rate**: Must be < [X] defects/KLOC (from SRPP Section 4.2)
+  - **Estimated MTBF**: Track prediction vs actual (from SRPP Section 6)
+
+**Deliverable**: Updated SRPP Section 4.2 (Phase 05 activities status)
+
+### 2. Operational Profile (OP) Creation/Refinement
+
+**Prompt**: Use `.github/prompts/operational-profile-create.prompt.md`
+
+During Phase 05, create or refine the Operational Profile:
+- **User Classes**: Identify who will use the software (roles, skill levels, usage %)
+- **Operations**: List all operations users perform (hierarchical: Level 1-3)
+- **Mission Profiles**: Define typical usage sessions (sequences of operations)
+- **MCUM (Markov Chain Usage Model)**: Create state machine representing user flows
+  - States: S-000 (Idle), S-001 (Authenticated), S-002 (Editing), etc.
+  - Transitions: T-001 (Login), T-002 (Open Document), etc.
+  - Probabilities: Annotate transitions with usage frequencies
+- **Usage Distribution**: Apply 80-20 rule (top 20% operations = 80% usage)
+
+**Why Now**: OP is needed before reliability testing (Phase 06-07) to generate usage-driven tests
+
+**Deliverable**: 
+- Complete Operational Profile document (`docs/reliability/operational-profile-[Component]-[Version].md`)
+- MCUM state machine (states, transitions, probabilities)
+- Usage frequency table (operations ranked by frequency)
+
+**Location**: `spec-kit-templates/operational-profile.md` (template)
+
+### 3. Software Failure Modes Effects Analysis (SFMEA) - Initial
+
+**Prompt**: Use `.github/prompts/sfmea-create.prompt.md`
+
+At end of Phase 05 (before integration), perform SFMEA on critical components:
+- **Identify Failure Modes**: Use IEEE 1633 Annex A categories:
+  - Faulty Data (wrong value, null pointer, buffer overflow)
+  - Faulty Timing (timeout, race condition, deadlock)
+  - Faulty Sequencing (steps out of order, step skipped)
+  - Faulty Error Handling (error not detected, incorrect recovery)
+  - Faulty Logic (incorrect algorithm, off-by-one)
+- **Root Cause Analysis**: Identify why each failure mode could occur
+- **Risk Assessment (RPN)**: Calculate RPN = Severity × Likelihood × Detectability
+- **Mitigation Actions**: Define actions for high-RPN items (RPN ≥ 200)
+- **Critical Items List (CIL)**: Track all items with RPN ≥ 200 (must be 100% complete before release)
+
+**Why Now**: Early SFMEA (on design/early code) prevents defects before integration
+
+**Deliverable**: 
+- SFMEA document for critical components
+- Critical Items List (CIL) with mitigation actions
+- Design updates based on SFMEA findings
+
+**Location**: Create in `docs/reliability/` or `04-design/` (if design-level SFMEA)
+
+### 4. Code-Level Reliability Practices
+
+**Implement Reliability Mechanisms**:
+```typescript
+// 1. Structured Logging (for reliability evidence)
+logger.info('Operation completed', {
+  operation: 'createUser',
+  duration: 145, // ms
+  success: true,
+  userId: user.id
+});
+
+logger.error('Operation failed', {
+  operation: 'createUser',
+  error: error.message,
+  errorCode: 'VALIDATION_ERROR',
+  duration: 50,
+  success: false
+});
+
+// 2. Failure Detection and Reporting
+class OperationResult<T> {
+  constructor(
+    public readonly success: boolean,
+    public readonly data?: T,
+    public readonly error?: ApplicationError
+  ) {}
+  
+  static success<T>(data: T): OperationResult<T> {
+    return new OperationResult(true, data);
+  }
+  
+  static failure<T>(error: ApplicationError): OperationResult<T> {
+    return new OperationResult(false, undefined, error);
+  }
+}
+
+// 3. Graceful Degradation
+async function getUserProfile(userId: string): Promise<UserProfile> {
+  try {
+    // Try primary data source
+    return await primaryDatabase.getUser(userId);
+  } catch (error) {
+    logger.warn('Primary database unavailable, using cache', { userId });
+    
+    // Fallback to cache
+    try {
+      return await cache.get(`user:${userId}`);
+    } catch (cacheError) {
+      logger.error('Cache also unavailable', { userId });
+      
+      // Return minimal profile
+      return { id: userId, name: 'Unknown', status: 'degraded' };
+    }
+  }
+}
+
+// 4. Circuit Breaker Pattern (prevent cascading failures)
+class CircuitBreaker {
+  private failureCount = 0;
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  private lastFailureTime?: Date;
+  
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (this.shouldAttemptReset()) {
+        this.state = 'HALF_OPEN';
+      } else {
+        throw new Error('Circuit breaker is OPEN');
+      }
+    }
+    
+    try {
+      const result = await operation();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  private onSuccess() {
+    this.failureCount = 0;
+    this.state = 'CLOSED';
+  }
+  
+  private onFailure() {
+    this.failureCount++;
+    this.lastFailureTime = new Date();
+    
+    if (this.failureCount >= 5) {
+      this.state = 'OPEN';
+      logger.error('Circuit breaker opened', { failureCount: this.failureCount });
+    }
+  }
+  
+  private shouldAttemptReset(): boolean {
+    if (!this.lastFailureTime) return false;
+    const timeSinceFailure = Date.now() - this.lastFailureTime.getTime();
+    return timeSinceFailure > 60000; // 60 seconds
+  }
+}
+```
+
+**Reliability Code Checklist**:
+- [ ] Structured logging with operation success/failure
+- [ ] Error codes defined (per FDSC - Failure Definition and Scoring Criteria)
+- [ ] Graceful degradation for non-critical failures
+- [ ] Circuit breakers for external dependencies
+- [ ] Timeouts on all external calls
+- [ ] Retry logic with exponential backoff
+- [ ] Health check endpoints
+- [ ] Metrics emission (operation counts, durations, errors)
+
+### 5. Defect Tracking and Quality Gate Monitoring
+
+**Track Defect Discovery Rate**:
+```
+Defect Discovery Rate = Total Defects Found / Code Size (KLOC)
+
+Quality Gate Threshold (SRPP Section 4.2): < [X] defects/KLOC
+```
+
+**Monitor During Phase 05**:
+- Track defects found in code reviews and unit tests
+- Calculate defect density per component
+- Alert if defect rate exceeds threshold (indicates design problems)
+
+**Defect Classification** (per FDSC):
+| Severity | FDSC Score | Description |
+|----------|-----------|-------------|
+| Critical | 10 | Safety hazard, mission failure, data loss |
+| High | 7-9 | Major function degraded |
+| Medium | 4-6 | Minor function impacted, workaround available |
+| Low | 1-3 | Cosmetic, no functional impact |
+
+**Deliverable**: Defect log with severity classifications (feeds into SRG modeling in Phase 06-07)
+
+## �📊 Phase Entry Criteria
 
 ✅ Design specifications complete and approved  
 ✅ Development environment set up  
 ✅ CI/CD pipeline configured  
 ✅ Coding standards defined  
 ✅ Test framework configured  
+✅ **Reliability entry criteria**:  
+  ✅ SRPP reviewed (reliability objectives understood)  
+  ✅ Operational Profile started (user classes and operations identified)  
+  ✅ Quality gate thresholds defined (defect discovery rate)  
 
 ## 📊 Phase Exit Criteria
 
@@ -644,6 +850,14 @@ duplications:
 ✅ Documentation updated  
 ✅ Code integrated into main branch  
 ✅ Traceability established (code → design)  
+✅ **Reliability exit criteria**:  
+  ✅ Operational Profile complete (MCUM with states/transitions/probabilities)  
+  ✅ SFMEA performed on critical components  
+  ✅ Critical Items List (CIL) created and mitigation actions defined  
+  ✅ Defect discovery rate meets quality gate (< [X] defects/KLOC per SRPP)  
+  ✅ Reliability mechanisms implemented (logging, error handling, graceful degradation)  
+  ✅ Health check endpoints implemented  
+  ✅ Metrics emission configured  
 
 ## 🔗 Traceability
 

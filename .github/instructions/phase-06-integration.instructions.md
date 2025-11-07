@@ -566,7 +566,285 @@ describe('User Workflow Integration Tests', () => {
 });
 ```
 
-## 🚨 Critical Requirements for This Phase
+## � Reliability Engineering Activities (IEEE 1633)
+
+### 1. OP-Driven Reliability Test Design
+
+**Prompt**: Use `.github/prompts/reliability-test-design.prompt.md`
+
+During Phase 06, design reliability tests based on the Operational Profile created in Phase 05:
+
+**Step 1: Review Operational Profile**
+- User classes and usage percentages
+- Operations ranked by frequency (80-20 rule: top 20% operations = 80% usage)
+- MCUM (Markov Chain Usage Model) with states and transitions
+- Mission profiles (typical usage sessions)
+
+**Step 2: Generate Test Cases from MCUM**
+- **All-States Coverage**: Create tests visiting each state
+- **All-Transitions Coverage**: Create tests traversing each transition
+- **Usage-Weighted Allocation**: Allocate more test cases to high-probability transitions
+  - Example: If T-001 (Login) has 30% probability, allocate 30% of test effort
+- **Mission Profile Tests**: Create end-to-end scenario tests
+
+**Step 3: Design Test Adapters**
+Test adapters are self-contained functions that:
+- Invoke an operation (from OP)
+- Provide inputs (valid/invalid per input events)
+- Capture outputs (per output responses)
+- Return pass/fail (per FDSC - Failure Definition and Scoring Criteria)
+- Are independent (can run in any order)
+
+Example test adapter:
+```typescript
+// Test Adapter for Operation: OP-001 (User Login)
+// MCUM Transition: T-001 (S-000 Idle → S-001 Authenticated)
+interface TestResult {
+  passed: boolean;
+  actualState: string;
+  expectedState: string;
+  failureSeverity: number; // Per FDSC
+  executionTime: number; // milliseconds
+  errorMessage?: string;
+}
+
+async function testLogin(username: string, password: string): Promise<TestResult> {
+  const startTime = Date.now();
+  const initialState = await getSystemState(); // Should be S-000
+  
+  try {
+    const authToken = await systemUnderTest.login(username, password);
+    const actualState = await getSystemState();
+    const expectedState = password === 'validPass' ? 'S-001' : 'S-000';
+    
+    const passed = (actualState === expectedState) && (authToken !== null);
+    
+    return {
+      passed,
+      actualState,
+      expectedState,
+      failureSeverity: passed ? 0 : 10, // Critical if login fails
+      executionTime: Date.now() - startTime,
+      errorMessage: passed ? undefined : 'Login failed or state incorrect'
+    };
+  } catch (error) {
+    return {
+      passed: false,
+      actualState: await getSystemState(),
+      expectedState: 'S-001',
+      failureSeverity: 10,
+      executionTime: Date.now() - startTime,
+      errorMessage: error.message
+    };
+  }
+}
+```
+
+**Step 4: Allocate Test Effort**
+Apply 80-20 rule:
+- **Tier 1 (0-50% cumulative usage)**: 50% of test effort
+- **Tier 2 (50-80% cumulative usage)**: 30% of test effort
+- **Tier 3 (80-95% cumulative usage)**: 15% of test effort
+- **Tier 4 (95-100% cumulative usage)**: 5% of test effort
+
+Critical operations require minimum coverage (100%) regardless of usage frequency.
+
+**Deliverable**: 
+- Complete Reliability Test Plan (RTP) document
+- Test adapters implemented (in `integration-tests/reliability/`)
+- Test execution automation
+- Coverage tracking (states, transitions, operations)
+
+**Location**: `06-integration/integration-tests/reliability/`
+
+### 2. SRG Data Collection Setup
+
+**Prompt**: Will use `.github/prompts/srg-model-fit.prompt.md` in Phase 07
+
+Prepare for Software Reliability Growth (SRG) modeling:
+
+**Configure Failure Data Collection**:
+```typescript
+// Failure data structure (for SRG modeling)
+interface FailureRecord {
+  failureNumber: number; // Sequential: 1, 2, 3, ...
+  failureTime: number; // Hours (or test case number)
+  testCase: string; // Test case that failed
+  operation: string; // OP-XXX
+  state: string; // S-XXX (state when failed)
+  severity: number; // FDSC score (1-10)
+  description: string;
+  rootCause?: string; // Once investigated
+  fixed: boolean; // Has fix been applied?
+  fixTime?: number; // When fixed (hours)
+}
+
+// Log failure during test execution
+async function logFailure(testResult: TestResult, testCase: string): Promise<void> {
+  if (!testResult.passed) {
+    const failureRecord: FailureRecord = {
+      failureNumber: await getNextFailureNumber(),
+      failureTime: getCurrentTestTime(), // hours since test start
+      testCase: testCase,
+      operation: extractOperation(testCase), // e.g., "OP-001"
+      state: testResult.actualState,
+      severity: testResult.failureSeverity,
+      description: testResult.errorMessage || 'Unknown failure',
+      fixed: false
+    };
+    
+    await saveFailureRecord(failureRecord);
+    
+    // Also log for monitoring
+    logger.error('Reliability test failure', {
+      failureNumber: failureRecord.failureNumber,
+      failureTime: failureRecord.failureTime,
+      operation: failureRecord.operation,
+      severity: failureRecord.severity
+    });
+  }
+}
+
+// Export SRG data (CSV format for modeling tools)
+async function exportSRGData(outputFile: string): Promise<void> {
+  const failures = await getAllFailures();
+  
+  const csv = ['FailureNumber,FailureTime,Severity,Operation,State,Fixed'];
+  failures.forEach(f => {
+    csv.push(`${f.failureNumber},${f.failureTime},${f.severity},${f.operation},${f.state},${f.fixed}`);
+  });
+  
+  await writeFile(outputFile, csv.join('\n'));
+}
+```
+
+**SRG Data Requirements**:
+- Timestamp (or test case number) for each failure
+- Failure severity (per FDSC)
+- Operation that failed (from OP)
+- State when failure occurred (from MCUM)
+- Fix status (boolean: fixed or not)
+
+**Deliverable**: 
+- Failure logging infrastructure
+- CSV export for SRG tools
+- Failure database schema
+
+### 3. Continuous Reliability Monitoring
+
+**Monitor During Integration Testing**:
+
+**Metrics to Track**:
+| Metric | Description | Target | Action if Threshold Exceeded |
+|--------|-------------|--------|------------------------------|
+| **Test Pass Rate** | % of tests passing | ≥ 95% | Investigate failing tests, fix defects |
+| **Failure Intensity** | Failures per hour | Decreasing trend | If increasing, stop and investigate |
+| **Mean Time Between Failures (MTBF)** | Average time between failures | Increasing trend | If decreasing, reliability declining |
+| **Defect Discovery Rate** | Defects found per test hour | < [X] per hour | If increasing, code quality issue |
+| **Critical Failures** | FDSC Severity = 10 | 0 | Immediate fix required |
+
+**Reliability Dashboard**:
+```typescript
+interface ReliabilityMetrics {
+  testRunNumber: number;
+  testTime: number; // hours
+  totalTests: number;
+  passingTests: number;
+  failingTests: number;
+  passRate: number; // percentage
+  failures: number; // cumulative failures
+  failureIntensity: number; // failures per hour
+  mtbf: number; // hours (calculated)
+  criticalFailures: number;
+}
+
+async function calculateReliabilityMetrics(): Promise<ReliabilityMetrics> {
+  const tests = await getTestResults();
+  const failures = await getAllFailures();
+  const testTime = getCurrentTestTime();
+  
+  const passingTests = tests.filter(t => t.passed).length;
+  const failingTests = tests.length - passingTests;
+  const passRate = (passingTests / tests.length) * 100;
+  
+  const failureIntensity = failures.length / testTime;
+  const mtbf = testTime / failures.length;
+  const criticalFailures = failures.filter(f => f.severity === 10).length;
+  
+  return {
+    testRunNumber: await getCurrentTestRun(),
+    testTime,
+    totalTests: tests.length,
+    passingTests,
+    failingTests,
+    passRate,
+    failures: failures.length,
+    failureIntensity,
+    mtbf,
+    criticalFailures
+  };
+}
+```
+
+**Deliverable**: Reliability metrics dashboard (real-time visibility)
+
+### 4. Integration Quality Gate (Reliability)
+
+**Quality Gate Threshold** (from SRPP Section 4.3):
+- **Integration Test Pass Rate**: ≥ 95%
+- **MTBF Estimate**: Track trend (should be increasing)
+- **Critical Failures**: 0 (none allowed to proceed to Phase 07)
+
+**Pass/Fail Decision**:
+```typescript
+async function checkReliabilityQualityGate(): Promise<{ passed: boolean; reasons: string[] }> {
+  const metrics = await calculateReliabilityMetrics();
+  const reasons: string[] = [];
+  
+  // Check 1: Pass rate ≥ 95%
+  if (metrics.passRate < 95) {
+    reasons.push(`Integration pass rate ${metrics.passRate}% < 95%`);
+  }
+  
+  // Check 2: No critical failures
+  if (metrics.criticalFailures > 0) {
+    reasons.push(`${metrics.criticalFailures} critical failures open`);
+  }
+  
+  // Check 3: MTBF trend (compare to previous run)
+  const previousMTBF = await getPreviousMTBF();
+  if (metrics.mtbf < previousMTBF * 0.9) { // 10% decrease threshold
+    reasons.push(`MTBF declining: ${metrics.mtbf} < ${previousMTBF} (previous)`);
+  }
+  
+  return {
+    passed: reasons.length === 0,
+    reasons
+  };
+}
+```
+
+**If Quality Gate Fails**:
+1. Fix critical defects immediately
+2. Re-run reliability tests
+3. Re-assess quality gate
+4. Do NOT proceed to Phase 07 until gate passed
+
+**Deliverable**: Quality gate status report
+
+### 5. SFMEA Updates
+
+Review and update SFMEA (created in Phase 04/05) based on integration failures:
+
+**Update CIL (Critical Items List)**:
+- Add new failure modes discovered during integration
+- Update RPN (Risk Priority Number) based on actual failure data
+- Verify mitigation actions are effective
+- Close CIL items that have been mitigated and verified
+
+**Deliverable**: Updated SFMEA and CIL
+
+## �🚨 Critical Requirements for This Phase
 
 ### Always Do
 ✅ Integrate continuously (multiple times/day minimum)  
@@ -605,6 +883,16 @@ describe('User Workflow Integration Tests', () => {
 ✅ OP exists and is referenced by the Reliability Test Plan  
 ✅ Reliability data collection is enabled (duty time + failure logging)  
 ✅ SRG model selection/fitting workflow documented  
+✅ **Reliability exit criteria**:  
+  ✅ Reliability Test Plan (RTP) complete with OP-driven test cases  
+  ✅ Test adapters implemented (self-contained, independent functions)  
+  ✅ Usage-weighted test allocation applied (80-20 rule)  
+  ✅ Coverage targets met (states 100%, transitions 100%, usage-weighted ≥ 80%)  
+  ✅ Failure data collection configured (timestamp, severity, operation, state)  
+  ✅ SRG data export working (CSV format ready for modeling)  
+  ✅ Reliability quality gate passed (integration pass rate ≥ 95%, MTBF trend increasing, critical failures = 0)  
+  ✅ SFMEA and CIL updated based on integration failures  
+  ✅ Reliability metrics dashboard operational  
 
 ## 🎯 Next Phase
 

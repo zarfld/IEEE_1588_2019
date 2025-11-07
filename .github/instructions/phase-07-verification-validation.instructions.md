@@ -540,7 +540,288 @@ Ensure all requirements are:
 | REQ-NF-005 not tested | Medium | Create performance test PERF-005 |
 ```
 
-## 🚨 Critical Requirements for This Phase
+## � Reliability Engineering Activities (IEEE 1633)
+
+### 1. Software Reliability Growth (SRG) Model Fitting
+
+**Prompt**: Use `.github/prompts/srg-model-fit.prompt.md`
+
+During Phase 07, fit SRG models to failure data collected in Phase 06:
+
+**Step 1: Collect Failure Data**
+From integration/system testing (Phase 06), you should have:
+- Failure times (hours or test case numbers)
+- Failure severity (per FDSC)
+- Operation that failed (from OP)
+- State when failure occurred (from MCUM)
+- Fix status (boolean)
+
+**Minimum Data Requirement**: M ≥ 20 failures for reliable model fitting
+
+**Step 2: Perform Trend Tests**
+Before fitting models, verify reliability is actually growing:
+
+**Laplace Trend Test**:
+```
+u = [Σ(t_i) / M - T/2] / [T * sqrt(1/(12*M))]
+
+Where:
+  M = number of failures
+  T = total test time
+  t_i = time of i-th failure
+
+Interpretation:
+  u < -2: Reliability GROWING ✅ (proceed with modeling)
+  -2 ≤ u ≤ 2: NO TREND ⚠️ (investigate, don't release)
+  u > 2: Reliability DECLINING ❌ (serious problem, don't release)
+```
+
+**Arithmetic Mean (AM) Trend Test**:
+- Calculate mean TBF (Time Between Failures) for early failures (e.g., failures 1-10)
+- Calculate mean TBF for later failures (e.g., failures 11-20)
+- If mean TBF increasing → reliability growing ✅
+- If mean TBF flat/decreasing → reliability not growing ⚠️
+
+**Step 3: Fit Multiple SRG Models**
+
+Select and fit 3-4 models using Maximum Likelihood Estimation (MLE):
+
+**Model 1: Goel-Okumoto (Finite Failures)**
+```
+μ(t) = N₀ * (1 - e^(-b*t))   [Expected cumulative failures]
+λ(t) = N₀ * b * e^(-b*t)       [Failure intensity]
+
+Parameters to estimate:
+  N₀ = initial number of defects
+  b = defect detection rate (1/hour)
+```
+
+**Model 2: Musa-Okumoto (Infinite Failures)**
+```
+λ(t) = λ₀ / (1 + θ*t)          [Failure intensity]
+μ(t) = (1/θ) * ln(1 + λ₀*θ*t)  [Expected cumulative failures]
+
+Parameters to estimate:
+  λ₀ = initial failure intensity
+  θ = failure intensity decay parameter
+```
+
+**Model 3: Jelinski-Moranda (Simple Finite)**
+```
+λ_i = φ * (N₀ - (i-1))   [Failure intensity after (i-1) failures]
+
+Parameters to estimate:
+  N₀ = initial number of defects
+  φ = hazard rate per defect
+```
+
+**Model 4: Crow/AMSAA (Non-parametric)**
+```
+λ(t) = λ * β * t^(β-1)     [Failure intensity]
+μ(t) = λ * t^β             [Expected cumulative failures]
+
+Parameters to estimate:
+  λ = scale parameter
+  β = shape parameter (β < 1: growing, β > 1: declining)
+```
+
+**Step 4: Assess Goodness-of-Fit**
+
+Calculate for each model:
+- **SSE (Sum of Squared Errors)**: Lower is better
+- **R² (Coefficient of Determination)**: Higher is better (R² > 0.9 = excellent fit)
+- **AIC (Akaike Information Criterion)**: Lower is better
+
+Select best-fit model based on lowest SSE/AIC and highest R².
+
+**Step 5: Calculate Current Reliability Metrics**
+
+Using best-fit model:
+```
+Current MTBF = 1 / λ(T)   [Hours between failures]
+Current Failure Rate = λ(T)  [Failures per hour]
+Residual Defects = N₀ - μ(T)  [For finite models]
+```
+
+**Step 6: Make Predictions**
+
+**Time to reach target MTBF**:
+```
+Solve: 1 / λ(t) = Target MTBF
+  → Calculate t_target
+  → Additional test time = t_target - T_current
+```
+
+**Expected failures in next period**:
+```
+Next Δt hours → Expected failures = μ(T + Δt) - μ(T)
+```
+
+**Deliverable**: 
+- Complete SRG Analysis Report
+- Model parameters (N₀, b, λ₀, θ, φ, β, etc.)
+- Current MTBF estimate with confidence interval
+- Prediction: time to reach target MTBF
+- Prediction: residual defects
+- Goodness-of-fit assessment
+- Model validation (prequential likelihood)
+
+**Location**: `07-verification-validation/test-results/srg-analysis-[Version]-[Date].md`
+
+### 2. Release Decision Analysis
+
+**Prompt**: Use `.github/prompts/reliability-release-decision.prompt.md`
+
+At the end of Phase 07, make evidence-based release decision:
+
+**Step 1: Gather Reliability Evidence**
+- SRG analysis results (MTBF, failure rate, residual defects)
+- Test results (pass rates, coverage)
+- SFMEA CIL status (% complete)
+- Quality gate results (all phases)
+
+**Step 2: Evaluate Quality Gates** (from SRPP Section 4)
+
+| Phase | Quality Gate | Threshold | Status |
+|-------|--------------|-----------|--------|
+| Phase 05 | Defect Discovery Rate | < [X] def/KLOC | [✅/❌] |
+| Phase 06 | Integration Pass Rate | ≥ 95% | [✅/❌] |
+| Phase 07 | Estimated MTBF | ≥ [Target] hours | [✅/❌] |
+| Phase 08 | Acceptance Pass Rate | 100% | [✅/❌] |
+
+**Step 3: Check Mandatory Release Criteria**
+
+**ALL of the following MUST be met**:
+- [ ] All critical defects fixed (FDSC Severity = 10, count = 0)
+- [ ] CIL 100% complete (all high-RPN items mitigated and verified)
+- [ ] Acceptance tests 100% passed
+- [ ] SRG trend positive (Laplace u < -2, reliability growing)
+- [ ] Target MTBF achieved (current MTBF ≥ target)
+- [ ] Security vulnerabilities addressed (all critical/high)
+- [ ] User documentation complete
+- [ ] Deployment plan approved
+- [ ] Rollback plan tested
+- [ ] Stakeholder sign-off obtained
+
+**Step 4: Make Release Decision**
+
+**Scenario A: ✅ GO FOR RELEASE**
+- All mandatory criteria met (10/10)
+- All quality gates passed (4/4)
+- Target MTBF achieved
+- SRG trend strongly positive
+- Low risk
+
+**Scenario B: ⏳ CONDITIONAL GO**
+- Most criteria met (8-9/10)
+- Some quality gates passed (3/4)
+- MTBF close to target (gap < 20%)
+- SRG trend weakly positive
+- Medium risk, specific conditions required
+
+**Scenario C: ❌ NO-GO**
+- Critical criteria NOT met (< 8/10)
+- Quality gates failed (< 3/4)
+- MTBF significantly below target (gap > 20%)
+- SRG trend flat or negative
+- High risk, additional work required
+
+**Step 5: Risk Assessment**
+
+Identify release risks:
+| Risk | Likelihood | Impact | Risk Level | Mitigation |
+|------|------------|--------|------------|------------|
+| Critical defect in production | Low/Med/High | Critical | Red/Yellow/Green | [Plan] |
+| MTBF lower than predicted | Low/Med/High | High | Red/Yellow/Green | [Plan] |
+| Performance degrades under load | Low/Med/High | High | Red/Yellow/Green | [Plan] |
+
+Ensure rollback plan is ready and tested.
+
+**Step 6: Obtain Stakeholder Approval**
+
+| Stakeholder | Role | Decision | Comments |
+|-------------|------|----------|----------|
+| Product Owner | [Name] | [Go/No-Go/Conditional] | |
+| Engineering Manager | [Name] | [Go/No-Go/Conditional] | |
+| QA Lead | [Name] | [Go/No-Go/Conditional] | |
+| Reliability Engineer | [Name] | [Go/No-Go/Conditional] | |
+| Security Lead | [Name] | [Go/No-Go/Conditional] | |
+
+**Deliverable**: 
+- Complete Release Decision Report
+- Go/Conditional/No-Go recommendation with rationale
+- Risk assessment with mitigation plans
+- Stakeholder sign-off
+- Post-release monitoring plan
+
+**Location**: `07-verification-validation/test-results/release-decision-[Version]-[Date].md`
+
+### 3. Reliability Demonstration Test (RDT) - Optional
+
+**Purpose**: Statistically demonstrate that target reliability has been achieved
+
+**When Required**: If customer/stakeholder requires statistical confidence (e.g., safety-critical systems)
+
+**RDT Parameters**:
+- **Target MTBF**: [X] hours (from SRPP)
+- **Confidence Level**: 90% (typical) or 95% (high confidence)
+- **Discrimination Ratio**: 2.0 (typical) - ratio of acceptable to rejectable MTBF
+- **Test Duration**: Calculate based on target MTBF and confidence
+- **Allowed Failures**: Calculate based on parameters
+
+**RDT Procedure**:
+1. Run system under operational profile for test duration
+2. Count failures
+3. Compare to allowed failures:
+   - If failures ≤ allowed → **PASS** (target MTBF demonstrated)
+   - If failures > allowed → **FAIL** (target MTBF NOT demonstrated)
+
+**RDT Example** (Target MTBF = 200 hours, Confidence = 90%, Discrimination = 2.0):
+```
+Test Duration = 300 hours
+Allowed Failures = 2
+
+Result: Observed 1 failure → PASS ✅
+Result: Observed 3 failures → FAIL ❌
+```
+
+**Deliverable**: RDT report with pass/fail result (if RDT performed)
+
+### 4. V&V Traceability Matrix Update
+
+Update Architecture Traceability Matrix to include reliability evidence:
+
+| Requirement | Design | Implementation | Test | SRG Evidence |
+|-------------|--------|---------------|------|--------------|
+| REQ-REL-001: MTBF ≥ 200 hr | ARCH-001 | UserService | TC-XXX | SRG: MTBF = 250 hr ✅ |
+| REQ-REL-002: λ ≤ 0.005 fail/hr | ARCH-002 | PaymentGateway | TC-YYY | SRG: λ = 0.004 fail/hr ✅ |
+
+**Deliverable**: Updated Architecture Traceability Matrix with reliability evidence
+
+### 5. Defect Analysis and Lessons Learned
+
+**Defect Root Cause Analysis**:
+- Review all defects found in Phase 06-07
+- Classify by root cause (requirements, design, implementation, integration)
+- Identify patterns (e.g., "most defects in payment module")
+- Propose preventive actions for next release
+
+**Defect Profile**:
+| Root Cause | Count | % | Preventive Action |
+|------------|-------|---|-------------------|
+| Requirements | [N] | [%] | Improve requirements reviews |
+| Design | [N] | [%] | More design reviews, SFMEA earlier |
+| Implementation | [N] | [%] | More code reviews, TDD enforcement |
+| Integration | [N] | [%] | Better integration testing |
+
+**Lessons Learned**:
+- What went well in reliability engineering?
+- What could be improved?
+- Actions for next release
+
+**Deliverable**: Defect analysis report with lessons learned
+
+## �🚨 Critical Requirements for This Phase
 
 ### Always Do
 ✅ Maintain complete requirements traceability  
@@ -586,6 +867,40 @@ Ensure all requirements are:
 ✅ All acceptance tests passing  
 ✅ V&V Summary Report approved  
 ✅ Reliability evidence reviewed; release decision supported per IEEE 1633 5.5  
+
+**Reliability exit criteria** (IEEE 1633):
+✅ **SRG analysis complete** (using srg-model-fit.prompt.md):
+  - Failure data collected (M ≥ 20 failures recommended)
+  - Trend test passed (Laplace u-statistic < -2, reliability growing)
+  - Multiple SRG models fitted (3-4 models: Goel-Okumoto, Musa-Okumoto, Jelinski-Moranda, Crow/AMSAA)
+  - Best-fit model selected (lowest SSE/AIC, highest R² > 0.9)
+  - Goodness-of-fit assessment documented
+✅ **Current MTBF calculated** with confidence interval  
+✅ **Target MTBF achieved** (current MTBF ≥ target MTBF from SRPP) OR additional test time calculated  
+✅ **Reliability predictions documented**:
+  - Time to reach target MTBF
+  - Residual defects estimate (for finite models)
+  - Expected failures in next period
+✅ **All mandatory release criteria met** (10/10 from reliability-release-decision.prompt.md):
+  - All critical defects fixed (FDSC Severity = 10, count = 0)
+  - CIL 100% complete (all high-RPN items mitigated and verified)
+  - Acceptance tests 100% passed
+  - SRG trend positive (u < -2)
+  - Target MTBF achieved
+  - Security vulnerabilities addressed
+  - Documentation complete
+  - Deployment plan approved
+  - Rollback plan tested
+  - Stakeholder sign-off obtained
+✅ **Release decision report complete** (using reliability-release-decision.prompt.md):
+  - Quality gate assessment (all phases 05-08)
+  - Go/Conditional/No-Go recommendation with rationale
+  - Risk assessment with mitigation plans
+  - Stakeholder approval table completed
+  - Post-release monitoring plan defined
+✅ **Architecture Traceability Matrix updated** with reliability evidence (SRG MTBF/λ)  
+✅ **Defect analysis complete** with root cause classification and lessons learned  
+✅ **(Optional) RDT passed** if required (Reliability Demonstration Test with statistical confidence)  
 
 ## 🎯 Next Phase
 
