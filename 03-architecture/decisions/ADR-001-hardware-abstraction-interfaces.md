@@ -37,6 +37,56 @@ Approved
 
 Rationale: Establish a stable, platform-agnostic hardware abstraction boundary using C function-pointer based interfaces to satisfy platform independence requirements while preserving standards-only protocol layers.
 
+## Context
+
+The IEEE 1588-2019 PTP Standards layer in this repository must remain strictly hardware/OS agnostic, per repository rules and ISO/IEC/IEEE 42010 architectural concerns. We need a stable abstraction to: (a) isolate vendor/OS specifics (network I/O, timers, timestamps, clock access), (b) enable unit/integration testing without physical hardware, and (c) preserve deterministic, real-time behavior and compliance with IEEE 1588-2019 timing semantics (e.g., network byte order, timestamping points, TAI/UTC handling) without importing any platform headers.
+
+Key drivers and constraints:
+
+- Traceability: REQ-F-005 (HAL Interfaces) and REQ-NF-M-001 (Platform Independence)
+- No vendor or OS headers in Standards layer; C/C++17 portability; deterministic execution; minimal/no dynamic allocation on critical paths
+- Clear layering: Standards code can only depend on HAL contracts; adapters live outside Standards
+
+## Decision
+
+Adopt a minimal, C-ABI-compatible Hardware Abstraction Interface (HAL) defined in Common interfaces and injected into the Standards layer via function-pointer tables. The interface is versioned and capability-flagged, covering the smallest set necessary for PTP:
+
+- Network I/O: send_packet(const void*, size_t), receive_packet(void*, size_t*), mtu query; frames/UDP supported by adapter; network byte order preserved
+- Timebase/Clock: get_time_ns() (monotonic/PTP timescale clarified by a flag), optionally get_tai_time_ns(), utc_offset/leap handling exposed via properties
+- Timestamping/Timers: start/stop one-shot and periodic timers set_timer(interval_us, callback); high-resolution sleep is not exposed to Standards; callbacks are non-blocking
+- Diagnostics: last_error(), capability flags (e.g., HW timestamp support); version field for forward compatibility
+
+The Standards layer consumes only this HAL header (no OS/Vendor includes) and is passed an initialized HAL instance at initialization. Service/adapter layers (e.g., Windows, Linux, embedded RTOS, NIC vendors) implement the HAL. Tests provide mock HALs.
+
+This aligns with repository guidance to use C function pointers (not C++ virtuals) and preserves build/link portability across compilers and platforms.
+
+## Consequences
+
+Positive:
+
+- Platform independence and testability: Standards code compiles and runs with mock HALs; no direct OS/vendor coupling
+- Deterministic behavior: clear timing/timestamp semantics and no blocking calls in protocol paths
+- Standards compliance: isolates transport/timestamp points per IEEE 1588-2019 requirements while keeping protocol logic pure
+- Easier certification and maintenance: single abstraction point for hardware differences
+
+Negative/Trade-offs:
+
+- Adapter boilerplate: each platform/vendor must implement the HAL correctly
+- C-ABI constraint: avoids features of C++ polymorphism; larger function tables vs. templated designs
+- Potential performance overhead of indirection; mitigated by static linking and inlining where possible by compilers
+- Some vendor-specific zero-copy or advanced timestamp APIs cannot be surfaced directly; require careful optional capability flags
+
+## Alternatives Considered
+
+1. C++ virtual interfaces in the Standards layer – Not chosen: ties ABI and exception model to C++; increases coupling and complicates embedded/RTOS builds; repository mandates C function-pointer style.
+1. Direct OS sockets/IOCTLs in Standards (e.g., Winsock, AF_PACKET) – Not chosen: violates hardware/OS-agnostic requirement and repository rules; prevents portability and unit testing.
+1. Adopt a third-party/vendor HAL wholesale – Not chosen: introduces transitive dependencies and potential licensing/namespace issues; does not guarantee the minimal surface we require.
+1. Message-passing IPC boundary instead of in-process HAL – Not chosen: adds latency/jitter and complexity; acceptable as a service-layer deployment pattern, not for protocol core.
+
+## Compliance
+
+This decision implements REQ-F-005 and REQ-NF-M-001 and follows ISO/IEC/IEEE 42010 architectural separation. Protocol behavior is implemented based on understanding of IEEE 1588-2019; no copyrighted content is reproduced. Refer to IEEE 1588-2019 for authoritative requirements.
+
 ## Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
