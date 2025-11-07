@@ -34,7 +34,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 
 ## 🎯 **Functional Requirements Analysis**
 
-### **REQ-FR-1588-001: Clock Synchronization**
+### **REQ-FR-PTPA-001: Clock Synchronization**
 **Description**: Implement precise time synchronization between network nodes
 **Current Status**: ⚠️ PARTIAL - Basic types exist, state machines missing
 **Requirements**:
@@ -43,7 +43,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Path delay measurement mechanisms
 - Offset and drift calculations
 
-### **REQ-FR-1588-002: Best Master Clock Algorithm (BMCA)**
+### **REQ-FR-PTPA-002: Best Master Clock Algorithm (BMCA)**
 **Description**: Implement grandmaster selection and failover
 **Current Status**: 🔴 MISSING - No BMCA implementation found
 **Requirements**:
@@ -52,7 +52,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Clock quality evaluation (Class, Accuracy, OffsetScaledLogVariance)
 - State decision algorithm
 
-### **REQ-FR-1588-003: Message Processing**
+### **REQ-FR-PTPA-003: Message Processing**
 **Description**: Handle all PTP message types per specification
 **Current Status**: ⚠️ PARTIAL - MessageType enum exists, handlers missing
 **Requirements**:
@@ -62,7 +62,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Management message support
 - Signaling message support
 
-### **REQ-FR-1588-004: Transport Layer Support**
+### **REQ-FR-PTPA-004: Transport Layer Support**
 **Description**: Support required transport mechanisms
 **Current Status**: 🔴 MISSING - No transport layer found
 **Requirements**:
@@ -72,7 +72,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Layer 2 multicast addressing
 - Hardware timestamping interface
 
-### **REQ-FR-1588-005: Management Protocol**
+### **REQ-FR-PTPA-005: Management Protocol**
 **Description**: Configuration and monitoring capabilities
 **Current Status**: 🔴 MISSING - No management found
 **Requirements**:
@@ -82,7 +82,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Port dataset management
 - Subscription handling
 
-### **REQ-FR-1588-006: Security Features (IEEE 1588-2019 Enhancements)**
+### **REQ-FR-PTPA-006: Security Features (IEEE 1588-2019 Enhancements)**
 **Description**: Authentication and integrity protection
 **Current Status**: 🔴 MISSING - No security implementation
 **Requirements**:
@@ -91,7 +91,7 @@ Based on IEEE 1588-2019 specification scope, we need to verify:
 - Key management interface
 - Integrity protection mechanisms
 
-### **REQ-FR-1588-007: Multi-Domain Support (IEEE 1588-2019 Enhancement)**
+### **REQ-FR-PTPA-007: Multi-Domain Support (IEEE 1588-2019 Enhancement)**
 **Description**: Support multiple PTP domains
 **Current Status**: 🔴 MISSING - Single domain only
 **Requirements**:

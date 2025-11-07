@@ -18,6 +18,13 @@
 | REQ-F-CROSSARCH-006 | (none) |
 | REQ-F-CROSSARCH-007 | (none) |
 | REQ-F-CROSSARCH-008 | (none) |
+| REQ-FR-PTPA-001 | (none) |
+| REQ-FR-PTPA-002 | (none) |
+| REQ-FR-PTPA-003 | (none) |
+| REQ-FR-PTPA-004 | (none) |
+| REQ-FR-PTPA-005 | (none) |
+| REQ-FR-PTPA-006 | (none) |
+| REQ-FR-PTPA-007 | (none) |
 | REQ-FUN-PTP-001 | (none) |
 | REQ-FUN-PTP-002 | (none) |
 | REQ-FUN-PTP-003 | (none) |
@@ -169,6 +176,8 @@
 | REQ-NFR-PTP-046 | (none) |
 | REQ-NFR-PTP-047 | (none) |
 | REQ-NFR-PTP-048 | ADR-001, ADR-002, ADR-003, ADR-004, ARC-C-001, ARC-C-002, QA-SC-001 |
+| REQ-S-001 | (none) |
+| REQ-S-004 | (none) |
 | REQ-STK-ARCH-001 | ADR-001, ADR-002, ADR-003, ADR-004, ARC-C-001, ARC-C-002, QA-SC-001 |
 | REQ-STK-ARCH-002 | ADR-001, ADR-002, ADR-003, ADR-004, ARC-C-001, QA-SC-001 |
 | REQ-STK-ARCH-003 | ADR-001, ADR-002, ADR-003, ADR-004, ARC-C-001, QA-SC-001 |
