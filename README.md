@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # IEEE 1588-2019 - Precision Time Protocol (PTPv2) Implementation
 
 [![Standards Compliance](https://img.shields.io/badge/IEEE%201588--2019-Compliant-brightgreen)](https://standards.ieee.org/standard/1588-2019.html)
@@ -645,5 +644,4 @@ Before claiming implementation status:
 - IEEE Std 1722.1-2021: Standard for Device Discovery, Connection Management, and Control Protocol for Time-Sensitive Networking Systems
 - IEEE Std 1722-2016: Standard for a Transport Protocol for Time-Sensitive Applications in Bridged Local Area Networks  
 - OpenAvnu Project: https://github.com/Avnu/OpenAvnu
-=======
->>>>>>> 3fbe2b2d3fcdd5d3e597344c9c3c30c4b014d93a
+
