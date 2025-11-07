@@ -1291,7 +1291,41 @@ This specification SHALL be reviewed by representatives of each primary stakehol
 **Review Type**: Consolidated stakeholder consortium review  
 **Outcome**: ✅ **APPROVED** to proceed to Phase 01 implementation with minor non-blocking recommendations
 
-### 10.2 Approval Criteria
+### 10.2 Stakeholder Recommendations (Non-Blocking)
+
+The following recommendations were identified during stakeholder review and SHALL be addressed during project execution:
+
+#### Recommendation 1: Certification Partners
+
+**Finding**: No explicit identification of certification labs or audit providers for AVnu, PROFINET, or Annex K security.
+
+**Action Required**: Engage with AVnu Alliance and IEEE 1588 Working Group early to pre-align test scenarios.
+
+**Timeline**: Phase 01A (Weeks 1-4)  
+**Responsible**: Technical Lead + Standards Engineer  
+**Success Criteria**: Contact established with AVnu test lab, initial test plan reviewed
+
+#### Recommendation 2: Security Audit Budget
+
+**Finding**: External security audit mentioned but budget estimate not prominently displayed in business case.
+
+**Action Required**: Lock external partner and allocate contingency budget early in Phase 01C.
+
+**Timeline**: Phase 01B (Weeks 12-14) - partner selection; Phase 01C (Weeks 21-24) - audit execution  
+**Responsible**: Project Sponsor + Finance  
+**Success Criteria**: Security audit contract signed by Week 14, budget allocated in project financials
+
+#### Recommendation 3: Community Governance
+
+**Finding**: No mention of contributor license agreement (CLA) or Developer Certificate of Origin (DCO) strategy.
+
+**Action Required**: Add contributor license agreement (CLA) or DCO strategy before Phase 02 community engagement.
+
+**Timeline**: Phase 01C (Weeks 24-26) - define governance model  
+**Responsible**: Project Maintainers + Legal  
+**Success Criteria**: CONTRIBUTING.md with CLA/DCO policy published, GitHub automation configured
+
+### 10.3 Approval Criteria
 
 Specification is approved when:
 

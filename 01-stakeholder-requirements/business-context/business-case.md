@@ -11,17 +11,26 @@
 
 ## Executive Summary
 
-This document presents the business case for developing an **open-source, hardware-agnostic implementation of IEEE 1588-2019 Precision Time Protocol (PTP)**. The project addresses critical market needs for sub-microsecond clock synchronization in professional audio/video, industrial automation, telecommunications, and time-sensitive networking applications.
+This document presents the business case for developing an **open-source, hardware-agnostic implementation of IEEE 1588-2019 Precision Time Protocol (PTP)** as a **100% volunteer-driven, community project**.
 
-**Investment Required**: ~6.5 person-months ($100K-$150K estimated at $130K-$180K fully loaded cost)
+**⚠️ CRITICAL CONSTRAINT**: This is a **volunteer/open-source project with NO initial budget**. All work is contributed by volunteers in their spare time. Official certifications, professional audits, and commercial partnerships **REQUIRE EXTERNAL SPONSORSHIP**.
+
+**Investment Required**: ~6.5 person-months of **volunteer time** (equivalent to $100K-$150K industry value if paid)
+
+**Sponsorship Needs** (Optional but highly beneficial):
+- Security audit: $15K-$25K (enables enterprise adoption)
+- AVnu Milan certification: $10K-$50K (enables commercial audio market)
+- IEEE P1588 / AVnu membership: $5K-$10K/year (standards participation)
+- Conference travel: $2K-$5K per event (community building)
 
 **Expected Returns**:
 
-- **Direct**: Community adoption, industry recognition, potential sponsorships/support contracts
+- **Direct**: Community adoption, GitHub stars, contributor growth
 - **Indirect**: Advancement of open-source timing solutions, enabling innovation in TSN/IoT
 - **Strategic**: Establishment as de-facto open PTP implementation, similar to LWIP for TCP/IP
+- **Sponsorship-dependent**: Industry partnerships, certification support, professional validation
 
-**Recommendation**: **APPROVE** - High strategic value, manageable risk, clear market need
+**Recommendation**: **APPROVE** - High strategic value, zero financial risk, clear market need, **with explicit acknowledgment that official certifications require future sponsorship**
 
 ---
 

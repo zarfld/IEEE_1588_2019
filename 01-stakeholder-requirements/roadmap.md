@@ -28,11 +28,17 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - ADR-001: HAL design with function pointers
   - Interface contracts documented (network, timestamp, clock, OS)
   - Mock HAL for testing
+  - **NEW**: Initial contact with AVnu Alliance test lab (Recommendation 1)
   
 - [ ] **Week 2-3**: Build System & CI/CD
   - CMake configuration (cross-platform, cross-compile)
   - GitHub Actions workflows (Linux, Windows, ARM)
   - Code formatting (clang-format), linting
+  
+- [ ] **Week 3-4**: Standards Engagement (Recommendation 1)
+  - **NEW**: Engage IEEE P1588 Working Group (establish contact)
+  - **NEW**: Review AVnu Milan test scenarios with certification lab
+  - **NEW**: Document alignment strategy in ADR-002
   
 - [ ] **Week 3-5**: Core Data Structures
   - IEEE 1588-2019 types (Timestamp, ClockIdentity, PortIdentity, etc.)
@@ -78,6 +84,7 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - Frequency and phase adjustment
   - Convergence testing (simulated and real)
   - Tuning for reference platforms
+  - **NEW**: Security audit partner selection (Recommendation 2)
   
 - [ ] **Week 11-16**: Path Delay Measurement
   - E2E delay mechanism (Delay_Req/Delay_Resp)
@@ -122,9 +129,11 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - MISRA-C compliance review
   
 - [ ] **Week 22-24**: Security Audit
-  - External security audit (embedded security firm)
+  - **⚠️ REQUIRES SPONSORSHIP**: External security audit (embedded security firm, est. $15K-$25K)
+  - Alternative: Community security review via GitHub Security Advisories
   - Vulnerability remediation (all critical findings resolved)
   - Security policy published (SECURITY.md)
+  - **Sponsorship target**: Semiconductor vendor or audio/video equipment manufacturer
   
 - [ ] **Week 23-25**: Documentation
   - Getting Started Tutorial (Linux + STM32)
@@ -133,9 +142,10 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - Architecture Decision Records (ADRs)
   
 - [ ] **Week 24-26**: Conformance Testing
-  - Interoperability testing (linuxptp, commercial GMs)
+  - Self-certification: Interoperability testing (linuxptp, commercial GMs if accessible)
   - Wireshark packet captures (message format validation)
   - 24-hour stress test (uptime, stability)
+  - **⚠️ Official AVnu/PROFINET certification REQUIRES SPONSORSHIP** (est. $10K-$50K per certification)
   
 - [ ] **Week 26**: MVP Release (v1.0.0)
   - Release notes, changelog
@@ -164,11 +174,12 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
 
 ### Key Initiatives
 
-- [ ] **Community Engagement**
-  - GitHub Discussions / Discord server launch
-  - Monthly community calls (open to all)
-  - Conference presentations (IEEE, AVnu, OCP)
-  - Blog posts / tutorials on Medium / Dev.to
+- [ ] **Community Engagement** (100% volunteer-driven)
+  - GitHub Discussions / Discord server launch (FREE)
+  - Monthly community calls (open to all, FREE via Zoom/Meet)
+  - Conference presentations (IEEE, AVnu, OCP - travel costs via sponsorship if possible)
+  - Blog posts / tutorials on Medium / Dev.to (FREE)
+  - **Sponsorship opportunity**: Travel grants for conference presentations
   
 - [ ] **Platform Expansion**
   - HAL #3: Windows MSVC (community contribution target)
@@ -181,10 +192,11 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - Management protocol (IEEE 1588-2019 Section 15, basic)
   - Optional security TLVs (Annex K, if demand exists)
   
-- [ ] **Standards Engagement**
-  - IEEE P1588 working group membership
-  - AVnu Associate membership (if applicable)
-  - OCP Time Appliances Project contributions
+- [ ] **Standards Engagement** (Cost-aware approach)
+  - IEEE P1588 working group participation (membership via employer or individual volunteer)
+  - AVnu Associate membership (⚠️ REQUIRES SPONSORSHIP: ~$5K-$10K/year)
+  - OCP Time Appliances Project contributions (FREE, open participation)
+  - Alternative: Participate in public forums, reflectors, and open meetings only
   
 - [ ] **Ecosystem Tools**
   - PTP packet analyzer / debugging tool
