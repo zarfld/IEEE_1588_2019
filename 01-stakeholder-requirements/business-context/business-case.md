@@ -225,79 +225,98 @@ See `competitive-landscape.md` for detailed analysis. Summary:
 
 ## 4. Financial Analysis
 
-### 4.1 Investment Required
+### 4.1 Investment Required (Volunteer Project Model)
 
-#### Phase 1 (MVP, Weeks 1-26): $85K-$125K
+**⚠️ CRITICAL**: This is a **100% volunteer-driven project**. All engineering labor is **volunteer contributions in spare time**. Monetary costs listed are **optional enhancements requiring external sponsorship**.
 
-| Activity | Effort | Cost Estimate |
-|----------|--------|---------------|
-| **Phase 1A: Foundation** | 8 weeks × 0.5 FTE | $15K-$20K |
-| **Phase 1B: Core Protocol** | 12 weeks × 0.75 FTE | $35K-$50K |
-| **Phase 1C: Quality & Docs** | 6 weeks × 0.75 FTE | $20K-$25K |
-| **Hardware** (eval boards, NICs, test equipment) | One-time | $5K-$10K |
-| **Security Audit** | External service | $10K-$20K |
-| **TOTAL** | ~4.5-6.5 person-months | **$85K-$125K** |
+#### Phase 1 (MVP, Weeks 1-26): Volunteer Labor + Optional Sponsorship
 
-*Assumes blended rate $130K-$180K fully loaded annual cost → ~$65K-$90K per 6 months + overhead*
+| Activity | Volunteer Effort | Industry Equivalent Value | Sponsorship Needs |
+|----------|------------------|---------------------------|-------------------|
+| **Phase 1A: Foundation** | 8 weeks × 0.5 FTE | $15K-$20K | $0 (volunteer) |
+| **Phase 1B: Core Protocol** | 12 weeks × 0.75 FTE | $35K-$50K | $0 (volunteer) |
+| **Phase 1C: Quality & Docs** | 6 weeks × 0.75 FTE | $20K-$25K | $0 (volunteer) |
+| **SUBTOTAL: Labor** | ~4.5-6.5 person-months | **$70K-$95K** | **$0 (all volunteer)** |
 
-#### Phase 2 (Community Growth, Months 7-12): $40K-$60K
+**Optional Paid Items (Require External Sponsorship)**:
 
-- Community management, additional platforms, advanced features
-- Sponsorship or volunteer contributions may reduce costs
+| Item | Purpose | Est. Cost | Priority | MVP Blocker? |
+|------|---------|-----------|----------|--------------|
+| **Hardware** (eval boards, NICs, switches) | Testing on real hardware | $2K-$5K | MEDIUM | No - volunteers may own hardware |
+| **Security Audit** | Enterprise credibility, CVE remediation | $15K-$25K | **HIGH** | **No - but recommended for adoption** |
+| **CI Services** | GitHub Actions free tier should suffice | $0 | N/A | No - free tier adequate |
+| **SUBTOTAL: Sponsorship** | | **$17K-$30K** | | **MVP possible without sponsorship** |
 
-**Total First-Year Investment**: **$125K-$185K**
+**Phase 1 Total**: **$0 cash required** (pure volunteer) OR **$17K-$30K** (with optional security audit)
 
----
+#### Phase 2 (Community Growth, Months 7-12): Volunteer + Optional Sponsorship
 
-### 4.2 Return on Investment (ROI)
+| Activity | Volunteer Effort | Industry Value | Sponsorship Opportunity |
+|----------|------------------|----------------|------------------------|
+| Platform expansion (3 HALs) | 12 person-weeks | $40K-$60K | $3K-$9K (bounties to accelerate) |
+| Advanced features | 8 person-weeks | $30K-$45K | $0 (volunteer) |
+| Standards engagement | 4 person-weeks | $15K-$25K | $5K-$10K (AVnu membership **if sponsor available**) |
+| Ecosystem tools | 6 person-weeks | $20K-$30K | $0 (volunteer) |
+| Conference travel | - | - | $2K-$5K/event (**if sponsor available**) |
+| **TOTAL Phase 2** | ~6 person-months | **$105K-$160K** | **$10K-$29K (optional acceleration)** |
 
-**Note**: Open-source projects have non-traditional ROI. We focus on **strategic returns** rather than direct revenue.
-
-#### Direct Financial Returns (Conservative Scenario)
-
-**Scenario A: Sponsorship Model** (GitHub Sponsors, corporate sponsorships)
-
-- **Year 1**: $10K-$30K (5-10 sponsors @ $1K-$3K each)
-- **Year 2**: $30K-$60K (15-20 sponsors as adoption grows)
-- **Year 3**: $60K-$120K (sustained sponsorships, potential support contracts)
-
-**3-Year Cumulative**: $100K-$210K direct returns
-
-**Break-Even**: ~2-3 years (if sponsorship model succeeds)
-
-#### Strategic Returns (High Confidence)
-
-1. **Industry Influence**: Position as thought leader in timing protocols
-   - Speaking engagements (IEEE, AVnu, OCP conferences)
-   - Consulting opportunities for team members
-   - **Value**: Intangible but significant for career/company branding
-
-2. **Community Goodwill**: Open-source contribution builds reputation
-   - Attracts talent (top engineers want to work on impactful projects)
-   - Business development (customers/partners approach proactively)
-   - **Value**: $50K-$200K recruiting cost avoidance
-
-3. **Market Expansion**: Enable new products/services built on this foundation
-   - Professional audio DIY community (~$10M potential market)
-   - Academic/research publications citing implementation (~100 papers estimated)
-   - **Value**: Ecosystem growth (hard to quantify but substantial)
-
-4. **Standards Process**: Influence IEEE 1588 future revisions
-   - Reference implementation shapes standard evolution
-   - Early access to new features/profiles
-   - **Value**: Competitive advantage in timing-dependent markets
+**Total First-Year Investment**:
+- **Volunteer labor**: 56 person-weeks (10.5-12.5 person-months) = **$175K-$255K industry equivalent value**
+- **Actual cash required**: **$0** (pure volunteer model, no sponsorship)
+- **Recommended sponsorship**: **$17K-$30K** (security audit for enterprise adoption)
+- **Optional full sponsorship**: **$27K-$59K** (audit + AVnu + travel + bounties)
 
 ---
 
-### 4.3 Risk-Adjusted ROI
+### 4.2 Return on Investment (ROI) - Volunteer Model
 
-**Probability of Success**: 70% (based on similar open-source infrastructure projects: LWIP, FreeRTOS, Zephyr)
+**Note**: Open-source volunteer projects have **non-monetary ROI**. We focus on **community impact, strategic positioning, and optional sponsorship revenue**.
 
-**Expected Value** (3 years):
+#### Scenario 1: Pure Volunteer (No Sponsorship) - Most Likely Path
 
-- **Direct Returns**: $100K-$210K × 70% = **$70K-$147K**
-- **Strategic Returns**: $50K-$200K × 70% = **$35K-$140K**
-- **Total Expected Return**: **$105K-$287K** over 3 years
+**Investment**: $0 cash, volunteer time only
+
+**Returns (3 years)**:
+- **Community Impact**: 150-500 GitHub stars, 10-20 active contributors, 5-10 production users
+- **Volunteer Value**: Skills development (IEEE 1588 expertise), portfolio building, networking
+- **Strategic Positioning**: Reference implementation for standards bodies, academic citations
+- **Sponsorship Potential**: $5K-$30K (if security audit completed later, GitHub Sponsors)
+
+**ROI**: **Infinite** (no cash investment) - **LIMITATION: No formal security audit limits enterprise adoption**
+
+#### Scenario 2: Security Audit Sponsorship ($15K-$25K) - Recommended Path
+
+**Investment**: $15K-$25K (one-time sponsor for security audit)
+
+**Returns (3 years)**:
+- **All benefits from Scenario 1** PLUS:
+- **Enterprise Adoption**: Security audit report enables risk-averse organizations to adopt
+- **CVE Remediation**: Professional vulnerability assessment and fixes
+- **Credibility**: Listed on security audit registries, mentioned in compliance docs
+- **Additional Sponsorship**: $20K-$80K (increased confidence from audit enables larger sponsors)
+
+**3-Year Expected Returns**: $25K-$110K (audit ROI + additional sponsorships)
+
+**ROI**: **+67% to +340%** (cash-on-cash) + volunteer value + strategic positioning
+
+**Break-Even**: 18-24 months (if sponsorship model works)
+
+#### Scenario 3: Full Sponsorship ($50K-$100K) - Accelerated Path
+
+**Investment**: $50K-$100K (security audit + AVnu membership + certification + travel)
+
+**Returns (3 years)**:
+- **All benefits from Scenario 2** PLUS:
+- **Official Certifications**: AVnu Milan conformance (enables professional audio market)
+- **Standards Participation**: IEEE P1588 / AVnu working group membership
+- **Conference Presence**: Speaking at IEEE, AVnu, OCP events (visibility)
+- **Accelerated Adoption**: Faster community growth due to professional credibility
+
+**3-Year Expected Returns**: $60K-$200K (certifications unlock commercial markets)
+
+**ROI**: **+20% to +100%** (cash-on-cash) + volunteer value + strategic positioning + market access
+
+**Break-Even**: 24-36 months (higher investment, but commercial market unlocked)
 
 **Net Present Value** (NPV @ 10% discount rate):
 

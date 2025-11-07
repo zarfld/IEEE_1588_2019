@@ -140,6 +140,8 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
   - Porting Guide (HAL implementation checklist)
   - Example Applications (basic slave, realtime, TSN)
   - Architecture Decision Records (ADRs)
+  - **NEW**: CONTRIBUTING.md with CLA/DCO policy (Recommendation 3)
+  - **NEW**: Community governance model documented
   
 - [ ] **Week 24-26**: Conformance Testing
   - Self-certification: Interoperability testing (linuxptp, commercial GMs if accessible)
@@ -159,8 +161,9 @@ This roadmap outlines the **26-week MVP journey** from project kickoff to public
 - ✅ Static analysis: zero critical defects
 - ✅ Fuzzing: zero crashes in 100M inputs
 - ✅ Interoperability validated with 2+ devices
-- ✅ Documentation complete (API, tutorials, porting guide)
+- ✅ Documentation complete (API, tutorials, porting guide, CONTRIBUTING.md)
 - ✅ Example applications build and run successfully
+- ✅ Community governance model established (CLA or DCO selected)
 
 **Phase Gate Review**: Week 26 (2026-05-14) → **PUBLIC RELEASE**
 
