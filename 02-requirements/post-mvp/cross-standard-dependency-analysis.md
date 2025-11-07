@@ -1,5 +1,5 @@
 ---
-specType: requirements
+specType: guidance
 standard: "29148"
 phase: "02-requirements"
 version: "1.0.0"
