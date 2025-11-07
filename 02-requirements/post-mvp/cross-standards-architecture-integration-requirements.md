@@ -5,7 +5,7 @@ phase: "02-requirements"
 version: "1.0.0"
 author: "Requirements Engineering Team"
 date: "2025-10-10"
-status: "deferred"  # Archived Post-MVP scope per orphan triage (ADR-013)
+status: "deprecated"  # Schema-compliant value used to represent Post-MVP deferral (see orphan triage + ADR-013)
 traceability:
   stakeholderRequirements:
     # DEFERRED TO POST-MVP: Cross-architecture requirements out of scope for Phase 01 MVP
