@@ -23,10 +23,76 @@ traceability:
 version: 1.0.0
 ---
 
-# Architecture Specification Template
+## ADR-002: IEEE Standards Layering
+
+## Status
+
+Approved
+
+Decision ID: ADR-002  
+Title: IEEE Standards Layering  
+Date: 2025-10-12  
+Supersedes: None  
+Superseded-by: N/A
+
+## Context
+
+The implementation must integrate multiple IEEE and related standards (IEEE 1588-2019 PTP core, IEEE 802.1AS gPTP for time distribution, IEEE 1722 AVTP for media transport, IEEE 1722.1 AVDECC for device control, plus AVnu Milan and AES67 extensions) while preserving strict protocol layering and avoiding architectural cycles. A clear layering policy is required to:
+
+- Enforce dependency direction (higher layers depend on lower; never inverse)
+- Prevent code duplication across standards
+- Maintain hardware/OS agnosticism in protocol logic
+- Support multi-version coexistence (e.g., 2021 and legacy 2013 implementations)
+- Enable traceability to functional requirements REQ-F-001 (PTP message foundation) and REQ-F-002 (BMCA selection logic organization)
+
+## Decision
+
+Adopt a four-tier standards layering model with optional extension layer:
+
+1. Timing Layer: IEEE 1588-2019 core + IEEE 802.1AS (gPTP) precise time sync (bottom, no dependencies on higher layers)
+2. Transport Layer: IEEE 1722 (AVTP) depends only on Timing Layer for synchronized timestamps
+3. Control/Discovery Layer: IEEE 1722.1 (AVDECC) depends on Transport Layer (AVTP) and Timing Layer (gPTP/PTP) for time-aware control messaging
+4. Extension Layer: AVnu Milan, AES67, other profiles extend Control/Transport layers without introducing reverse dependencies
+
+Enforcement rules:
+
+- No upward references (e.g., gPTP must not include AVTP headers)
+- Reuse existing implementations (no reimplementation of AVTP packet logic inside AVDECC)
+- Namespace and directory structure follow organization/standard/version pattern (e.g., `IEEE/1722/2016/avtp/`) guarantee isolation
+- All cross-layer access via public headers only; no private internal duplication
+- Capability flags govern optional features (unicast negotiation, security) without violating layering
+
+## Consequences
+
+Positive:
+
+- Clear traceability and maintainability (single source per protocol feature)
+- Reduced duplication and faster certification due to consistent layering
+- Easier unit testing: each layer mockable independently
+- Prevents architectural drift and circular dependencies
+
+Negative / Trade-offs:
+
+- Strict boundaries may require adapter wrappers for cross-cutting concerns (e.g., time conversions)
+- Multi-version coexistence increases directory complexity
+- Refactoring legacy code to conform may incur short-term effort
+
+## Alternatives Considered
+
+1. Monolithic merged protocol layer – Rejected: increases coupling, reduces testability, complicates multi-version support.
+1. Dynamic plugin discovery between standards – Rejected: runtime indirection adds jitter; unnecessary for compile-time known standards set.
+1. OS-centric layering (socket/timer primitives at bottom) – Rejected: violates hardware/OS agnostic requirement.
+
+## Compliance
+
+Addresses REQ-F-001 (message foundation organization) and REQ-F-002 (BMCA structural separation). Aligns with ISO/IEC/IEEE 42010 by documenting architectural concerns (dependency direction, modularity, version coexistence). No copyrighted specification text reproduced; implementation based on understanding of IEEE standards.
+
+## Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
+>
 > **Traceability Guardrail**: Ensure every architectural element has IDs:
+>
 > - Components: ARC-C-\d{3}
 > - Processes (runtime): ARC-P-\d{3}
 > - Interfaces: INT-\d{3}
@@ -34,7 +100,8 @@ version: 1.0.0
 > - Deployment nodes: DEP-\d{3}
 > - Decisions: ADR-\d{3}
 > - Quality attribute scenarios: QA-SC-\d{3}
-> Each ADR must reference ≥1 REQ-* or QA-SC-*, and each QA-SC-* must map to ≥1 REQ-NF-*.
+>
+> Each ADR must reference ≥1 REQ-\* or QA-SC-\*, and each QA-SC-\* must map to ≥1 REQ-NF-\*.
 
 ---
 
@@ -254,14 +321,16 @@ C4Component
 **Key Processes**:
 
 1. **Request Processing**:
-   ```
-   User Request → API Gateway → Load Balancer → App Service → Database
-   ```
 
-2. **Async Job Processing**:
-   ```
-   App Service → Message Queue → Worker → Database
-   ```
+```text
+User Request → API Gateway → Load Balancer → App Service → Database
+```
+
+1. **Async Job Processing**:
+
+```text
+App Service → Message Queue → Worker → Database
+```
 
 **Concurrency Strategy**:
 
