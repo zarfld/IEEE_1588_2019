@@ -19,7 +19,12 @@ specType: architecture
 standard: '42010'
 status: draft
 traceability:
-  requirements: []
+  requirements:
+    # IEEE 1588-2019 implementation strategy implements core PTP protocol requirements
+    - REQ-F-001   # Message types (Sync, Delay_Req, Follow_Up, Delay_Resp, Announce, etc.)
+    - REQ-F-002   # BMCA state machine
+    - REQ-F-003   # Clock offset calculation (E2E delay mechanism)
+    - REQ-F-004   # PI controller servo
 version: 1.0.0
 ---
 

@@ -19,7 +19,13 @@ specType: architecture
 standard: '42010'
 status: draft
 traceability:
-  requirements: []
+  requirements:
+    # IEEE 1588-2019 PTPv2 architecture implements complete protocol stack
+    - REQ-F-001   # IEEE 1588-2019 message types
+    - REQ-F-002   # BMCA state machine
+    - REQ-F-003   # Clock offset calculation
+    - REQ-F-004   # PI controller servo
+    - REQ-F-005   # HAL interfaces
 version: 1.0.0
 ---
 

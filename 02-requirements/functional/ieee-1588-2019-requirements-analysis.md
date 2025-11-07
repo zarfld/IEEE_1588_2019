@@ -8,8 +8,9 @@ date: "2025-10-12"
 status: draft
 traceability:
   stakeholderRequirements:
-    - REQ-STK-TIMING-001
-    - REQ-STK-SYNC-001
+    # Timing and synchronization analysis maps to performance stakeholder requirements
+    - StR-006  # STR-PERF-002: Timing Determinism (zero malloc, WCET targets)
+    - StR-007  # STR-PERF-003: Clock Servo Performance (PI controller)
 ---
 
 # IEEE 1588-2019 Requirements Completeness Analysis

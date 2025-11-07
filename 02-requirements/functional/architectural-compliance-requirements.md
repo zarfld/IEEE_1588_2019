@@ -8,11 +8,12 @@ date: "2025-10-10"
 status: "approved"
 traceability:
   stakeholderRequirements:
-    - REQ-STK-ARCH-001
-    - REQ-STK-ARCH-002
-    - REQ-STK-ARCH-003
-    - REQ-STK-ARCH-004
-    - REQ-STK-ARCH-005
+    # Architecture compliance maps to portability and maintainability stakeholder requirements
+    - StR-010  # STR-PORT-001: Hardware Abstraction Layer
+    - StR-012  # STR-PORT-003: Platform Independence
+    - StR-021  # STR-MAINT-001: Coding Standards
+    - StR-022  # STR-MAINT-002: Test Coverage
+    - StR-023  # STR-MAINT-003: Continuous Integration
 ---
 # Architectural Compliance Requirements
 

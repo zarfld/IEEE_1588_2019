@@ -17,8 +17,7 @@
       "properties": {
         "requirements": {
           "type": "array",
-          "items": {"type": "string", "pattern": "^REQ-(?:[A-Z]{4}-)?(?:F|NF)-[0-9]{3}$"},
-          "minItems": 1
+          "items": {"type": "string", "pattern": "^REQ-(?:[A-Z]{4}-)?(?:F|NF)(?:-[A-Z])?-[0-9]{3}$"}
         }
       }
     }

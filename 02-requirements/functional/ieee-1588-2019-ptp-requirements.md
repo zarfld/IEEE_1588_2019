@@ -8,11 +8,12 @@ date: "2025-10-10"
 status: "approved"
 traceability:
   stakeholderRequirements:
-    - "REQ-STK-IEEE1588-001"
-    - "REQ-STK-IEEE1588-002"
-    - "REQ-STK-IEEE1588-003"
-    - "REQ-STK-IEEE1588-004"
-    - "REQ-STK-IEEE1588-005"
+    # IEEE 1588-2019 PTP requirements map to standards compliance and performance stakeholder requirements
+    - StR-001  # STR-STD-001: IEEE 1588-2019 Protocol Compliance
+    - StR-002  # STR-STD-002: Message Format Correctness
+    - StR-003  # STR-STD-003: Best Master Clock Algorithm
+    - StR-004  # STR-STD-004: Interoperability with Commercial Devices
+    - StR-005  # STR-PERF-001: Synchronization Accuracy
 ---
 # IEEE 1588-2019 PTP v2.1 Requirements Specification
 

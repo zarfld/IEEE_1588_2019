@@ -1,0 +1,20 @@
+﻿py : Traceback (most recent call last):
+In Zeile:1 Zeichen:1
++ py scripts\validate-spec-structure.py 2>&1 | Out-File -Encoding utf8  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteExce 
+   ption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\Repos\IEEE_1588_2019\scripts\validate-spec-structure.py", line 184, in <module>
+    sys.exit(main(sys.argv))
+             ~~~~^^^^^^^^^^
+  File "D:\Repos\IEEE_1588_2019\scripts\validate-spec-structure.py", line 163, in main
+    print(f"\u274c {issue.file.relative_to(ROOT)}: {issue.message}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\zarfld\AppData\Local\Programs\Python\Python313\Lib\encodings\cp1252.py", line 19, in 
+encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 0: character maps to 
+<undefined>

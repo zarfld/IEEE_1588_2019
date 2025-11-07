@@ -19,7 +19,11 @@ specType: architecture
 standard: '42010'
 status: draft
 traceability:
-  requirements: []
+  requirements:
+    # HAL architecture implements hardware abstraction and platform independence
+    - REQ-F-005       # HAL Interfaces (network, timestamp, clock, timer)
+    - REQ-NF-M-001    # Platform Independence (embedded RTOS, Linux, Windows)
+    - REQ-NF-P-002    # Deterministic Timing (zero malloc, WCET targets)
 version: 1.0.0
 ---
 

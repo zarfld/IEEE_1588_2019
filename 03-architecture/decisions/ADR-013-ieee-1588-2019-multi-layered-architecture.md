@@ -19,7 +19,12 @@ specType: architecture
 standard: '42010'
 status: draft
 traceability:
-  requirements: []
+  requirements:
+    # Multi-layered architecture implements complete PTP protocol stack
+    - REQ-F-001   # Message types (application layer)
+    - REQ-F-002   # BMCA (protocol layer)
+    - REQ-F-005   # HAL interfaces (abstraction layer)
+    - REQ-NF-M-001  # Platform independence (portability layer)
 version: 1.0.0
 ---
 

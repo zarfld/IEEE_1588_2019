@@ -5,14 +5,17 @@ phase: "02-requirements"
 version: "1.0.0"
 author: "Requirements Engineering Team"
 date: "2025-10-10"
-status: "approved"
+status: "deprecated"
 traceability:
   stakeholderRequirements:
-    - "REQ-STK-CROSSSTD-001"
-    - "REQ-STK-CROSSSTD-002"
-    - "REQ-STK-CROSSSTD-003"
-    - "REQ-STK-CROSSSTD-004"
-    - "REQ-STK-CROSSSTD-005"
+    # DEFERRED TO POST-MVP: Cross-standards requirements out of scope for Phase 01 MVP
+    # These will be addressed in Phase 02 (Q2-Q3 2026) after IEEE 1588-2019 MVP completion
+    # See post-mvp/README.md for rationale and roadmap
+    - StR-025  # Placeholder for future cross-standards stakeholder requirements
+    - StR-026  # Placeholder for future cross-standards stakeholder requirements
+    - StR-027  # Placeholder for future cross-standards stakeholder requirements
+    - StR-028  # Placeholder for future cross-standards stakeholder requirements
+    - StR-029  # Placeholder for future cross-standards stakeholder requirements
 ---
 
 # Cross-Standard Dependency Analysis

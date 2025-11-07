@@ -16,7 +16,10 @@ specType: architecture
 standard: '42010'
 status: draft
 traceability:
-  requirements: []
+  requirements:
+    # IEEE standards layering architecture implements protocol structure requirements
+    - REQ-F-001   # IEEE 1588-2019 message types (protocol foundation)
+    - REQ-F-002   # BMCA (protocol organization)
 version: 1.0.0
 ---
 

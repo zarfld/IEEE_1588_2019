@@ -5,14 +5,17 @@ phase: "02-requirements"
 version: "1.0.0"
 author: "Requirements Engineering Team"
 date: "2025-10-10"
-status: "approved"
+status: "deprecated"
 traceability:
   stakeholderRequirements:
-    - REQ-STK-CROSSARCH-001
-    - REQ-STK-CROSSARCH-002
-    - REQ-STK-CROSSARCH-003
-    - REQ-STK-CROSSARCH-004
-    - REQ-STK-CROSSARCH-005
+    # DEFERRED TO POST-MVP: Cross-architecture requirements out of scope for Phase 01 MVP
+    # These 58 requirements will be addressed in Phase 02 (Q2-Q3 2026) after IEEE 1588-2019 MVP
+    # See post-mvp/README.md for complete rationale and phased roadmap
+    - StR-030  # Placeholder for future cross-architecture stakeholder requirements
+    - StR-031  # (StR-030 through StR-087 reserved for 58 cross-architecture requirements)
+    - StR-032
+    - StR-033
+    - StR-034
 ---
 # Cross-Standards Architecture Integration Requirements Specification
 
