@@ -24,14 +24,31 @@
 #include <array>
 
 // Network byte order conversion functions
-// Provide portable byte-order helpers to avoid platform lib dependencies
+// Provide portable byte-order helpers with names that avoid clashes with system macros (htons/ntohs)
 namespace detail {
     constexpr std::uint16_t bswap16(std::uint16_t x) noexcept { return static_cast<std::uint16_t>((x << 8) | (x >> 8)); }
     constexpr std::uint32_t bswap32(std::uint32_t x) noexcept { return (x << 24) | ((x & 0x0000FF00U) << 8) | ((x & 0x00FF0000U) >> 8) | (x >> 24); }
-    inline std::uint16_t htons(std::uint16_t x) noexcept { return bswap16(x); }
-    inline std::uint16_t ntohs(std::uint16_t x) noexcept { return bswap16(x); }
-    inline std::uint32_t htonl(std::uint32_t x) noexcept { return bswap32(x); }
-    inline std::uint32_t ntohl(std::uint32_t x) noexcept { return bswap32(x); }
+
+    // Compile-time endianness detection (fallback assumes little-endian for common targets)
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && defined(__ORDER_BIG_ENDIAN__)
+    constexpr bool is_little_endian = (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__);
+#else
+    constexpr bool is_little_endian = true;
+#endif
+
+    // Convert between host and big-endian (network) order without colliding with system macros
+    constexpr std::uint16_t host_to_be16(std::uint16_t x) noexcept {
+        return is_little_endian ? bswap16(x) : x;
+    }
+    constexpr std::uint16_t be16_to_host(std::uint16_t x) noexcept {
+        return is_little_endian ? bswap16(x) : x;
+    }
+    constexpr std::uint32_t host_to_be32(std::uint32_t x) noexcept {
+        return is_little_endian ? bswap32(x) : x;
+    }
+    constexpr std::uint32_t be32_to_host(std::uint32_t x) noexcept {
+        return is_little_endian ? bswap32(x) : x;
+    }
 }
 
 namespace IEEE {
@@ -177,7 +194,7 @@ struct CommonHeader {
      * @return true if two-step mode, false if one-step mode
      */
     inline bool isTwoStep() const noexcept {
-        return (detail::ntohs(flagField) & Flags::TWO_STEP) != 0;
+    return (detail::be16_to_host(flagField) & Flags::TWO_STEP) != 0;
     }
     
     /**
@@ -205,7 +222,7 @@ struct CommonHeader {
         }
         
         // Message length bounds check
-        const auto msgLen = detail::ntohs(messageLength);
+    const auto msgLen = detail::be16_to_host(messageLength);
         if (msgLen < sizeof(CommonHeader) || msgLen > 1500) {
             return PTPResult<void>::makeError(PTPError::INVALID_LENGTH);
         }
@@ -272,7 +289,7 @@ struct AnnounceBody {
         // Retain semantic validation opportunity for future profile-specific ranges.
         
         // Steps removed sanity check
-    const auto steps = detail::ntohs(stepsRemoved);
+    const auto steps = detail::be16_to_host(stepsRemoved);
         if (steps > 255) {
             return PTPResult<void>::makeError(PTPError::INVALID_STEPS_REMOVED);
         }
@@ -538,7 +555,7 @@ struct PTPMessage {
         header = {};
         header.setMessageType(msgType);
         header.setVersion(2);  // IEEE 1588-2019 is version 2
-    header.messageLength = detail::htons(static_cast<std::uint16_t>(getMessageSize()));
+    header.messageLength = detail::host_to_be16(static_cast<std::uint16_t>(getMessageSize()));
         header.domainNumber = domain;
         header.minorVersionPTP = 1;  // IEEE 1588-2019 minor version
         header.sourcePortIdentity = sourcePort;
