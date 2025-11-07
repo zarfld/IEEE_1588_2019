@@ -28,10 +28,54 @@ traceability:
 version: 1.0.0
 ---
 
-# Architecture Specification Template
+## ADR-003: IEEE 1588-2019 Implementation Strategy
+
+## Status
+
+Draft
+
+Decision ID: ADR-003  
+Title: IEEE 1588-2019 Implementation Strategy  
+Date: 2025-10-12  
+Supersedes: None  
+Superseded-by: N/A
+
+## Context
+
+We need a repository-wide implementation strategy for IEEE 1588-2019 that ensures: standards compliance without reproducing copyrighted text, platform and vendor independence, TDD-first development, and architectural layering aligned with IEEE 802.1AS/1722/1722.1 reuse. The strategy must support vertical slices (requirements → design → code → tests → CI) and enable deterministic timing behavior and conformance testing.
+
+Drivers and constraints include REQ-F-001 (message types), REQ-F-002 (BMCA), REQ-F-003 (offset/delay), REQ-F-004 (servo), and REQ-NF-M-001 (platform independence).
+
+## Decision
+
+Adopt a vertical-slice, TDD-first implementation strategy with strict layering and a C function-pointer HAL:
+
+- TDD and traceability: Write failing tests from requirements, implement minimal code, keep green, and link artifacts across phases
+- Layering: Reuse 802.1AS timing in 1722, and 1722 in 1722.1; no reverse dependencies
+- HAL: Use C-ABI function tables (send/recv, get_time_ns, set_timer) injected at init; no OS/vendor headers in Standards
+- Build/CI: CMake + CTest cross-platform (Windows/Linux/macOS) with coverage on Linux; keep examples/tests linking against a single Standards lib
+- Performance: Prefer static allocation and non-blocking behavior in protocol paths; document timing assumptions per standard
+
+## Consequences
+
+Positive:
+
+- Predictable progress via vertical slices, with strong traceability and fast feedback
+- High portability and testability due to HAL and strict layering
+- Reduced duplication by reusing lower standard layers
+
+Negative / Trade-offs:
+
+- Additional adapter work for each platform/vendor
+- Some performance overhead from indirection; mitigated by compiler optimizations
+- Requires disciplined governance to maintain layering and TDD rigor
+
+## Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
+>
 > **Traceability Guardrail**: Ensure every architectural element has IDs:
+>
 > - Components: ARC-C-\d{3}
 > - Processes (runtime): ARC-P-\d{3}
 > - Interfaces: INT-\d{3}
@@ -39,7 +83,8 @@ version: 1.0.0
 > - Deployment nodes: DEP-\d{3}
 > - Decisions: ADR-\d{3}
 > - Quality attribute scenarios: QA-SC-\d{3}
-> Each ADR must reference ≥1 REQ-* or QA-SC-*, and each QA-SC-* must map to ≥1 REQ-NF-*.
+>
+> Each ADR must reference ≥1 REQ-\* or QA-SC-\*, and each QA-SC-\* must map to ≥1 REQ-NF-\*.
 
 ---
 
@@ -259,14 +304,16 @@ C4Component
 **Key Processes**:
 
 1. **Request Processing**:
-   ```
-   User Request → API Gateway → Load Balancer → App Service → Database
-   ```
 
-2. **Async Job Processing**:
-   ```
-   App Service → Message Queue → Worker → Database
-   ```
+```text
+User Request → API Gateway → Load Balancer → App Service → Database
+```
+
+1. **Async Job Processing**:
+
+```text
+App Service → Message Queue → Worker → Database
+```
 
 **Concurrency Strategy**:
 
