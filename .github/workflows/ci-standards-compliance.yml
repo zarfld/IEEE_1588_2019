@@ -118,27 +118,25 @@ jobs:
   # Phase 05: TDD - Test-Driven Development
   unit-tests:
     name: C/C++ Unit Tests (C11/C++17 Matrix)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         cxx_standard: [17]
         c_standard: [11]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      # Linux setup/build/test with coverage
+      - name: Install toolchain (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build gcovr lcov
-          if [ "${{ matrix.compiler }}" = "clang" ]; then sudo apt-get install -y clang llvm; fi
-
-      - name: Configure (CMake)
-        env:
-          CXX: ${{ matrix.compiler == 'clang' && 'clang++' || 'g++' }}
-          CC: ${{ matrix.compiler == 'clang' && 'clang' || 'gcc' }}
+      - name: Configure (Linux, Ninja, coverage)
+        if: runner.os == 'Linux'
         run: |
           cmake -S . -B build \
             -G Ninja \
@@ -146,16 +144,18 @@ jobs:
             -DCMAKE_C_STANDARD=${{ matrix.c_standard }} \
             -DBUILD_TESTING=ON \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DENABLE_COVERAGE=ON
-
-      - name: Build
+            -DCMAKE_CXX_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_C_FLAGS="--coverage -O0 -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DCMAKE_SHARED_LINKER_FLAGS="--coverage"
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
         run: cmake --build build --config Debug -- -k 0
-
-      - name: Run tests
+      - name: Run tests (Linux)
+        if: runner.os == 'Linux'
         run: ctest --test-dir build -C Debug --output-on-failure
-
-      - name: Collect coverage
-        if: matrix.compiler == 'gcc'
+      - name: Collect coverage (Linux)
+        if: runner.os == 'Linux'
         run: |
           echo "Generating coverage report via gcovr";
           gcovr -r . --xml -o build/coverage.xml --exclude 'tests' || true
@@ -165,14 +165,53 @@ jobs:
           LINE_PCT=$(gcovr -r . --exclude 'tests' | grep 'TOTAL' | awk '{print $4}' | sed 's/%//')
           echo "Line coverage: ${LINE_PCT}%";
           python -c "import sys; val=float('${LINE_PCT:-0}'); min_cov=float('${MIN_TEST_COVERAGE:-80}'); print(f'Coverage threshold check: {val:.2f}% vs {min_cov:.2f}%'); sys.exit(0 if val>=min_cov else 1)"
-
-      - name: Upload coverage artifacts
-        if: always()
+      - name: Upload coverage artifacts (Linux)
+        if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.compiler }}
+          name: coverage-linux
           path: |
             build/coverage.*
+
+      # macOS setup/build/test
+      - name: Install toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ninja || true
+      - name: Configure (macOS, Ninja)
+        if: runner.os == 'macOS'
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DCMAKE_C_STANDARD=${{ matrix.c_standard }} \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: cmake --build build --config Debug -- -k 0
+      - name: Run tests (macOS)
+        if: runner.os == 'macOS'
+        run: ctest --test-dir build -C Debug --output-on-failure
+
+      # Windows setup/build/test
+      - name: Configure (Windows, MSVC)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build \
+            -G "Visual Studio 17 2022" \
+            -A x64 \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DCMAKE_C_STANDARD=${{ matrix.c_standard }}
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Debug -- /m
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: ctest --test-dir build -C Debug --output-on-failure
 
   traceability-coverage:
     name: Traceability Coverage Enforcement
@@ -233,30 +272,64 @@ jobs:
   # Phase 06: Integration Testing
   integration-tests:
     name: Integration Tests (C++ Build Validation)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [unit-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install toolchain
+      # Linux path
+      - name: Install toolchain (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build
-      - name: Configure minimal build
+      - name: Configure minimal build (Linux)
+        if: runner.os == 'Linux'
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
-      - name: Build examples
+      - name: Build examples (Linux)
+        if: runner.os == 'Linux'
         run: cmake --build build --target ieee1588_2019_basic_example -- -k 0
-      - name: Smoke run
+      - name: Smoke run (Linux)
+        if: runner.os == 'Linux'
         run: ./build/examples/ieee1588_2019_basic_example || true
+
+      # macOS path
+      - name: Install toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ninja || true
+      - name: Configure minimal build (macOS)
+        if: runner.os == 'macOS'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      - name: Build examples (macOS)
+        if: runner.os == 'macOS'
+        run: cmake --build build --target ieee1588_2019_basic_example -- -k 0
+      - name: Smoke run (macOS)
+        if: runner.os == 'macOS'
+        run: ./build/examples/ieee1588_2019_basic_example || true
+
+      # Windows path
+      - name: Configure minimal build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Build examples (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --target ieee1588_2019_basic_example --config Release -- /m
+
       - name: Upload binary artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-binaries
+          name: integration-binaries-${{ matrix.os }}
           path: |
-            build/examples/ieee1588_2019_basic_example
+            build/examples/**
 
   # Phase 02: Requirements Traceability Check
   requirements-traceability:
