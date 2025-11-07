@@ -4,20 +4,40 @@
 Parses requirements and architecture spec markdown files to extract structured
 metadata used for generation (tests, trace JSON) and validation.
 
+Enhancement: (2025-11-07) Definition vs Reference Classification
+---------------------------------------------------------------
+Previously every line beginning with an ID pattern produced an item and any
+repeat of that ID (even if only a reference in a linkage table) was counted as
+an overall duplicate. This inflated duplicate warnings when the same ID was
+legitimately referenced across matrices, linkage plans, user stories, etc.
+
+We now classify each occurrence as either:
+    - definition : The canonical declaration of the item
+            * Front matter `id:` field
+            * A markdown heading whose first token is an ID (e.g. `### REQ-F-001:`)
+    - reference  : Any other occurrence (tables, inline lists, narrative refs)
+
+Duplicate detection only considers multiple *definitions* of the same ID.
+References no longer trigger duplicate warnings.
+
+Output Augmentation:
+    - Each item now includes a `sourceType` field: 'definition' | 'reference'
+    - JSON root adds `duplicateDefinitionIds` listing IDs with >1 definition
+
 Input Directories:
-  - 02-requirements/** (functional, non-functional, use-cases, user-stories)
-  - 03-architecture/** (architecture spec, decisions, views, quality scenarios)
+    - 02-requirements/** (functional, non-functional, use-cases, user-stories)
+    - 03-architecture/** (architecture spec, decisions, views, quality scenarios)
 
 Output:
-  - build/spec-index.json : canonical list of items with IDs, type, title, refs
+    - build/spec-index.json : canonical list of items with IDs, type, title, refs
 
 Traceability Model (simplified):
-  Stakeholder Need (StR) -> Requirement (REQ-*) -> Design Element (ARC-*, COMP-* )
-     -> Test (TEST-*)
+    Stakeholder Need (StR) -> Requirement (REQ-*) -> Design Element (ARC-*, COMP-* )
+         -> Test (TEST-*)
 
 Assumptions:
-  - Each spec file has YAML front matter with 'id' or lines containing an ID
-  - IDs follow taxonomy documented in templates (e.g., REQ-F-001)
+    - Each spec file has YAML front matter with 'id' or lines containing an ID
+    - IDs follow taxonomy documented in templates (e.g., REQ-F-001)
 
 """
 from __future__ import annotations
@@ -30,6 +50,7 @@ BUILD_DIR = ROOT / 'build'
 OUTPUT_FILE = BUILD_DIR / 'spec-index.json'
 
 ID_PATTERN = re.compile(r'^(?P<id>(StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
+HEADING_DEF_PATTERN = re.compile(r'^\s{0,3}#{1,6}\s+(?P<id>(StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
 # Capture full identifiers with optional 4-char category prefix
 # Examples: REQ-AUTH-F-001, StR-CORE-001, ADR-INFRA-001, TEST-LOGIN-001
 REF_PATTERN = re.compile(r'\b(?:StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*\b')
@@ -55,6 +76,10 @@ IGNORE_PATTERNS = [
     'user-story-template.md',
     'architecture-spec.md',  # template root
     'requirements-spec.md',  # template root
+    'spec-kit-templates/',   # entire templates directory
+    '/templates/',           # any nested templates folders
+    'REQUIREMENTS-ELICITATION-SESSION-',  # workshop report, not canonical spec
+    'functional/test-perfect-gen.md',     # generator test file with placeholders
 ]
 
 def is_ignored(path: Path) -> bool:
@@ -82,30 +107,33 @@ def parse_file(path: Path) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     primary_id = fm.get('id')
     if primary_id:
-        items.append(build_item(primary_id, fm.get('title') or path.stem, path, text))
+        items.append(build_item(primary_id, fm.get('title') or path.stem, path, text, source_type='definition'))
     for raw_line in text.splitlines():
-        line = raw_line.strip('# ').strip()
-        m = ID_PATTERN.match(line)
+        stripped = raw_line.strip('\n')
+        heading_match = HEADING_DEF_PATTERN.match(stripped)
+        line_core = stripped.strip('# ').strip()
+        m = ID_PATTERN.match(line_core)
         if not m:
             continue
         # Extract all valid IDs present in the line (comma separated etc.)
-        ids_in_line = [tok for tok in REF_PATTERN.findall(line)]
+        ids_in_line = [tok for tok in REF_PATTERN.findall(line_core)]
         for idx, id_ in enumerate(ids_in_line):
             if primary_id and id_ == primary_id:
                 continue
             if any(i['id'] == id_ for i in items):
                 continue
-            # Title: remainder of line after this id if first, else just path stem
+            # Determine if this line constitutes a definition (markdown heading starting with ID)
+            is_definition = bool(heading_match and heading_match.group('id') == id_ and idx == 0)
             if idx == 0:
-                remainder = line.split(id_, 1)[1].strip(' -:,')
+                remainder = line_core.split(id_, 1)[1].strip(' -:,')
                 title = remainder or path.stem
             else:
                 title = path.stem
-            items.append(build_item(id_, title, path, text))
+            items.append(build_item(id_, title, path, text, source_type='definition' if is_definition else 'reference'))
     return items
 
 
-def build_item(id_: str, title: str, path: Path, full_text: str) -> Dict[str, Any]:
+def build_item(id_: str, title: str, path: Path, full_text: str, source_type: str = 'reference') -> Dict[str, Any]:
     refs = sorted({r for r in REF_PATTERN.findall(full_text) if r != id_})
     sha = hashlib.sha1(full_text.encode('utf-8')).hexdigest()[:8]
     return {
@@ -114,6 +142,7 @@ def build_item(id_: str, title: str, path: Path, full_text: str) -> Dict[str, An
         'path': str(path.relative_to(ROOT)),
         'references': refs,
         'hash': sha,
+        'sourceType': source_type,
     }
 
 
@@ -158,26 +187,34 @@ def main() -> int:
                         'references': req_refs,
                         'hash': hashlib.sha1((tid+text).encode('utf-8')).hexdigest()[:8],
                     })
-    # De-duplicate by ID keeping first occurrence while tracking duplicates
-    seen = {}
+    # De-duplicate by ID (first occurrence kept) while separately tracking duplicate *definitions*
+    seen: Dict[str, int] = {}
     dedup: List[Dict[str, Any]] = []
-    duplicates: Dict[str, int] = {}
+    duplicate_definitions: Dict[str, int] = {}
     for item in all_items:
         iid = item['id']
-        if iid in seen:
-            duplicates[iid] = duplicates.get(iid, 1) + 1
+        if iid not in seen:
+            seen[iid] = 1
+            dedup.append(item)
+        else:
+            # Only flag if this is an additional definition (not just a reference)
+            if item.get('sourceType') == 'definition':
+                duplicate_definitions[iid] = duplicate_definitions.get(iid, 1) + 1
+            # References are ignored for duplicate purposes
             continue
-        seen[iid] = 1
-        dedup.append(item)
-    if duplicates:
-        print("⚠️ Duplicate ID(s) detected (keeping first occurrence):", file=sys.stderr)
-        for k, count in duplicates.items():
-            print(f"  - {k} (occurrences: {count+0})", file=sys.stderr)
+    if duplicate_definitions:
+        print("⚠️ Duplicate definition(s) detected (keeping first definition occurrence):", file=sys.stderr)
+        for k, count in duplicate_definitions.items():
+            print(f"  - {k} (extra definitions: {count})", file=sys.stderr)
     OUTPUT_FILE.write_text(
-        json.dumps({'items': dedup, 'duplicateIds': list(duplicates.keys()), 'ignoredPatterns': IGNORE_PATTERNS}, indent=2),
+        json.dumps({
+            'items': dedup,
+            'duplicateDefinitionIds': list(duplicate_definitions.keys()),
+            'ignoredPatterns': IGNORE_PATTERNS
+        }, indent=2),
         encoding='utf-8'
     )
-    print(f"Wrote {OUTPUT_FILE} with {len(dedup)} unique items (duplicates: {len(duplicates)}) (ignored patterns active)")
+    print(f"Wrote {OUTPUT_FILE} with {len(dedup)} unique items (duplicate definitions: {len(duplicate_definitions)}) (ignored patterns active)")
     return 0
 
 if __name__ == '__main__':
