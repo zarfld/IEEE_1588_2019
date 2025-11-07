@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # IEEE 1588-2019 - Precision Time Protocol (PTPv2) Implementation
 
 [![Standards Compliance](https://img.shields.io/badge/IEEE%201588--2019-Compliant-brightgreen)](https://standards.ieee.org/standard/1588-2019.html)
@@ -118,6 +119,8 @@ This repository provides timing services to higher-layer protocol implementation
 **Standards Organization**: IEEE Standards Association
 
 
+=======
+>>>>>>> 3fbe2b2d3fcdd5d3e597344c9c3c30c4b014d93a
 # IEEE 1588-2019 PTP v2.1 Implementation
 
 This directory contains the hardware-agnostic implementation of IEEE 1588-2019 Precision Time Protocol version 2.1, providing enhanced timing capabilities beyond basic gPTP (802.1AS) with **real-time system compatibility**.
@@ -279,6 +282,7 @@ When contributing to this IEEE 1588-2019 implementation:
 
 This implementation follows the same licensing terms as the OpenAvnu project while respecting IEEE copyright and patent policies for the IEEE 1588-2019 standard.
 
+<<<<<<< HEAD
 # IEEE Standards Implementation Status
 
 This directory contains **verified implementations** of IEEE standards for Audio Video Bridging (AVB) and Time-Sensitive Networking (TSN). All status information below has been validated through actual compilation and testing.
@@ -641,3 +645,5 @@ Before claiming implementation status:
 - IEEE Std 1722.1-2021: Standard for Device Discovery, Connection Management, and Control Protocol for Time-Sensitive Networking Systems
 - IEEE Std 1722-2016: Standard for a Transport Protocol for Time-Sensitive Applications in Bridged Local Area Networks  
 - OpenAvnu Project: https://github.com/Avnu/OpenAvnu
+=======
+>>>>>>> 3fbe2b2d3fcdd5d3e597344c9c3c30c4b014d93a
