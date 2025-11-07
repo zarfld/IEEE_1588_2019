@@ -307,6 +307,8 @@ struct StateCallbacks {
  */
 class PtpPort {
 public:
+    /** Default constructor for container initialization (non-operational) */
+    PtpPort() noexcept;
     /**
      * @brief Construct PTP port with deterministic configuration
      * @param config Port configuration (must be valid)
@@ -506,13 +508,18 @@ private:
     Types::PTPResult<void> calculate_offset_and_delay() noexcept;
     
     // Time interval calculations (bounded execution time)
-    constexpr Types::Timestamp interval_to_nanoseconds(std::uint8_t log_interval) const noexcept {
-        return Types::Timestamp{1000000000ULL << log_interval};
+    constexpr Types::TimeInterval time_interval_for_log_interval(std::uint8_t log_interval,
+                                                                 std::uint8_t multiplier = 1) const noexcept {
+        // Duration = (2^log_interval) seconds * multiplier
+        // Convert seconds to nanoseconds then to scaled TimeInterval
+        const std::uint64_t seconds = (1ULL << log_interval) * static_cast<std::uint64_t>(multiplier);
+        const double ns = static_cast<double>(seconds) * 1'000'000'000.0;
+        return Types::TimeInterval::fromNanoseconds(ns);
     }
     
-    constexpr bool is_timeout_expired(const Types::Timestamp& last_time,
-                                     const Types::Timestamp& current_time,
-                                     const Types::TimeInterval& timeout_interval) const noexcept {
+    inline bool is_timeout_expired(const Types::Timestamp& last_time,
+                                   const Types::Timestamp& current_time,
+                                   const Types::TimeInterval& timeout_interval) const noexcept {
         // Calculate elapsed time and compare with timeout
         Types::TimeInterval elapsed = current_time - last_time;
         return elapsed.toNanoseconds() >= timeout_interval.toNanoseconds();

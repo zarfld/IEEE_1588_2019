@@ -544,6 +544,9 @@ public:
     constexpr bool hasValue() const noexcept {
         return has_value_;
     }
+
+    // Compatibility alias for code expecting isSuccess()
+    constexpr bool isSuccess() const noexcept { return has_value_; }
     
     /**
      * @brief Check if result contains an error
@@ -590,6 +593,8 @@ public:
     constexpr bool is_success() const noexcept {
         return has_value_;
     }
+
+    // (single alias provided above)
     
     /**
      * @brief Get the value (alias for getValue)
@@ -674,6 +679,9 @@ public:
     constexpr bool hasValue() const noexcept {
         return has_value_;
     }
+
+    // Compatibility alias
+    constexpr bool isSuccess() const noexcept { return has_value_; }
     
     /**
      * @brief Check if result contains an error
@@ -701,6 +709,8 @@ public:
     constexpr bool is_success() const noexcept {
         return has_value_;
     }
+
+    // (single alias provided above)
     
     /**
      * @brief Get the error (alias for getError)

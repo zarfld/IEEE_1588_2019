@@ -29,6 +29,14 @@ namespace Clocks {
 // PtpPort Implementation
 // ============================================================================
 
+PtpPort::PtpPort() noexcept
+    : config_{}
+    , callbacks_{}
+{
+    port_data_set_.port_identity.port_number = 0;
+    port_data_set_.port_state = PortState::Initializing;
+}
+
 PtpPort::PtpPort(const PortConfiguration& config, 
                  const StateCallbacks& callbacks) noexcept 
     : config_(config)
@@ -581,11 +589,12 @@ Types::PTPResult<void> PtpPort::check_timeouts(const Types::Timestamp& current_t
     // Check announce receipt timeout
     if (port_data_set_.port_state == PortState::Slave ||
         port_data_set_.port_state == PortState::Uncalibrated) {
-        
-        Types::Timestamp announce_timeout = interval_to_nanoseconds(port_data_set_.log_announce_interval) *
-                                           port_data_set_.announce_receipt_timeout;
-        
-        if (is_timeout_expired(last_announce_time_, current_time, announce_timeout)) {
+
+        auto announce_timeout_interval = time_interval_for_log_interval(
+            port_data_set_.log_announce_interval,
+            port_data_set_.announce_receipt_timeout);
+
+        if (is_timeout_expired(last_announce_time_, current_time, announce_timeout_interval)) {
             statistics_.announce_timeouts++;
             return process_event(StateEvent::ANNOUNCE_RECEIPT_TIMEOUT);
         }

@@ -1,14 +1,17 @@
 # IEEE 1588-2019 PTP v2.1 Tests
-# Unit tests and integration tests for PTP message structures
+# Unit tests and integration tests for PTP core components
 
-# Currently no tests implemented
-# Placeholder for future test development
+cmake_minimum_required(VERSION 3.16)
 
-message(STATUS "IEEE 1588-2019 PTP tests directory configured (no tests yet)")
+set(TEST_SOURCES
+	${CMAKE_CURRENT_LIST_DIR}/test_state_machine_basic.cpp
+	${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
 
-# TODO: Add unit tests for:
-# - PTP message parsing/serialization
-# - Timestamp calculations  
-# - Clock state machines
-# - Network timestamp validation
-# - Hardware abstraction interfaces
+add_executable(ptp_state_machine_tests ${TEST_SOURCES})
+target_include_directories(ptp_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(ptp_state_machine_tests PRIVATE IEEE1588_2019_interface)
+
+add_test(NAME ptp_state_machine_basic COMMAND ptp_state_machine_tests)
+
+message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
