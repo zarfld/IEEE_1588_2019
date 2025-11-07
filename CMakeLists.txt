@@ -66,14 +66,14 @@ target_include_directories(IEEE1588_2019_interface
         $<INSTALL_INTERFACE:include>
 )
 
-# Future: Create main library when source files are implemented
-# add_library(IEEE1588_2019 ${IEEE1588_2019_SOURCES} ${IEEE1588_2019_HEADERS})
-# target_include_directories(IEEE1588_2019
-#     PUBLIC
-#         $<BUILD_INTERFACE:${IEEE1588_2019_INCLUDE_DIR}>
-#         $<INSTALL_INTERFACE:include>
-# )
-# target_link_libraries(IEEE1588_2019 PUBLIC IEEE1588_2019_interface)
+# Create compiled library for implemented sources (clocks.cpp, etc.)
+add_library(IEEE1588_2019 ${IEEE1588_2019_SOURCES} ${IEEE1588_2019_HEADERS})
+target_include_directories(IEEE1588_2019
+    PUBLIC
+        $<BUILD_INTERFACE:${IEEE1588_2019_INCLUDE_DIR}>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(IEEE1588_2019 PUBLIC IEEE1588_2019_interface)
 
 # Testing support
 if(BUILD_TESTING)

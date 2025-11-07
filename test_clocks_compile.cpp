@@ -21,13 +21,62 @@ int main() {
     config.version_number = 2;
     std::cout << "✅ PortConfiguration: PASS" << std::endl;
     
-    // Test 2: State Callbacks with Function Pointers (using suggested namespace)
-    IEEE::_1588::PTP::_2019::StateCallbacks callbacks{};
-    callbacks.send_announce = nullptr;
-    callbacks.send_sync = nullptr;
-    callbacks.get_timestamp = nullptr;
-    callbacks.on_state_change = nullptr;
-    std::cout << "✅ StateCallbacks: PASS" << std::endl;
+    // Test 2: Provide real StateCallbacks stubs (no skipping)
+    using namespace IEEE::_1588::PTP::_2019;
+    // Stub implementations (no captures → decays to function pointers)
+    auto stub_send_announce = [](const Clocks::AnnounceMessage&) -> Types::PTPError {
+        return Types::PTPError::Success;
+    };
+    auto stub_send_sync = [](const Clocks::SyncMessage&) -> Types::PTPError {
+        return Types::PTPError::Success;
+    };
+    auto stub_send_follow_up = [](const Clocks::FollowUpMessage&) -> Types::PTPError {
+        return Types::PTPError::Success;
+    };
+    auto stub_send_delay_req = [](const Clocks::DelayReqMessage&) -> Types::PTPError {
+        return Types::PTPError::Success;
+    };
+    auto stub_send_delay_resp = [](const Clocks::DelayRespMessage&) -> Types::PTPError {
+        return Types::PTPError::Success;
+    };
+    auto stub_get_timestamp = []() -> Types::Timestamp {
+        // zero timestamp is fine for compile/runtime smoke
+        return Types::Timestamp{0};
+    };
+    auto stub_get_tx_timestamp = [](std::uint16_t, Types::Timestamp* ts) -> Types::PTPError {
+        if (ts) { *ts = Types::Timestamp{0}; }
+        return Types::PTPError::Success;
+    };
+    auto stub_adjust_clock = [](std::int64_t) -> Types::PTPError { return Types::PTPError::Success; };
+    auto stub_adjust_frequency = [](double) -> Types::PTPError { return Types::PTPError::Success; };
+    auto stub_on_state_change = [](Types::PortState, Types::PortState) {};
+    auto stub_on_fault = [](const char*) {};
+
+    Clocks::StateCallbacks cbs{
+        stub_send_announce,
+        stub_send_sync,
+        stub_send_follow_up,
+        stub_send_delay_req,
+        stub_send_delay_resp,
+        stub_get_timestamp,
+        stub_get_tx_timestamp,
+        stub_adjust_clock,
+        stub_adjust_frequency,
+        stub_on_state_change,
+        stub_on_fault
+    };
+    // Create a minimal OrdinaryClock and drive basic lifecycle
+    Clocks::OrdinaryClock oc(config, cbs);
+    auto r_init = oc.initialize();
+    auto r_start = oc.start();
+    auto r_tick = oc.tick(Types::Timestamp{0});
+    auto r_stop = oc.stop();
+    if (r_init.hasValue() && r_start.hasValue() && r_tick.hasValue() && r_stop.hasValue()) {
+        std::cout << "✅ StateCallbacks + OrdinaryClock lifecycle: PASS" << std::endl;
+    } else {
+        std::cout << "❌ StateCallbacks + OrdinaryClock lifecycle: FAIL" << std::endl;
+        return 1;
+    }
     
     // Test 3: Enum Values (verify canonical types.hpp integration)
     using PortState = IEEE::_1588::PTP::_2019::Types::PortState;
