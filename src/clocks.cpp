@@ -75,7 +75,7 @@ PtpPort::PtpPort(const PortConfiguration& config,
     
     // Initialize foreign master list
     foreign_masters_.fill(AnnounceMessage{});
-    foreign_master_timestamps_.fill(Types::Timestamp{0});
+    foreign_master_timestamps_.fill(Types::Timestamp{});
     foreign_master_count_ = 0;
     have_sync_ = false;
     have_follow_up_ = false;
@@ -90,21 +90,21 @@ Types::PTPResult<void> PtpPort::initialize() noexcept {
     foreign_master_count_ = 0;
     
     // Reset timing state
-    last_announce_time_ = Types::Timestamp{0};
-    last_sync_time_ = Types::Timestamp{0};
-    last_delay_req_time_ = Types::Timestamp{0};
-    announce_timeout_time_ = Types::Timestamp{0};
-    sync_timeout_time_ = Types::Timestamp{0};
+    last_announce_time_ = Types::Timestamp{};
+    last_sync_time_ = Types::Timestamp{};
+    last_delay_req_time_ = Types::Timestamp{};
+    announce_timeout_time_ = Types::Timestamp{};
+    sync_timeout_time_ = Types::Timestamp{};
     
     // Reset sequence IDs
     announce_sequence_id_ = 0;
     sync_sequence_id_ = 0;
     delay_req_sequence_id_ = 0;
     have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
-    sync_origin_timestamp_ = Types::Timestamp{0};
-    sync_rx_timestamp_ = Types::Timestamp{0};
-    delay_req_tx_timestamp_ = Types::Timestamp{0};
-    delay_resp_rx_timestamp_ = Types::Timestamp{0};
+    sync_origin_timestamp_ = Types::Timestamp{};
+    sync_rx_timestamp_ = Types::Timestamp{};
+    delay_req_tx_timestamp_ = Types::Timestamp{};
+    delay_resp_rx_timestamp_ = Types::Timestamp{};
     
     return Types::PTPResult<void>{};
 }
@@ -319,15 +319,15 @@ Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcep
         break;
         
     case PortState::Master:
-        // Start transmitting Announce and Sync messages
-        last_announce_time_ = Types::Timestamp{0};
-        last_sync_time_ = Types::Timestamp{0};
+    // Start transmitting Announce and Sync messages
+    last_announce_time_ = Types::Timestamp{};
+    last_sync_time_ = Types::Timestamp{};
         break;
         
     case PortState::Slave:
     case PortState::Uncalibrated:
-        // Start requesting delay measurements
-        last_delay_req_time_ = Types::Timestamp{0};
+    // Start requesting delay measurements
+    last_delay_req_time_ = Types::Timestamp{};
         break;
         
     case PortState::Faulty:
@@ -535,7 +535,7 @@ Types::PTPResult<void> PtpPort::send_announce_message() noexcept {
     message.header.sourcePortIdentity = port_data_set_.port_identity;
     
     // Fill announce body with current data
-    message.body.originTimestamp = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
+    message.body.originTimestamp = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
     message.body.currentUtcOffset = 37; // Current TAI-UTC offset
     message.body.grandmasterPriority1 = parent_data_set_.grandmaster_priority1;
     message.body.grandmasterClockClass = parent_data_set_.grandmaster_clock_quality.clock_class;
@@ -548,8 +548,8 @@ Types::PTPResult<void> PtpPort::send_announce_message() noexcept {
     
     auto error = callbacks_.send_announce(message);
     if (error == Types::PTPError::Success) {
-        statistics_.announce_messages_sent++;
-        last_announce_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
+    statistics_.announce_messages_sent++;
+    last_announce_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
         return Types::PTPResult<void>::success();
     }
     
@@ -570,12 +570,12 @@ Types::PTPResult<void> PtpPort::send_sync_message() noexcept {
     message.header.sourcePortIdentity = port_data_set_.port_identity;
     
     // Origin timestamp will be filled by hardware or follow-up message
-    message.body.originTimestamp = Types::Timestamp{0};
+    message.body.originTimestamp = Types::Timestamp{};
     
     auto error = callbacks_.send_sync(message);
     if (error == Types::PTPError::Success) {
-        statistics_.sync_messages_sent++;
-        last_sync_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
+    statistics_.sync_messages_sent++;
+    last_sync_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
         return Types::PTPResult<void>::success();
     }
     
@@ -592,8 +592,8 @@ Types::PTPResult<void> PtpPort::send_delay_req_message() noexcept {
     message.header.sequenceId = delay_req_sequence_id_++;
     message.header.sourcePortIdentity = port_data_set_.port_identity;
     
-    Types::Timestamp now_ts = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
-    message.body.originTimestamp = Types::Timestamp{0};
+    Types::Timestamp now_ts = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
+    message.body.originTimestamp = Types::Timestamp{};
     
     // Record T3 regardless; if no callback provided, still succeed for deterministic tests
     delay_req_tx_timestamp_ = now_ts; // T3
@@ -652,24 +652,24 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
 Types::PTPResult<void> PtpPort::update_foreign_master_list(const AnnounceMessage& message) noexcept {
     // Find existing entry for this clock
     for (std::uint8_t i = 0; i < foreign_master_count_; ++i) {
-        if (std::memcmp(foreign_masters_[i].header.sourcePortIdentity.clock_identity.data(),
+        if (std::memcmp(this->foreign_masters_[i].header.sourcePortIdentity.clock_identity.data(),
                         message.header.sourcePortIdentity.clock_identity.data(),
                         Types::CLOCK_IDENTITY_LENGTH) == 0 &&
-            foreign_masters_[i].header.sourcePortIdentity.port_number ==
+            this->foreign_masters_[i].header.sourcePortIdentity.port_number ==
             message.header.sourcePortIdentity.port_number) {
             
             // Update existing entry
-            foreign_masters_[i] = message;
-            foreign_master_timestamps_[i] = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
+            this->foreign_masters_[i] = message;
+            this->foreign_master_timestamps_[i] = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
             return Types::PTPResult<void>::success();
         }
     }
     
     // Add new entry if space available
-    if (foreign_master_count_ < MAX_FOREIGN_MASTERS) {
-        foreign_masters_[foreign_master_count_] = message;
-        foreign_master_timestamps_[foreign_master_count_] = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
-        foreign_master_count_++;
+    if (foreign_master_count_ < this->foreign_masters_.size()) {
+        this->foreign_masters_[foreign_master_count_] = message;
+        this->foreign_master_timestamps_[foreign_master_count_] = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
+        this->foreign_master_count_++;
         return Types::PTPResult<void>::success();
     }
     

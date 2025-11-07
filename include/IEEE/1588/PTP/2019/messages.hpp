@@ -268,9 +268,8 @@ struct AnnounceBody {
      */
     PTPResult<void> validate() const noexcept {
         // Clock class range check (IEEE 1588-2019 Table 5)
-        if (grandmasterClockClass > 255) {
-            return PTPResult<void>::makeError(PTPError::INVALID_CLOCK_CLASS);
-        }
+        // grandmasterClockClass is uint8_t (0-255) so explicit upper-bound check is unnecessary.
+        // Retain semantic validation opportunity for future profile-specific ranges.
         
         // Steps removed sanity check
     const auto steps = detail::ntohs(stepsRemoved);

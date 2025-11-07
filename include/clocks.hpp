@@ -218,24 +218,13 @@ struct SynchronizationData {
         const Types::Timestamp& delay_req_timestamp,
         const Types::Timestamp& delay_resp_timestamp
     ) noexcept {
-        // IEEE 1588-2019 offset calculation algorithm
-        // offset_from_master = ((sync_reception - sync_timestamp) - (delay_resp_timestamp - delay_req_timestamp)) / 2
-        
-        // Calculate T2 - T1 (slave reception - master transmission)
-        // Note: Timestamp arithmetic operations need to be implemented
-        // For now, create placeholder TimeInterval
-        Types::TimeInterval t2_minus_t1{0};
-        
-        // TODO: Implement actual timestamp arithmetic when operators are available
-        
-        // Calculate T4 - T3 (master reception - slave transmission)
-        Types::TimeInterval t4_minus_t3{0};
-        
-        // Calculate offset: ((T2-T1) - (T4-T3)) / 2  
-        // TODO: Implement actual timestamp arithmetic
-        Types::TimeInterval calculated_offset{0};
-        
-        offsetFromMaster = calculated_offset;
+        // IEEE 1588-2019 E2E algorithm:
+        // offset_from_master = ((T2 - T1) - (T4 - T3)) / 2
+        const Types::TimeInterval t2_minus_t1 = (sync_reception - sync_timestamp);
+        const Types::TimeInterval t4_minus_t3 = (delay_resp_timestamp - delay_req_timestamp);
+        // Work directly on scaled nanoseconds (2^-16 ns units) to avoid float rounding
+        const Types::Integer64 scaled = (t2_minus_t1.scaled_nanoseconds - t4_minus_t3.scaled_nanoseconds) / 2;
+        offsetFromMaster = Types::TimeInterval{scaled};
         return Types::PTPResult<Types::TimeInterval>::success(offsetFromMaster);
     }
 };
@@ -479,20 +468,20 @@ private:
     PortStatistics statistics_;
     
     // Timing state (bounded precision)
-    Types::Timestamp last_announce_time_{0};
-    Types::Timestamp last_sync_time_{0};
-    Types::Timestamp last_delay_req_time_{0};
-    Types::Timestamp announce_timeout_time_{0};
-    Types::Timestamp sync_timeout_time_{0};
+    Types::Timestamp last_announce_time_{};
+    Types::Timestamp last_sync_time_{};
+    Types::Timestamp last_delay_req_time_{};
+    Types::Timestamp announce_timeout_time_{};
+    Types::Timestamp sync_timeout_time_{};
     std::uint16_t announce_sequence_id_{0};
     std::uint16_t sync_sequence_id_{0};
     std::uint16_t delay_req_sequence_id_{0};
 
     // Offset/delay calculation timestamps (T1..T4 per IEEE 1588-2019 Section 11.3)
-    Types::Timestamp sync_origin_timestamp_{0};      // T1 precise origin timestamp (from Follow_Up)
-    Types::Timestamp sync_rx_timestamp_{0};          // T2 local receive timestamp of Sync
-    Types::Timestamp delay_req_tx_timestamp_{0};     // T3 local transmit timestamp of Delay_Req
-    Types::Timestamp delay_resp_rx_timestamp_{0};    // T4 master receive timestamp of Delay_Req (from Delay_Resp)
+    Types::Timestamp sync_origin_timestamp_{};      // T1 precise origin timestamp (from Follow_Up)
+    Types::Timestamp sync_rx_timestamp_{};          // T2 local receive timestamp of Sync
+    Types::Timestamp delay_req_tx_timestamp_{};     // T3 local transmit timestamp of Delay_Req
+    Types::Timestamp delay_resp_rx_timestamp_{};    // T4 master receive timestamp of Delay_Req (from Delay_Resp)
     bool have_sync_{false};
     bool have_follow_up_{false};
     bool have_delay_req_{false};
