@@ -34,12 +34,14 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ## 2. Actors
 
 ### Primary Actor
+
 - **PTP Slave Device** (Ordinary Clock - Slave role)
   - **Description**: Device requiring timing source selection
   - **Capabilities**: BMCA dataset comparison, state machine management
   - **Responsibilities**: Select best available master, detect master quality changes, trigger failover
 
 ### Supporting Actors
+
 - **Grandmaster Clocks** (Multiple - Primary and Backup)
   - **Description**: Timing sources advertising their quality via Announce messages
   - **Capabilities**: Transmit Announce with clock quality datasets
@@ -54,11 +56,13 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ## 3. Preconditions
 
 ### System State
+
 - ✅ **PTP Stack Initialized**: Slave device operational in LISTENING or SLAVE state
 - ✅ **Network Active**: Multicast reception enabled, can receive from multiple sources
 - ✅ **BMCA Enabled**: Best Master Clock Algorithm implementation active
 
 ### Environmental Conditions
+
 - ✅ **Multiple Masters Present**: At least 2 grandmaster clocks on network
 - ✅ **Announce Transmission**: Masters transmitting Announce messages (default 1/second)
 - ✅ **Same PTP Domain**: All masters and slave configured for same domain number
@@ -68,12 +72,14 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ## 4. Postconditions
 
 ### Success Postconditions
+
 - ✅ **Best Master Selected**: Slave synchronized to optimal grandmaster per BMCA criteria
 - ✅ **State Transition Complete**: Slave in SLAVE state with selected master
 - ✅ **Announce Processing Active**: Continuous monitoring of Announce messages
 - ✅ **Failover Ready**: Alternate masters tracked for rapid failover
 
 ### Failure Postconditions
+
 - ⚠️ **No Masters Available**: Slave remains in LISTENING state
 - ⚠️ **BMCA Error**: Algorithm failure logged, previous master maintained
 - ⚠️ **Dataset Corruption**: Invalid Announce data detected and discarded
@@ -85,6 +91,7 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ### Phase 1: Announce Message Reception
 
 **Step 1**: Slave receives **Announce message from Master A**
+
 - **Message Content**: 
   - ClockQuality: {clockClass, clockAccuracy, offsetScaledLogVariance}
   - Priority1: 128 (default)
@@ -96,6 +103,7 @@ A PTP slave device receives Announce messages from multiple potential master clo
 - **Traces To**: REQ-F-001 (Announce message processing), REQ-F-002 (BMCA)
 
 **Step 2**: Slave receives **Announce message from Master B**
+
 - **Message Content**:
   - ClockQuality: {clockClass, clockAccuracy, offsetScaledLogVariance}
   - Priority1: 128
@@ -109,6 +117,7 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ### Phase 2: BMCA Dataset Comparison
 
 **Step 3**: Trigger BMCA on Announce receipt timeout or new Announce
+
 - **Trigger Conditions**:
   - New Announce received from unknown master
   - Periodic BMCA evaluation (every announce interval)
@@ -117,7 +126,9 @@ A PTP slave device receives Announce messages from multiple potential master clo
 - **Traces To**: REQ-F-002 (BMCA trigger conditions)
 
 **Step 4**: Compare datasets using BMCA algorithm (IEEE 1588-2019 Section 9.3.2)
+
 - **Comparison Steps** (in order of precedence):
+
   1. **Priority1**: Lower value wins
      - Master A: 128
      - Master B: 128
@@ -140,6 +151,7 @@ A PTP slave device receives Announce messages from multiple potential master clo
 - **Traces To**: REQ-F-002 (BMCA dataset comparison per Section 9.3.2)
 
 **Step 5**: Check if selected master differs from current master
+
 - **Current Master**: None (slave in LISTENING state) or Master B
 - **Selected Master**: Master A
 - **Comparison**: Masters differ, state transition required
@@ -148,12 +160,14 @@ A PTP slave device receives Announce messages from multiple potential master clo
 ### Phase 3: State Transition to New Master
 
 **Step 6**: If slave in LISTENING state, transition to UNCALIBRATED
+
 - **Action**: Prepare for synchronization with Master A
 - **State**: LISTENING → UNCALIBRATED
 - **Logging**: Log "Best master selected: Master A (00:1B:21:AA:BB:CC:DD:EE)"
 - **Traces To**: REQ-F-002 (state machine transitions)
 
 **Step 7**: Begin synchronization with Master A
+
 - **Action**: Process Sync/Follow_Up messages from Master A only
 - **Filtering**: Ignore timing messages from Master B (still process Announce)
 - **State**: UNCALIBRATED → SLAVE (after first valid offset measurement)
