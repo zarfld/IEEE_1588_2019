@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.16)
 
 set(TEST_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/test_state_machine_basic.cpp
+	${CMAKE_CURRENT_LIST_DIR}/test_messages_validate.cpp
+	${CMAKE_CURRENT_LIST_DIR}/test_types_timestamp.cpp
 )
 
 add_executable(ptp_state_machine_tests ${TEST_SOURCES})
@@ -12,6 +14,10 @@ target_include_directories(ptp_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/i
 target_link_libraries(ptp_state_machine_tests PRIVATE IEEE1588_2019)
 
 add_test(NAME ptp_state_machine_basic COMMAND ptp_state_machine_tests)
+
+# Register additional focused tests as separate CTest entries invoking the same binary
+add_test(NAME ptp_messages_validate COMMAND ptp_state_machine_tests --case messages)
+add_test(NAME ptp_types_timestamp COMMAND ptp_state_machine_tests --case timestamp)
 
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
