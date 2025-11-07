@@ -8,30 +8,32 @@ date: "2025-11-07"
 status: "draft"
 traceability:
   stakeholderRequirements:
-    - StR-STD-001
-    - StR-STD-002
-    - StR-STD-003
-    - StR-STD-004
-    - StR-PERF-001
-    - StR-PERF-002
-    - StR-PERF-003
-    - StR-PERF-004
-    - StR-PERF-005
-    - StR-PORT-001
-    - StR-PORT-002
-    - StR-PORT-003
-    - StR-PORT-004
-    - StR-SEC-001
-    - StR-SEC-002
-    - StR-SEC-003
-    - StR-USE-001
-    - StR-USE-002
-    - StR-USE-003
-    - StR-USE-004
-    - StR-MAINT-001
-    - StR-MAINT-002
-    - StR-MAINT-003
-    - StR-MAINT-004
+    # Note: Schema enforces StR-### pattern (simple numeric)
+    # Mapping to Phase 01 STR-<CAT>-### requirements documented in Section 6.1
+    - StR-001  # Maps to STR-STD-001 (IEEE 1588-2019 Protocol Compliance)
+    - StR-002  # Maps to STR-STD-002 (Message Format Correctness)
+    - StR-003  # Maps to STR-STD-003 (Best Master Clock Algorithm)
+    - StR-004  # Maps to STR-STD-004 (Interoperability)
+    - StR-005  # Maps to STR-PERF-001 (Synchronization Accuracy)
+    - StR-006  # Maps to STR-PERF-002 (Timing Determinism)
+    - StR-007  # Maps to STR-PERF-003 (Clock Servo Performance)
+    - StR-008  # Maps to STR-PERF-004 (Path Delay Measurement)
+    - StR-009  # Maps to STR-PERF-005 (Resource Efficiency)
+    - StR-010  # Maps to STR-PORT-001 (Hardware Abstraction Layer)
+    - StR-011  # Maps to STR-PORT-002 (Reference HAL Implementations)
+    - StR-012  # Maps to STR-PORT-003 (Platform Independence)
+    - StR-013  # Maps to STR-PORT-004 (Build System Portability)
+    - StR-014  # Maps to STR-SEC-001 (Input Validation)
+    - StR-015  # Maps to STR-SEC-002 (Memory Safety)
+    - StR-016  # Maps to STR-SEC-003 (Security Documentation)
+    - StR-017  # Maps to STR-USE-001 (API Usability)
+    - StR-018  # Maps to STR-USE-002 (Documentation Quality)
+    - StR-019  # Maps to STR-USE-003 (Examples and Tutorials)
+    - StR-020  # Maps to STR-USE-004 (Diagnostic Capabilities)
+    - StR-021  # Maps to STR-MAINT-001 (Coding Standards)
+    - StR-022  # Maps to STR-MAINT-002 (Test Coverage)
+    - StR-023  # Maps to STR-MAINT-003 (Continuous Integration)
+    - StR-024  # Maps to STR-MAINT-004 (Version Control)
 ---
 
 # System Requirements Specification (SyRS)
