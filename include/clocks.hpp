@@ -487,6 +487,16 @@ private:
     std::uint16_t announce_sequence_id_{0};
     std::uint16_t sync_sequence_id_{0};
     std::uint16_t delay_req_sequence_id_{0};
+
+    // Offset/delay calculation timestamps (T1..T4 per IEEE 1588-2019 Section 11.3)
+    Types::Timestamp sync_origin_timestamp_{0};      // T1 precise origin timestamp (from Follow_Up)
+    Types::Timestamp sync_rx_timestamp_{0};          // T2 local receive timestamp of Sync
+    Types::Timestamp delay_req_tx_timestamp_{0};     // T3 local transmit timestamp of Delay_Req
+    Types::Timestamp delay_resp_rx_timestamp_{0};    // T4 master receive timestamp of Delay_Req (from Delay_Resp)
+    bool have_sync_{false};
+    bool have_follow_up_{false};
+    bool have_delay_req_{false};
+    bool have_delay_resp_{false};
     
     // BMCA state (limited storage for deterministic operation)
     static constexpr size_t MAX_FOREIGN_MASTERS = 16;

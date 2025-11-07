@@ -77,6 +77,10 @@ PtpPort::PtpPort(const PortConfiguration& config,
     foreign_masters_.fill(AnnounceMessage{});
     foreign_master_timestamps_.fill(Types::Timestamp{0});
     foreign_master_count_ = 0;
+    have_sync_ = false;
+    have_follow_up_ = false;
+    have_delay_req_ = false;
+    have_delay_resp_ = false;
 }
 
 Types::PTPResult<void> PtpPort::initialize() noexcept {
@@ -96,6 +100,11 @@ Types::PTPResult<void> PtpPort::initialize() noexcept {
     announce_sequence_id_ = 0;
     sync_sequence_id_ = 0;
     delay_req_sequence_id_ = 0;
+    have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
+    sync_origin_timestamp_ = Types::Timestamp{0};
+    sync_rx_timestamp_ = Types::Timestamp{0};
+    delay_req_tx_timestamp_ = Types::Timestamp{0};
+    delay_resp_rx_timestamp_ = Types::Timestamp{0};
     
     return Types::PTPResult<void>{};
 }
@@ -373,11 +382,10 @@ Types::PTPResult<void> PtpPort::process_sync(const SyncMessage& message,
         return Types::PTPResult<void>{};
     }
     
-    // Store sync information for offset calculation
-    // This is a simplified implementation - full implementation would
-    // handle two-step vs one-step clocks, correction fields, etc.
-    
-    return Types::PTPResult<void>{};
+    (void)message; // not used yet
+    sync_rx_timestamp_ = rx_timestamp; // T2
+    have_sync_ = true;
+    return Types::PTPResult<void>::success();
 }
 
 Types::PTPResult<void> PtpPort::process_follow_up(const FollowUpMessage& message) noexcept {
@@ -389,10 +397,13 @@ Types::PTPResult<void> PtpPort::process_follow_up(const FollowUpMessage& message
         return Types::PTPResult<void>::success();
     }
     
-    // Calculate offset from master using sync and follow-up timestamps
-    auto result = calculate_offset_and_delay();
-    if (!result.is_success()) {
-        return result;
+    sync_origin_timestamp_ = message.body.preciseOriginTimestamp; // T1
+    have_follow_up_ = true;
+    if (have_sync_ && have_delay_req_ && have_delay_resp_) {
+        auto result = calculate_offset_and_delay();
+        if (!result.is_success()) {
+            return result;
+        }
     }
     
     // Check if we can transition from UNCALIBRATED to SLAVE
@@ -454,8 +465,12 @@ Types::PTPResult<void> PtpPort::process_delay_resp(const DelayRespMessage& messa
         return Types::PTPResult<void>::success();
     }
     
-    // Calculate path delay using delay request/response timestamps
-    return calculate_offset_and_delay();
+    delay_resp_rx_timestamp_ = message.body.receiveTimestamp; // T4
+    have_delay_resp_ = true;
+    if (have_sync_ && have_follow_up_ && have_delay_req_) {
+        return calculate_offset_and_delay();
+    }
+    return Types::PTPResult<void>::success();
 }
 
 Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexcept {
@@ -572,13 +587,15 @@ Types::PTPResult<void> PtpPort::send_delay_req_message() noexcept {
     message.header.sequenceId = delay_req_sequence_id_++;
     message.header.sourcePortIdentity = port_data_set_.port_identity;
     
-    // Origin timestamp will be filled by hardware
+    Types::Timestamp now_ts = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
     message.body.originTimestamp = Types::Timestamp{0};
     
     auto error = callbacks_.send_delay_req(message);
     if (error == Types::PTPError::Success) {
         statistics_.delay_req_messages_sent++;
-        last_delay_req_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{0};
+        last_delay_req_time_ = now_ts;
+        delay_req_tx_timestamp_ = now_ts; // T3
+        have_delay_req_ = true;
         return Types::PTPResult<void>::success();
     }
     
@@ -650,9 +667,17 @@ Types::PTPResult<void> PtpPort::update_foreign_master_list(const AnnounceMessage
 }
 
 Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
-    // Simplified implementation - real implementation would use
-    // proper timestamp correlation and filtering algorithms
-    
+    if (!(have_sync_ && have_follow_up_ && have_delay_req_ && have_delay_resp_)) {
+        return Types::PTPResult<void>::failure(Types::PTPError::Invalid_Parameter);
+    }
+    Types::TimeInterval t2_minus_t1 = sync_rx_timestamp_ - sync_origin_timestamp_;
+    Types::TimeInterval t4_minus_t3 = delay_resp_rx_timestamp_ - delay_req_tx_timestamp_;
+    double t2_t1_ns = t2_minus_t1.toNanoseconds();
+    double t4_t3_ns = t4_minus_t3.toNanoseconds();
+    double offset_ns = (t2_t1_ns - t4_t3_ns) / 2.0;
+    double path_ns = (t2_t1_ns + t4_t3_ns) / 2.0;
+    current_data_set_.offset_from_master = Types::TimeInterval::fromNanoseconds(offset_ns);
+    current_data_set_.mean_path_delay = Types::TimeInterval::fromNanoseconds(path_ns);
     return Types::PTPResult<void>::success();
 }
 
