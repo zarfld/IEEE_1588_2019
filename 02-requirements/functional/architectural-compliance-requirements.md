@@ -301,31 +301,37 @@ traceability:
 **Description:** The system shall implement IEEE 1722.1 AVDECC protocol with complete AEM command/response state machines, Milan extensions support, and proper checksum validation.
 **Priority:** Critical
 **Source:** REQ-SYS-ARCH-002, REQ-SYS-ARCH-005
+**Traces to:** ADR-002, ADR-013
 
 ### REQ-FUNC-ARCH-002: IEEE 1722 AVTP Protocol Implementation  
 **Description:** The system shall implement IEEE 1722 AVTP protocol supporting all defined stream formats (AAF, CRF, TSCF), proper timestamp handling, and Milan redundancy requirements.
 **Priority:** Critical
 **Source:** REQ-SYS-ARCH-002, REQ-SYS-ARCH-005
+**Traces to:** ADR-002, ADR-013
 
 ### REQ-FUNC-ARCH-003: IEEE 802.1AS gPTP Protocol Implementation
 **Description:** The system shall implement IEEE 802.1AS gPTP protocol with PTP state machines, nanosecond precision timing, and ±80ns synchronization accuracy for Milan compliance.
 **Priority:** Critical  
 **Source:** REQ-SYS-ARCH-002, REQ-SYS-ARCH-005
+**Traces to:** ADR-002, ADR-013
 
 ### REQ-FUNC-ARCH-004: Hardware Abstraction Interface Implementation
 **Description:** The system shall implement network interface abstraction providing send_packet, receive_packet, get_time_ns, and set_timer operations through function pointers.
 **Priority:** High
 **Source:** REQ-SYS-ARCH-001
+**Traces to:** REQ-F-005, REQ-NF-M-001, ADR-001
 
 ### REQ-FUNC-ARCH-005: Cross-Standard Protocol Integration
 **Description:** The system shall enable cross-standard protocol integration where IEEE 1722.1 uses IEEE 1722 transport and IEEE 802.1AS timing through proper dependency management.
 **Priority:** High
 **Source:** REQ-SYS-ARCH-004
+**Traces to:** ADR-002, ADR-013
 
 ### REQ-FUNC-ARCH-006: Standards Compliance Validation
 **Description:** The system shall validate protocol implementations against IEEE specifications using specification-defined structures.
 **Priority:** High
 **Source:** REQ-SYS-ARCH-005
+**Traces to:** REQ-NF-M-002, ADR-003
 
 ## 4. Non-Functional Requirements (NFR)
 
@@ -336,6 +342,7 @@ traceability:
 - gPTP timing precision: ±1ns
 - AVTP presentation time accuracy: ±1μs
 - Protocol processing latency: <100μs
+**Traces to:** REQ-NF-P-001, REQ-NF-P-002
 
 ### REQ-NFR-ARCH-002: Memory Management Requirements
 **Description:** The system shall use efficient memory management with static allocation for real-time processing, buffer bounds validation, and initialized protocol structures.
@@ -344,6 +351,7 @@ traceability:
 - Static allocation for real-time paths: 100%
 - Buffer overflow prevention: 100% 
 - Memory leak prevention: 0 leaks detected
+**Traces to:** REQ-NF-P-002, REQ-NF-P-003
 
 ### REQ-NFR-ARCH-003: Portability Requirements
 **Description:** The system shall provide cross-platform portability with hardware-agnostic implementation and support for major operating systems and embedded platforms.
@@ -352,6 +360,7 @@ traceability:
 - Platform independence: Windows, Linux, macOS, embedded
 - Compiler compatibility: GCC, Clang, MSVC
 - Hardware independence: No vendor-specific dependencies
+**Traces to:** REQ-NF-M-001
 
 ### REQ-NFR-ARCH-004: Maintainability Requirements  
 **Description:** The system shall provide high maintainability through clear namespace structure, comprehensive documentation, and clean architecture principles.
@@ -360,6 +369,7 @@ traceability:
 - Code documentation coverage: >90%
 - Namespace structure compliance: 100%
 - Architectural violations: 0 detected
+**Traces to:** REQ-NF-M-002
 
 ### REQ-NFR-ARCH-005: Testability Requirements
 **Description:** The system shall provide comprehensive testability through mockable interfaces, hardware-independent unit tests, and protocol compliance validation.
@@ -368,6 +378,7 @@ traceability:
 - Unit test coverage: >80%
 - Mock interface coverage: 100%
 - Protocol compliance test coverage: 100%
+**Traces to:** REQ-NF-M-002
 
 ## 5. Use Cases
 

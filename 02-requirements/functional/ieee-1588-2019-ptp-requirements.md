@@ -93,33 +93,47 @@ mcp_markitdown_convert_to_markdown "file://D:/SyncDrive/SynologyDrive/MCP/Standa
 
 ### 2.1 Enterprise Timing Infrastructure
 - **REQ-SYS-PTP-001**: System shall provide enterprise-grade timing synchronization with enhanced precision beyond IEEE 802.1AS gPTP
+  - Traces to: REQ-NF-P-001, REQ-F-003, REQ-F-004
   - **Traces to**: ARCH-1588-002-StateMachine, DES-1588-STATE-001, TEST-1588-STATE-001
   - **Acceptance Criteria**: Sub-microsecond accuracy, deterministic state transitions
 - **REQ-SYS-PTP-002**: System shall support multi-domain timing architecture for network isolation and coordination
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
   - **Traces to**: ARCH-1588-003-MultiDomain
   - **Acceptance Criteria**: Support domains 0-127, domain isolation maintained
 - **REQ-SYS-PTP-003**: System shall implement enhanced security mechanisms including authentication and authorization
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
   - **Traces to**: ARCH-1588-004-Security
   - **Acceptance Criteria**: Authentication per IEEE 1588-2019 Annex K
 - **REQ-SYS-PTP-004**: System shall provide comprehensive management protocol for configuration and monitoring
+  - Traces to: REQ-NF-M-002
   - **Traces to**: ARCH-1588-005-Management
   - **Acceptance Criteria**: Full TLV support, remote configuration capability
 
 ### 2.2 Real-Time Performance Framework
 - **REQ-SYS-PTP-005**: System shall implement deterministic design patterns suitable for time-sensitive applications
+  - Traces to: REQ-NF-P-002
   - **Traces to**: ARCH-1588-002-StateMachine, DES-1588-STATE-001, TEST-1588-STATE-001
   - **Acceptance Criteria**: Bounded execution time <1ms, lock-free algorithms
 - **REQ-SYS-PTP-006**: System shall provide hardware abstraction layer for cross-platform deployment
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
   - **Traces to**: ARCH-1588-001-HAL, DES-1588-HAL-001
   - **Acceptance Criteria**: Intel/ARM/FPGA platform support, unified interface
 - **REQ-SYS-PTP-007**: System shall maintain bounded execution time for all critical timing operations
+  - Traces to: REQ-NF-P-002
 - **REQ-SYS-PTP-008**: System shall provide predictable memory usage without dynamic allocation
+  - Traces to: REQ-NF-P-002
 
 ### 2.3 Standards Integration Architecture
 - **REQ-SYS-PTP-009**: System shall integrate with existing IEEE 802.1AS gPTP implementations
+  - Traces to: ADR-002
 - **REQ-SYS-PTP-010**: System shall support professional audio and video timing requirements
+  - Traces to: REQ-NF-P-001, ADR-013
 - **REQ-SYS-PTP-011**: System shall provide foundation for advanced Time-Sensitive Networking features
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
 - **REQ-SYS-PTP-012**: System shall maintain compatibility with existing OpenAvnu components
+  - Traces to: REQ-NF-M-001
 
 ## 3. Functional Requirements
 
@@ -127,83 +141,135 @@ mcp_markitdown_convert_to_markdown "file://D:/SyncDrive/SynologyDrive/MCP/Standa
 
 #### 3.1.1 Fundamental Data Types and Constants
 - **REQ-FUN-PTP-001**: Implement IEEE 1588-2019 fundamental data types (ClockIdentity, PortNumber, DomainNumber, SequenceId)
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-002**: Provide 48-bit timestamp precision with seconds and nanoseconds fields
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-003**: Implement CorrectionField with scaled nanosecond representation
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-004**: Support all IEEE 1588-2019 defined integer types with proper bit precision
+  - Traces to: REQ-F-001, ADR-003
 
 #### 3.1.2 Message Format Processing
 - **REQ-FUN-PTP-005**: Implement complete PTP message header structure with IEEE 1588-2019 compliance
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-006**: Support all PTP message types (Announce, Sync, Follow_Up, Delay_Req, Delay_Resp, etc.)
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-007**: Provide message serialization and deserialization with network byte order handling
+  - Traces to: REQ-F-001, ADR-003
 - **REQ-FUN-PTP-008**: Implement TLV (Type-Length-Value) framework for protocol extensions
+  - Traces to: REQ-F-001, ADR-003
 
 #### 3.1.3 Clock State Machine Implementation
 - **REQ-FUN-PTP-009**: Implement Ordinary Clock (OC) state machines according to IEEE 1588-2019
+  - Traces to: REQ-F-001, REQ-F-002, ADR-003
 - **REQ-FUN-PTP-010**: Support Boundary Clock (BC) functionality for network infrastructure
+  - Traces to: REQ-F-001, REQ-F-002, ADR-003
 - **REQ-FUN-PTP-011**: Provide Transparent Clock (TC) support for switching infrastructure
+  - Traces to: REQ-F-001, REQ-F-002, ADR-003
 - **REQ-FUN-PTP-012**: Implement End-to-End Transparent Clock (E2E TC) mechanisms
+  - Traces to: REQ-F-001, REQ-F-002, ADR-003
 
 #### 3.1.4 Best Master Clock Algorithm (BMCA)
 - **REQ-FUN-PTP-013**: Implement enhanced BMCA with IEEE 1588-2019 improvements
+  - Traces to: REQ-F-002, ADR-003
 - **REQ-FUN-PTP-014**: Support priority fields and quality indicators for master selection
+  - Traces to: REQ-F-002, ADR-003
 - **REQ-FUN-PTP-015**: Provide grandmaster clock capabilities and selection algorithms
+  - Traces to: REQ-F-002, ADR-003
 - **REQ-FUN-PTP-016**: Implement clock class and accuracy indicators
+  - Traces to: REQ-F-002, ADR-003
 
 ### 3.2 Enhanced Timing Capabilities
 
 #### 3.2.1 Precision Timing Algorithms
 - **REQ-FUN-PTP-017**: Implement offset and delay calculation algorithms with enhanced precision
+  - Traces to: REQ-F-003, ADR-003
 - **REQ-FUN-PTP-018**: Provide path delay measurement mechanisms (Peer-to-Peer and End-to-End)
+  - Traces to: REQ-F-003, ADR-003
 - **REQ-FUN-PTP-019**: Support frequency adjustment and phase correction algorithms
+  - Traces to: REQ-F-004, ADR-003
 - **REQ-FUN-PTP-020**: Implement servo algorithms for clock synchronization
+  - Traces to: REQ-F-004, ADR-003
 
 #### 3.2.2 Multi-Domain Support
 - **REQ-FUN-PTP-021**: Support multiple PTP domains (0-127) with domain isolation
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
 - **REQ-FUN-PTP-022**: Provide cross-domain synchronization capabilities where required
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
 - **REQ-FUN-PTP-023**: Implement domain-specific configuration and management
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
 - **REQ-FUN-PTP-024**: Support alternate master selection per domain
+  - Status: deferred (Post-MVP)
+  - Traces to: ADR-013
 
 ### 3.3 Security Framework
 
 #### 3.3.1 Authentication and Authorization
 - **REQ-FUN-PTP-025**: Implement security mechanisms for PTP message authentication
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-026**: Provide authorization framework for network access control
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-027**: Support integrity protection for critical timing messages
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-028**: Implement security TLV processing for security extensions
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 
 #### 3.3.2 Security Policy Management
 - **REQ-FUN-PTP-029**: Provide security association management for PTP entities
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-030**: Support security policy configuration and enforcement
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-031**: Implement key management for authentication mechanisms
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 - **REQ-FUN-PTP-032**: Provide security event logging and monitoring
+  - Traces to: REQ-NF-S-001, REQ-NF-S-002
 
 ### 3.4 Management Protocol
 
 #### 3.4.1 Configuration Management
 - **REQ-FUN-PTP-033**: Implement PTP management protocol for remote configuration
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-034**: Support management TLV processing for configuration messages
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-035**: Provide clock and port parameter configuration capabilities
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-036**: Support dataset management and synchronization
+  - Traces to: REQ-NF-M-002
 
 #### 3.4.2 Monitoring and Diagnostics
 - **REQ-FUN-PTP-037**: Implement comprehensive monitoring capabilities for PTP operations
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-038**: Provide diagnostic information for timing accuracy assessment
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-039**: Support performance metrics collection and reporting
+  - Traces to: REQ-NF-M-002
 - **REQ-FUN-PTP-040**: Implement fault detection and recovery mechanisms
+  - Traces to: REQ-NF-M-002
 
 ### 3.5 Hardware Abstraction Layer
 
 #### 3.5.1 Platform Independence
 - **REQ-FUN-PTP-041**: Provide hardware abstraction interface for cross-platform deployment
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-042**: Support dependency injection patterns for hardware access
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-043**: Implement platform-specific timing operation interfaces
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-044**: Provide hardware timestamp support abstraction
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 
 #### 3.5.2 Network Interface Abstraction
 - **REQ-FUN-PTP-045**: Abstract network packet transmission and reception operations
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-046**: Support hardware timestamping capabilities where available
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-047**: Provide network interface configuration and management
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 - **REQ-FUN-PTP-048**: Implement software timestamping fallback mechanisms
+  - Traces to: REQ-F-005, REQ-NF-M-001, ADR-001
 
 ## 4. Non-Functional Requirements
 
@@ -211,85 +277,133 @@ mcp_markitdown_convert_to_markdown "file://D:/SyncDrive/SynologyDrive/MCP/Standa
 
 #### 4.1.1 Timing Accuracy
 - **REQ-NFR-PTP-001**: Achieve microsecond-level timing accuracy (target: ±1μs for typical networks)
+  - Traces to: REQ-NF-P-001
 - **REQ-NFR-PTP-002**: Support sub-microsecond accuracy with hardware timestamping (target: ±100ns)
+  - Traces to: REQ-NF-P-001
 - **REQ-NFR-PTP-003**: Maintain timing accuracy under network load and jitter conditions
+  - Traces to: REQ-NF-P-001, REQ-NF-P-002
 - **REQ-NFR-PTP-004**: Provide deterministic timing behavior for real-time applications
+  - Traces to: REQ-NF-P-002
 
 #### 4.1.2 Real-Time Performance
 - **REQ-NFR-PTP-005**: Ensure bounded execution time for all critical timing operations (target: <10μs)
+  - Traces to: REQ-NF-P-002
 - **REQ-NFR-PTP-006**: Eliminate dynamic memory allocation in critical timing paths
+  - Traces to: REQ-NF-P-002
 - **REQ-NFR-PTP-007**: Provide predictable CPU usage for real-time scheduling compatibility
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-008**: Support high-frequency timing operations (1000+ Hz update rates)
+  - Traces to: REQ-NF-P-003
 
 ### 4.2 Reliability Requirements
 
 #### 4.2.1 Fault Tolerance
 - **REQ-NFR-PTP-009**: Provide graceful degradation under network fault conditions
+  - Traces to: REQ-NF-P-001, REQ-NF-P-002
 - **REQ-NFR-PTP-010**: Implement automatic recovery from timing synchronization failures
+  - Traces to: REQ-NF-P-001, REQ-NF-P-002
 - **REQ-NFR-PTP-011**: Support redundant master clock configurations
+  - Traces to: REQ-NF-P-001, REQ-NF-P-002
 - **REQ-NFR-PTP-012**: Maintain operation during partial network connectivity loss
+  - Traces to: REQ-NF-P-001, REQ-NF-P-002
 
 #### 4.2.2 System Availability
 - **REQ-NFR-PTP-013**: Achieve 99.99% availability for timing services in professional applications
+  - Traces to: REQ-NF-P-001
 - **REQ-NFR-PTP-014**: Support continuous operation without restart requirements
+  - Traces to: REQ-NF-P-002
 - **REQ-NFR-PTP-015**: Implement comprehensive error detection and recovery mechanisms
+  - Traces to: REQ-NF-P-002
 - **REQ-NFR-PTP-016**: Provide system health monitoring and reporting capabilities
+  - Traces to: REQ-NF-P-003
 
 ### 4.3 Scalability Requirements
 
 #### 4.3.1 Network Scale
 - **REQ-NFR-PTP-017**: Support networks with 1000+ PTP-enabled devices
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-018**: Scale to multiple PTP domains (up to 128 domains)
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-019**: Handle high message rates (10,000+ messages/second per port)
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-020**: Support large-scale industrial and enterprise networks
+  - Traces to: REQ-NF-P-003
 
 #### 4.3.2 Resource Efficiency
 - **REQ-NFR-PTP-021**: Minimize memory footprint for embedded applications (target: <1MB)
+  - Traces to: REQ-NF-P-003, REQ-NF-M-001
 - **REQ-NFR-PTP-022**: Optimize CPU usage for multi-domain operations (target: <5% CPU)
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-023**: Efficient network bandwidth utilization (target: <1Mbps per domain)
+  - Traces to: REQ-NF-P-003
 - **REQ-NFR-PTP-024**: Support resource-constrained embedded platforms
+  - Traces to: REQ-NF-P-003, REQ-NF-M-001
 
 ### 4.4 Maintainability Requirements
 
 #### 4.4.1 Code Quality
 - **REQ-NFR-PTP-025**: Maintain >95% unit test coverage for all implemented functionality
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-026**: Follow consistent coding standards and documentation practices
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-027**: Implement comprehensive logging and debugging capabilities
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-028**: Provide clear API documentation and usage examples
+  - Traces to: REQ-NF-M-002
 
 #### 4.4.2 Configuration Management
 - **REQ-NFR-PTP-029**: Support runtime configuration changes without service interruption
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-030**: Provide configuration validation and error reporting
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-031**: Support configuration backup and restore procedures
+  - Traces to: REQ-NF-M-002
 - **REQ-NFR-PTP-032**: Implement configuration version management and migration
+  - Traces to: REQ-NF-M-002
 
 ### 4.5 Security Requirements
 
 #### 4.5.1 Network Security
 - **REQ-NFR-PTP-033**: Implement secure communication channels for PTP messages
+  - Traces to: REQ-NF-S-001
 - **REQ-NFR-PTP-034**: Protect against timing-based network attacks
+  - Traces to: REQ-NF-S-001
 - **REQ-NFR-PTP-035**: Support network access control and authorization mechanisms
+  - Traces to: REQ-NF-S-001
 - **REQ-NFR-PTP-036**: Provide security audit trail and event logging
+  - Traces to: REQ-NF-S-001
 
 #### 4.5.2 Cryptographic Security
 - **REQ-NFR-PTP-037**: Support industry-standard cryptographic algorithms for authentication
+  - Traces to: REQ-NF-S-002
 - **REQ-NFR-PTP-038**: Implement secure key management and distribution
+  - Traces to: REQ-NF-S-002
 - **REQ-NFR-PTP-039**: Provide integrity verification for critical timing data
+  - Traces to: REQ-NF-S-002
 - **REQ-NFR-PTP-040**: Support security certificate management and validation
+  - Traces to: REQ-NF-S-002
 
 ### 4.6 Portability Requirements
 
 #### 4.6.1 Cross-Platform Support
 - **REQ-NFR-PTP-041**: Support Windows (Windows 10/11, Windows Server 2019/2022)
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-042**: Support Linux distributions (Ubuntu, CentOS, RHEL)
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-043**: Provide embedded platform support (ARM, embedded Linux)
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-044**: Maintain consistent behavior across all supported platforms
+  - Traces to: REQ-NF-M-001
 
 #### 4.6.2 Hardware Independence
 - **REQ-NFR-PTP-045**: Abstract hardware-specific timing operations through interfaces
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-046**: Support multiple network interface types and vendors
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-047**: Provide fallback mechanisms for platforms without hardware timestamping
+  - Traces to: REQ-NF-M-001
 - **REQ-NFR-PTP-048**: Enable deployment without vendor-specific drivers or libraries
+  - Traces to: REQ-NF-M-001
 
 ## 5. Use Cases
 
