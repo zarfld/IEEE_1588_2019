@@ -28,6 +28,52 @@ traceability:
 version: 1.0.0
 ---
 
+## ADR-013: IEEE 1588-2019 Multi-Layered Architecture
+
+## Status
+
+Draft
+
+Decision ID: ADR-013  
+Title: IEEE 1588-2019 Multi-Layered Architecture  
+Date: 2025-10-12  
+Supersedes: None  
+Superseded-by: N/A
+
+## Context
+
+The system must organize protocol concerns (PTP core, time synchronization, transport, control, profile extensions, and hardware abstraction) into a multi-layered architecture to reduce coupling and promote testability and standards compliance. We need clear separation so that: timing logic (IEEE 1588 / 802.1AS) is foundational; transport (IEEE 1722) reuses timing; control/discovery (IEEE 1722.1) reuses transport and timing; extensions (Milan, AES67) sit atop control/transport; and HAL abstractions isolate hardware without leaking vendor specifics into protocol layers.
+
+## Decision
+
+Define explicit layers with strict dependency direction (downward only):
+
+1. Timing Layer: IEEE 1588-2019 + IEEE 802.1AS precise time sync
+2. Transport Layer: IEEE 1722 AVTP (uses Timing Layer)
+3. Control Layer: IEEE 1722.1 AVDECC (uses Transport + Timing)
+4. Extension/Profile Layer: AVnu Milan, AES67 (extend Control/Transport; may read Timing but never invert)
+5. Abstraction Layer: HAL interfaces (injected; consumed by all protocol layers without reversing dependencies)
+
+Rules:
+- No upward dependencies (e.g., Timing may not include AVTP headers)
+- Reuse existing implementations; forbid re-implementing lower-layer logic
+- Namespaces mirror directory structure for traceability and isolation
+- Capability flags capture optional features; no cross-layer leaking of private internals
+
+## Consequences
+
+Positive:
+
+- Improved modularity, maintainability, and test isolation
+- Enables multi-version coexistence (legacy vs current) cleanly
+- Facilitates conformance and interoperability verification per layer
+
+Negative / Trade-offs:
+
+- Additional interface management overhead
+- Requires vigilance to prevent “shortcut” includes
+- Layer refactors can cascade when contracts evolve
+
 # Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
