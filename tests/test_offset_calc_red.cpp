@@ -105,6 +105,8 @@ int main() {
         std::fprintf(stderr, "TEST-OFFSET-CALC-001 FAIL: process_delay_resp error %u\n", (unsigned)rDR.get_error());
         return 22;
     }
+    // Allow state machine a deterministic tick to finalize calculations
+    (void)port.tick(test_now());
 
     // Assert: offset_from_master & mean_path_delay must be non-zero and reflect formula ((T2-T1)-(T4-T3))/2
     const auto& cds = port.get_current_data_set();
