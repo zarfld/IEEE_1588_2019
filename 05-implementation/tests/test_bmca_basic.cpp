@@ -2,18 +2,18 @@
 // title: "BMCA Basic Selection Red Test"
 // specType: test
 // testId: TEST-BMCA-SELECT-001
-// status: draft
+// status: active
 // relatedRequirements:
 //   - REQ-F-002
 // relatedDesign:
 //   - DES-C-031
 //   - DES-I-032
 //   - DES-D-033
-// purpose: "Initial failing test for Best Master Clock selection (IEEE 1588-2019 Section 9.3)."
+// purpose: "BMCA basic selection test (IEEE 1588-2019 Section 9.3) covering primary ordering and key tie-breakers."
 // traceStatus: planned
 // ---
 // NOTE: Using comment-based front matter to avoid schema validation until test spec schemas are applied.
-// This test intentionally EXPECTS failure (Red phase) until BMCA compare logic implemented.
+// Originally written to fail in RED phase; BMCA compare/select logic now implemented (GREEN), test should pass.
 
 #include <cstdio>
 #include <vector>
