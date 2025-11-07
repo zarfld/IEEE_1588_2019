@@ -172,7 +172,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spec-generated-artifacts
-          path: build
+          # Extract into repository root so uploaded file paths (which already include 'build/')
+          # land at their original locations instead of build/build/traceability.json
+          path: .
+      - name: Normalize traceability artifact paths
+        run: |
+          echo "📦 Normalizing traceability artifact paths..."
+          if [ -f build/build/traceability.json ] && [ ! -f build/traceability.json ]; then
+            echo "Moving nested build/build/traceability.json -> build/traceability.json";
+            mv build/build/traceability.json build/traceability.json;
+          fi
+          if [ -f build/build/spec-index.json ] && [ ! -f build/spec-index.json ]; then
+            echo "Moving nested build/build/spec-index.json -> build/spec-index.json";
+            mv build/build/spec-index.json build/spec-index.json;
+          fi
+          # Clean up accidental double-nested directory if now empty
+          if [ -d build/build ]; then rmdir build/build || true; fi
+          ls -R build | head -50
       - name: Enforce requirement linkage coverage
         run: |
           ALLOW_EMPTY_SPECS=1 python scripts/validate-trace-coverage.py --min-req ${{ env.MIN_REQ_LINKAGE_COVERAGE }}
