@@ -55,6 +55,7 @@ Define explicit layers with strict dependency direction (downward only):
 5. Abstraction Layer: HAL interfaces (injected; consumed by all protocol layers without reversing dependencies)
 
 Rules:
+
 - No upward dependencies (e.g., Timing may not include AVTP headers)
 - Reuse existing implementations; forbid re-implementing lower-layer logic
 - Namespaces mirror directory structure for traceability and isolation
@@ -74,10 +75,12 @@ Negative / Trade-offs:
 - Requires vigilance to prevent “shortcut” includes
 - Layer refactors can cascade when contracts evolve
 
-# Architecture Specification Template
+## Architecture Specification Template
 
 > **Spec-Driven Development**: This markdown serves as executable architecture documentation following ISO/IEC/IEEE 42010:2011.
+>
 > **Traceability Guardrail**: Ensure every architectural element has IDs:
+>
 > - Components: ARC-C-\d{3}
 > - Processes (runtime): ARC-P-\d{3}
 > - Interfaces: INT-\d{3}
@@ -85,7 +88,8 @@ Negative / Trade-offs:
 > - Deployment nodes: DEP-\d{3}
 > - Decisions: ADR-\d{3}
 > - Quality attribute scenarios: QA-SC-\d{3}
-> Each ADR must reference ≥1 REQ-* or QA-SC-*, and each QA-SC-* must map to ≥1 REQ-NF-*.
+>
+> Each ADR must reference ≥1 REQ-\* or QA-SC-\*, and each QA-SC-\* must map to ≥1 REQ-NF-\*.
 
 ---
 
@@ -305,14 +309,16 @@ C4Component
 **Key Processes**:
 
 1. **Request Processing**:
-   ```
-   User Request → API Gateway → Load Balancer → App Service → Database
-   ```
 
-2. **Async Job Processing**:
-   ```
-   App Service → Message Queue → Worker → Database
-   ```
+```text
+User Request → API Gateway → Load Balancer → App Service → Database
+```
+
+1. **Async Job Processing**:
+
+```text
+App Service → Message Queue → Worker → Database
+```
 
 **Concurrency Strategy**:
 
