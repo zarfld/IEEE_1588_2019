@@ -19,6 +19,13 @@ add_test(NAME ptp_state_machine_basic COMMAND ptp_state_machine_tests)
 add_test(NAME ptp_messages_validate COMMAND ptp_state_machine_tests --case messages)
 add_test(NAME ptp_types_timestamp COMMAND ptp_state_machine_tests --case timestamp)
 
+# New RED phase test for REQ-F-003 (Offset Calculation). Separate executable for isolation.
+# Separate executable for RED phase offset calculation test (isolated main)
+add_executable(ptp_offset_calc_red ${CMAKE_CURRENT_LIST_DIR}/test_offset_calc_red.cpp)
+target_include_directories(ptp_offset_calc_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(ptp_offset_calc_red PRIVATE IEEE1588_2019)
+add_test(NAME ptp_offset_calc_red COMMAND ptp_offset_calc_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
