@@ -1,3 +1,13 @@
+/*
+Test: TEST-UNIT-BMCA-BASIC
+Phase: 05-implementation
+Traceability:
+    Design: DES-C-003  # BMCA Engine Component
+    Requirements: REQ-F-002  # BMCA state machine
+    Code: 05-implementation/src/bmca.cpp, bmca.hpp
+Notes: Validates basic BMCA selection logic. Extend with tie-break and dataset update cases.
+*/
+
 // ---
 // title: "BMCA Basic Selection Red Test"
 // specType: test

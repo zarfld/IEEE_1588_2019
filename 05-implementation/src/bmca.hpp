@@ -1,3 +1,13 @@
+/*
+Module: 05-implementation/src/bmca.hpp
+Phase: 05-implementation
+Traceability:
+    Design: DES-C-003  # BMCA Engine Component (04-design/components/ieee-1588-2019-bmca-design.md)
+    Requirements: REQ-F-002  # BMCA state machine (03-architecture/ieee-1588-2019-ptpv2-architecture-spec.md)
+    Tests: TEST-UNIT-BMCA-BASIC
+Notes: Keep IDs current when refactoring; maintain links in tests and design docs.
+*/
+
 #ifndef IEEE_1588_2019_BMCA_HPP
 #define IEEE_1588_2019_BMCA_HPP
 
