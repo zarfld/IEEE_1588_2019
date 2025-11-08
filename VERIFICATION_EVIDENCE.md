@@ -6,6 +6,8 @@
 
 ## ✅ Evidence of Completion
 
+See also: Baseline conformance mapping in `standards-compliance/checklists/ieee1588-2019-compliance-matrix.md`.
+
 ### 1. **Consolidation Success** 
 ```bash
 # Following "fix rather than remove" principle - consolidations completed
