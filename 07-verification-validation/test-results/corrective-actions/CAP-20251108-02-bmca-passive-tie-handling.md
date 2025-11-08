@@ -5,7 +5,7 @@ Anomaly ID(s): ANOM-20251108-BMCA-TIE-001
 Date Opened: 2025-11-08
 Owner: BMCA Integration Stream
 Integrity Level: 2
-Status: OPEN
+Status: IN REVIEW
 
 ## 1. Summary
 
@@ -20,7 +20,7 @@ Status: OPEN
 
 | Evidence Type | Reference | Notes |
 |--------------|-----------|-------|
-| Failing Test | (to be added) TEST-UNIT-BMCA-TiePassive | Will reproduce missing RS_PASSIVE transition |
+| Failing Test | TEST-UNIT-BMCA-TiePassive (initial run) | Reproduced missing RS_PASSIVE; fixed in subsequent iteration |
 | Log Extract | N/A | Current logs show selection without passive path |
 | Metrics Snapshot | metrics.bmcaSelections only | No passive win counter present |
 
@@ -71,16 +71,17 @@ Status: OPEN
 | TEST-UNIT-BMCA-TiePassive | Unit | Reproduce tie leading to RS_PASSIVE recommendation | New | REQ-F-002 |
 | TEST-UNIT-BMCA-RoleAssignment | Unit | Confirms master path (already GREEN) | Updated (adds metrics assertions) | REQ-F-002 |
 
-## 8. Execution & Evidence (Planned)
+## 8. Execution & Evidence (Results)
 
 | Step | Description | Result | Evidence Ref |
 |------|-------------|--------|--------------|
-| 1 | Add failing TiePassive test | FAIL | Test log |
-| 2 | Implement tie/passive handling & counter | Build PASS | Build log |
-| 3 | Re-run BMCA suite | PASS | CTest summary |
-| 4 | Update design & requirements | Updated | Commit hash |
-| 5 | Update traceability matrix | Updated | Matrix diff |
-| 6 | Risk review | Completed | Review notes |
+| 1 | Add failing TiePassive test | FAIL (as expected) | ctest -R bmca_tie_passive (pre-fix) |
+| 2 | Implement tie/passive handling & BMCA_PassiveWins counter | Build PASS | MSBuild Debug build (2025-11-08) |
+| 3 | Re-run BMCA suite (focused) | PASS | See test IDs 17,18,19,30,31 (all green) |
+| 4 | Non-BMCA regression smoke | PASS | Test IDs 7,20,21,22 green |
+| 5 | Update design & requirements | Pending | — |
+| 6 | Update traceability matrix | Pending | — |
+| 7 | Risk review | Pending | — |
 
 ## 9. Traceability Updates (Planned)
 
@@ -103,9 +104,9 @@ Status: OPEN
 
 | Criterion | Status |
 |-----------|--------|
-| Failing tie test added | Pending |
-| Passive logic implemented | Pending |
-| Regression suite green | Pending |
+| Failing tie test added | Done |
+| Passive logic implemented | Done |
+| Regression suite green | Done (focused + smoke) |
 | Traceability updated | Pending |
 | Risk review complete | Pending |
 | Stakeholder sign-off | Pending |

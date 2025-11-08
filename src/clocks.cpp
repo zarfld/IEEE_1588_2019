@@ -731,9 +731,23 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     }
 
     if (port_data_set_.port_state == PortState::Listening) {
+        // Tie handling logic:
+        // A true tie occurs only if at least one FOREIGN candidate has identical priority vector
+        // to the LOCAL candidate. Prior code incorrectly treated self-comparison (best==0) as tie.
+        bool foreign_tie_with_local = false;
         if (best == 0) {
-            // Local is best → drive master path
-            // Dataset updates per IEEE 1588-2019 Section 8.2 (defaultDS/parentDS/currentDS simplified)
+            // Local selected; check if any foreign vector equals local
+            for (size_t i = 1; i < list.size(); ++i) {
+                if (comparePriorityVectors(list[i], list[0]) == CompareResult::Equal) {
+                    foreign_tie_with_local = true;
+                    break;
+                }
+            }
+            if (foreign_tie_with_local) {
+                Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_PassiveWins, 1);
+                return process_event(StateEvent::RS_PASSIVE);
+            }
+            // Local strictly better → master path
             parent_data_set_.grandmaster_identity = port_data_set_.port_identity.clock_identity; // local becomes GM
             parent_data_set_.grandmaster_priority1 = parent_data_set_.grandmaster_priority1; // retain existing self priorities
             parent_data_set_.grandmaster_priority2 = parent_data_set_.grandmaster_priority2;
@@ -742,12 +756,14 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
             parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance;
             parent_data_set_.parent_port_identity = port_data_set_.port_identity; // self as parent
             current_data_set_.steps_removed = 0; // root of sync tree
-            // Metrics/health: record BMCA role selection (local win)
             Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_LocalWins, 1);
             return process_event(StateEvent::RS_MASTER);
         } else {
-            // A foreign master is better → drive slave path
-            // Map selected foreign announce (index best-1 in foreign_masters_) into parent/current datasets
+            // Foreign selected; verify if it's an exact tie with local → passive; else slave path
+            if (comparePriorityVectors(list[best], list[0]) == CompareResult::Equal) {
+                Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_PassiveWins, 1);
+                return process_event(StateEvent::RS_PASSIVE);
+            }
             const auto &f = foreign_masters_[static_cast<size_t>(best - 1)];
             parent_data_set_.grandmaster_identity = f.body.grandmasterIdentity;
             parent_data_set_.grandmaster_priority1 = f.body.grandmasterPriority1;
@@ -756,9 +772,7 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
             parent_data_set_.grandmaster_clock_quality.clock_accuracy = f.body.grandmasterClockAccuracy;
             parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = f.body.grandmasterClockVariance;
             parent_data_set_.parent_port_identity = f.header.sourcePortIdentity;
-            // stepsRemoved from announce is network order; current incremental logic stores host order already (simplified)
             current_data_set_.steps_removed = static_cast<std::uint16_t>(f.body.stepsRemoved + 1); // one additional hop to local
-            // Metrics/health: record BMCA role selection (foreign win)
             Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_ForeignWins, 1);
             return process_event(StateEvent::RS_SLAVE);
         }

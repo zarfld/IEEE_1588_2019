@@ -176,4 +176,16 @@ target_include_directories(bmca_role_assignment PRIVATE
 target_link_libraries(bmca_role_assignment PRIVATE IEEE1588_2019_interface)
 add_test(NAME bmca_role_assignment_integration COMMAND bmca_role_assignment)
 
+# Test 15: BMCA tie passive scenario (RED until passive logic implemented)
+add_executable(bmca_tie_passive
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_tie_passive.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_tie_passive PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_tie_passive PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_tie_passive COMMAND bmca_tie_passive)
+
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")

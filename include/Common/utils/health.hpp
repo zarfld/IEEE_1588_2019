@@ -28,6 +28,7 @@ struct SelfTestReport {
     std::uint64_t validationsPassed{0};
     std::uint64_t bmcaLocalWins{0};
     std::uint64_t bmcaForeignWins{0};
+    std::uint64_t bmcaPassiveWins{0};
     // Recent calculation data
     long long lastOffsetNanoseconds{0};
     int lastBMCABestIndex{-1};
@@ -78,6 +79,7 @@ inline SelfTestReport self_test() noexcept {
     r.validationsPassed = snap.validationsPassed;
     r.bmcaLocalWins = snap.bmcaLocalWins;
     r.bmcaForeignWins = snap.bmcaForeignWins;
+    r.bmcaPassiveWins = snap.bmcaPassiveWins;
     r.lastOffsetNanoseconds = detail::last_offset_ns().load(std::memory_order_relaxed);
     r.lastBMCABestIndex = detail::last_bmca_index().load(std::memory_order_relaxed);
     r.lastBMCALocalWin = (r.lastBMCABestIndex == 0);

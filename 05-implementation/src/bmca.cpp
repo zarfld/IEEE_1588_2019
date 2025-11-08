@@ -71,15 +71,20 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
         return -1;
     }
     int best = 0;
+    bool tieDetected = false; // track exact tie for passive recommendation
     bool forcedTieUsed = false;
     for (int i = 1; i < static_cast<int>(list.size()); ++i) {
         bool forcedTie = Common::utils::fi::consume_bmca_tie_token();
         auto r = forcedTie ? CompareResult::Equal : comparePriorityVectors(list[i], list[best]);
         if (forcedTie) {
             forcedTieUsed = true;
+            tieDetected = true; // treat forced tie as tie scenario visibility
             Common::utils::logging::info("BMCA", 0x0102, "Forced tie token consumed - telemetry flagged");
         }
-        if (r == CompareResult::ABetter) {
+        if (r == CompareResult::Equal && !forcedTie) {
+            // Natural tie between candidates; record tie for passive possibility
+            tieDetected = true;
+        } else if (r == CompareResult::ABetter) {
             best = i;
             Common::utils::logging::debug("BMCA", 0x0101, "Best master candidate updated");
             Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_CandidateUpdates, 1);
@@ -90,7 +95,8 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
     if (forcedTieUsed) {
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1); // treat forced path visibility as a validated scenario
     }
-    Common::utils::health::record_bmca_selection(best);
+    // If tieDetected and best remained 0, surface tie intent with sentinel index -2 for passive recommendation layer
+    Common::utils::health::record_bmca_selection(tieDetected ? -2 : best);
     Common::utils::health::record_bmca_forced_tie(forcedTieUsed);
     Common::utils::health::emit();
     return best;
