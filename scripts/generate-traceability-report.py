@@ -58,92 +58,130 @@ class Requirement:
 
 
 def parse_stakeholder_requirements(req_file: Path) -> Dict[str, Requirement]:
-    """Parse stakeholder requirements from markdown file with YAML front matter"""
-    requirements = {}
-    
+    """Parse stakeholder requirements from markdown file.
+
+    Supports headings like:
+      #### STR-STD-001: Message Format Correctness
+    And priority lines within the section like:
+      - **Priority**: P0 (Critical - ...)
+    Also collects acceptance criteria from Success Criteria bullets or Gherkin blocks.
+    """
+    requirements: Dict[str, Requirement] = {}
+
     if not req_file.exists():
         print(f"❌ Requirements file not found: {req_file}", file=sys.stderr)
         return requirements
-    
+
     content = req_file.read_text(encoding='utf-8')
-    
-    # Extract requirements using regex patterns
-    # Pattern for requirement sections: ## STR-XXX-NNN: Title
-    req_pattern = r'###\s+(STR-[A-Z]+-\d+):\s+(.+?)\s+\(([P0-9]+)\)'
-    
-    # Find all requirement sections
-    for match in re.finditer(req_pattern, content):
-        req_id = match.group(1)
-        title = match.group(2)
-        priority = match.group(3)
-        
-        # Extract acceptance criteria (lines starting with "- SHALL" or "- MUST")
-        section_start = match.end()
-        section_text = content[section_start:section_start+2000]  # Next 2000 chars
-        
-        criteria = []
-        for line in section_text.split('\n'):
-            if line.strip().startswith('- ') and ('SHALL' in line or 'MUST' in line):
-                criteria.append(line.strip()[2:])  # Remove "- " prefix
-        
+
+    # Match requirement headers at level 3 or 4 (### or ####)
+    header_re = re.compile(r"^\s*#{3,4}\s+(STR-[A-Z]+-\d+):\s+(.+)$", re.MULTILINE)
+
+    # Build an index of sections with start/end offsets
+    matches = list(header_re.finditer(content))
+    for i, m in enumerate(matches):
+        req_id = m.group(1).strip()
+        title = m.group(2).strip()
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        section = content[start:end]
+
+        # Priority extraction within section
+        prio_match = re.search(r"^\s*[-*]\s*\*\*Priority\*\*:\s*(P[0-9])", section, re.MULTILINE)
+        priority = prio_match.group(1) if prio_match else "P1"
+
+        # Acceptance criteria gathering
+        criteria: List[str] = []
+        # 1) Bullet lines with SHALL/MUST
+        for line in section.splitlines():
+            s = line.strip()
+            if (s.startswith("- ") or s.startswith("* ")) and ("SHALL" in s or "MUST" in s):
+                criteria.append(s[2:].strip())
+        # 2) Gherkin code block under "Acceptance Criteria" heading
+        gherkin_block = re.search(r"Acceptance Criteria.*?```[a-zA-Z]*\n(.*?)\n```", section, re.DOTALL | re.IGNORECASE)
+        if gherkin_block:
+            for gl in gherkin_block.group(1).splitlines():
+                gl = gl.strip()
+                if gl and not gl.startswith('#'):
+                    criteria.append(gl)
+
+        # Store this requirement (inside loop – fix bug where only last was stored)
         requirements[req_id] = Requirement(req_id, title, priority, criteria)
-    
+
     print(f"📋 Parsed {len(requirements)} stakeholder requirements")
     return requirements
 
 
-def extract_test_metadata(test_dir: Path) -> Dict[str, List[str]]:
-    """Extract @satisfies tags from test files
-    
+def extract_test_metadata(test_dirs: List[Path]) -> Dict[str, List[str]]:
+    """Extract @satisfies tags from test files across multiple directories.
+
     Returns: Dict mapping test_file::test_name -> [STR-XXX-NNN, ...]
     """
-    test_to_requirements = {}
-    
+    test_to_requirements: Dict[str, List[str]] = {}
+
     # Pattern for @satisfies tags: // @satisfies STR-XXX-NNN - Description
     satisfies_pattern = re.compile(r'//\s*@satisfies\s+(STR-[A-Z]+-\d+)')
-    
+
     # Pattern for test names (various formats)
     test_patterns = [
         re.compile(r'TEST_CASE\("([^"]+)"\s*,\s*"\[([^\]]+)\]"\)'),  # Catch2
         re.compile(r'TEST\(([^,]+),\s*([^\)]+)\)'),  # Google Test
         re.compile(r'void\s+(test_\w+)\s*\('),  # Plain functions
     ]
-    
-    for test_file in test_dir.rglob('*.cpp'):
-        if test_file.name.startswith('test_'):
-            content = test_file.read_text(encoding='utf-8')
-            relative_path = test_file.relative_to(test_dir.parent)
-            
-            # Find all @satisfies tags and associate with next test
-            lines = content.split('\n')
-            current_satisfies = []
-            
-            for i, line in enumerate(lines):
-                # Look for @satisfies tags
-                match = satisfies_pattern.search(line)
-                if match:
-                    current_satisfies.append(match.group(1))
-                
-                # Look for test definitions
-                for pattern in test_patterns:
-                    test_match = pattern.search(line)
-                    if test_match:
-                        # Create test identifier
-                        if len(test_match.groups()) == 2:
-                            test_name = f"{test_match.group(1)}::{test_match.group(2)}"
-                        else:
-                            test_name = test_match.group(1)
-                        
-                        test_id = f"{relative_path}::{test_name}"
-                        
-                        # Associate satisfies tags with this test
-                        if current_satisfies:
-                            test_to_requirements[test_id] = current_satisfies.copy()
-                        
-                        # Reset for next test
-                        current_satisfies = []
-                        break
-    
+
+    for base_dir in test_dirs:
+        if not base_dir.exists():
+            continue
+        for test_file in base_dir.rglob('*.cpp'):
+            if test_file.name.startswith('test_') or 'tests' in str(test_file.parent).replace('\\', '/'):
+                content = test_file.read_text(encoding='utf-8')
+                # Build a display path relative to repository root if possible
+                try:
+                    relative_path = test_file.relative_to(Path.cwd())
+                except ValueError:
+                    relative_path = test_file
+
+                # Associate @satisfies tags to the next test declaration encountered
+                lines = content.split('\n')
+                current_satisfies: List[str] = []
+                found_any_test_decl = False
+                found_any_satisfies = False
+
+                for line in lines:
+                    m = satisfies_pattern.search(line)
+                    if m:
+                        current_satisfies.append(m.group(1))
+                        found_any_satisfies = True
+
+                    for pattern in test_patterns:
+                        test_match = pattern.search(line)
+                        if test_match:
+                            if len(test_match.groups()) == 2:
+                                test_name = f"{test_match.group(1)}::{test_match.group(2)}"
+                            else:
+                                test_name = test_match.group(1)
+                            test_id = f"{relative_path}::{test_name}"
+                            if current_satisfies:
+                                test_to_requirements[test_id] = current_satisfies.copy()
+                            current_satisfies = []
+                            found_any_test_decl = True
+                            break
+
+                # Fallback: if we saw @satisfies tags but no test macro, map by file stem
+                if found_any_satisfies and not found_any_test_decl:
+                    stem = test_file.stem
+                    # normalize common prefix
+                    if stem.startswith('test_'):
+                        pseudo_name = stem[len('test_'):]
+                    else:
+                        pseudo_name = stem
+                    test_id = f"{relative_path}::{pseudo_name}"
+                    # If no current_satisfies (because they were flushed), rescan to collect all
+                    if not current_satisfies:
+                        current_satisfies = [m.group(1) for m in satisfies_pattern.finditer(content)]
+                    if current_satisfies:
+                        test_to_requirements[test_id] = current_satisfies.copy()
+
     print(f"🔍 Found {len(test_to_requirements)} tests with @satisfies tags")
     return test_to_requirements
 
@@ -185,20 +223,35 @@ def parse_ctest_results(test_results_file: Path) -> Tuple[Set[str], Set[str]]:
         pass  # Not XML, try text format
     
     # Parse text format (LastTest.log)
-    content = test_results_file.read_text(encoding='utf-8')
+    try:
+        content = test_results_file.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        # Fallback for Windows-encoded logs
+        content = test_results_file.read_text(encoding='latin-1', errors='ignore')
     
-    # Pattern: Test #N: test_name .....   Passed
-    test_pattern = re.compile(r'Test\s+#\d+:\s+(\S+)\s+\.+\s+(Passed|Failed|\*\*\*Failed)')
-    
-    for match in test_pattern.finditer(content):
+    # Try common CTest text formats
+    # Format A: "Test #N: name .... Passed" (not present in this repo's log)
+    legacy_pattern = re.compile(r'Test\s+#\d+:\s+(\S+)\s+\.+\s+(Passed|Failed|\*\*\*Failed)')
+    for match in legacy_pattern.finditer(content):
         test_name = match.group(1)
         status = match.group(2)
-        
         if status == 'Passed':
             passing.add(test_name)
         else:
             failing.add(test_name)
-    
+
+    # Format B (observed): blocks like
+    # "N/M Testing: test_name" ... later a line "Test Passed." or "Test Failed."
+    if not passing and not failing:
+        block_pattern = re.compile(r'^(\d+)/(\d+)\s+Testing:\s+([^\r\n]+)\s*\n(?:(?!^\d+/\d+\s+Testing:).)*?^Test\s+(Passed|Failed)\.', re.MULTILINE | re.DOTALL)
+        for m in block_pattern.finditer(content):
+            name = m.group(3).strip()
+            status = m.group(4)
+            if status == 'Passed':
+                passing.add(name)
+            else:
+                failing.add(name)
+
     print(f"✅ Parsed CTest log: {len(passing)} passing, {len(failing)} failing")
     return passing, failing
 
@@ -383,10 +436,10 @@ def main():
         help='Path to stakeholder requirements markdown file'
     )
     parser.add_argument(
-        '--test-dir',
-        type=Path,
+        '--test-dirs',
+        type=str,
         required=True,
-        help='Path to tests directory'
+        help='Semicolon- or comma-separated list of test directories to scan'
     )
     parser.add_argument(
         '--test-results',
@@ -416,7 +469,7 @@ def main():
     
     print("🔍 Generating Traceability Report")
     print(f"   Requirements: {args.requirements}")
-    print(f"   Test Directory: {args.test_dir}")
+    print(f"   Test Directories: {args.test_dirs}")
     print(f"   Test Results: {args.test_results}")
     print(f"   Output: {args.output}")
     print(f"   Threshold: {args.threshold}%")
@@ -429,7 +482,10 @@ def main():
         return 2
     
     # Extract test metadata
-    test_to_requirements = extract_test_metadata(args.test_dir)
+    # Normalize list of test dirs
+    raw_list = re.split(r'[;,]', args.test_dirs)
+    test_dirs = [Path(p.strip()) for p in raw_list if p.strip()]
+    test_to_requirements = extract_test_metadata(test_dirs)
     
     # Parse test results
     passing_tests, failing_tests = parse_ctest_results(args.test_results)

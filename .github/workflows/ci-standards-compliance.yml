@@ -539,7 +539,7 @@ jobs:
       - name: Setup Python for traceability report
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Generate traceability report
         if: always()
@@ -547,16 +547,16 @@ jobs:
           echo "📊 Generating stakeholder requirements → test cases traceability report..."
           python scripts/generate-traceability-report.py \
             --requirements 01-stakeholder-requirements/stakeholder-requirements-spec.md \
-            --test-dir tests/ \
+            --test-dirs tests,05-implementation/tests,06-integration/integration-tests \
             --test-results build/Testing/Temporary/LastTest.log \
             --output 07-verification-validation/traceability/acceptance-test-report.md \
             --threshold 75 \
             --fail-under-threshold || echo "⚠️  Coverage below threshold"
-          
+
           echo ""
           echo "📋 Traceability Report Summary:"
           head -30 07-verification-validation/traceability/acceptance-test-report.md
-          
+
           # Also copy to build/ for artifact upload
           cp 07-verification-validation/traceability/acceptance-test-report.md build/
 
