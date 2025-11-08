@@ -248,4 +248,16 @@ target_include_directories(update_foreign_master PRIVATE
 target_link_libraries(update_foreign_master PRIVATE IEEE1588_2019_interface)
 add_test(NAME update_foreign_master COMMAND update_foreign_master)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master")
+# Test 21: Calculate offset and delay (T1/T2/T3/T4 algorithm)
+add_executable(calculate_offset_and_delay
+    ${CMAKE_CURRENT_LIST_DIR}/test_calculate_offset_and_delay.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(calculate_offset_and_delay PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(calculate_offset_and_delay PRIVATE IEEE1588_2019_interface)
+add_test(NAME calculate_offset_and_delay COMMAND calculate_offset_and_delay)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay")
