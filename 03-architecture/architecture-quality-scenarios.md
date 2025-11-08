@@ -287,6 +287,64 @@ status: draft
 ```
 
  
+### QA-SC-010 Reliability - Observability and Telemetry Completeness
+
+```yaml
+id: QA-SC-010
+qualityAttribute: Reliability
+source: QA engineer or production operator monitoring deployed PTP system
+stimulus: Execute timing operations, state transitions, fault injection, health checks, and quality gate validations across all reliability requirements
+stimulusEnvironment: Normal Operation plus Fault Injection scenarios
+artifact: Metrics, health, telemetry, logging, and fault injection APIs
+response: All reliability requirements have observable evidence via telemetry counters, health snapshots, or quality gate metrics; no silent failures
+responseMeasure: 100% of reliability requirements (REQ-NF-REL-001..005) have at least one telemetry counter, health check, or quality gate; all counters increment correctly on events; health API returns valid snapshots; fault injection toggles observable
+relatedRequirements:
+  - REQ-NF-REL-001
+  - REQ-NF-REL-002
+  - REQ-NF-REL-003
+  - REQ-NF-REL-004
+  - REQ-NF-REL-005
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - process
+  - deployment
+validationMethod: test
+status: verified
+```
+
+ 
+### QA-SC-011 Performance - Non-Functional Requirements Coverage
+
+```yaml
+id: QA-SC-011
+qualityAttribute: Performance
+source: System performance validation under stress, load, and production-like conditions
+stimulus: Validate all non-functional performance, security, usability, and maintainability requirements across PTP implementation
+stimulusEnvironment: Normal and Peak Load
+artifact: PTP Core, State Machines, Algorithms, Interfaces
+response: All non-functional requirements exhibit measurable compliance with specified bounds and quality attributes
+responseMeasure: Performance (timing precision, latency, throughput), security (authentication, integrity), usability (API clarity, diagnostics), and maintainability (code quality, modularity) requirements meet or exceed acceptance criteria; all counters and health checks provide observability
+relatedRequirements:
+  - REQ-NF-P-001
+  - REQ-NF-P-002
+  - REQ-NF-P-003
+  - REQ-NF-S-001
+  - REQ-NF-S-002
+  - REQ-NF-U-001
+  - REQ-NF-M-001
+  - REQ-NF-M-002
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - logical
+  - process
+  - deployment
+validationMethod: benchmark
+status: draft
+```
+
+ 
 ## Coverage Matrix
 
 | Scenario ID | Quality Attribute | Requirements | ADRs | Views | Validation Method | Status |

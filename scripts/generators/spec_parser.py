@@ -49,21 +49,23 @@ ROOT = Path(__file__).resolve().parents[2]
 BUILD_DIR = ROOT / 'build'
 OUTPUT_FILE = BUILD_DIR / 'spec-index.json'
 
-ID_PATTERN = re.compile(r'^(?P<id>(StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
-HEADING_DEF_PATTERN = re.compile(r'^\s{0,3}#{1,6}\s+(?P<id>(StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
+ID_PATTERN = re.compile(r'^(?P<id>(StR|REQ|ARC|ADR|DES|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
+HEADING_DEF_PATTERN = re.compile(r'^\s{0,3}#{1,6}\s+(?P<id>(StR|REQ|ARC|ADR|DES|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*)\b')
 # Capture full identifiers with optional 4-char category prefix
 # Examples: REQ-AUTH-F-001, StR-CORE-001, ADR-INFRA-001, TEST-LOGIN-001
-REF_PATTERN = re.compile(r'\b(?:StR|REQ|ARC|ADR|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*\b')
+REF_PATTERN = re.compile(r'\b(?:StR|REQ|ARC|ADR|DES|QA|TEST)-(?:[A-Z]{4}-)?[A-Z0-9][A-Z0-9\-]*\b')
 
 SCAN_DIRS = [
     ROOT / '02-requirements',
     ROOT / '03-architecture',
+    ROOT / '04-design',
 ]
 
 # Additional directories (code/tests) where TEST-* identifiers and inline requirement references
 # may appear. We parse these more leniently (no front matter expected) to enrich traceability.
 CODE_TEST_DIRS = [
     ROOT / '05-implementation' / 'tests',
+    ROOT / 'tests',
 ]
 
 FRONT_MATTER_RE = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
