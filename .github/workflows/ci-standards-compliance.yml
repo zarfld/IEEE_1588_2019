@@ -256,26 +256,28 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           echo "Generating coverage report via gcovr";
-          gcovr -r . --xml -o build/coverage.xml --exclude 'tests' || true
-          gcovr -r . --branches --txt -o build/coverage.txt --exclude 'tests' || true
-          gcovr -r . --html --html-details -o build/coverage.html --exclude 'tests' || true
-          gcovr -r . --json -o build/coverage.json --exclude 'tests' || true
+          # Exclude test files, examples, and build artifacts from coverage measurement
+          EXCLUDE_PATTERN='.*/tests/.*|.*/examples/.*|.*/build/.*'
+          gcovr -r . --xml -o build/coverage.xml --exclude "$EXCLUDE_PATTERN" || true
+          gcovr -r . --branches --txt -o build/coverage.txt --exclude "$EXCLUDE_PATTERN" || true
+          gcovr -r . --html --html-details -o build/coverage.html --exclude "$EXCLUDE_PATTERN" || true
+          gcovr -r . --json -o build/coverage.json --exclude "$EXCLUDE_PATTERN" || true
 
           echo ""
           echo "=== DETAILED COVERAGE REPORT ==="
           echo ""
-          echo "📊 Per-file coverage breakdown:"
-          gcovr -r . --exclude 'tests' || true
+          echo "📊 Per-file coverage breakdown (production code only):"
+          gcovr -r . --exclude "$EXCLUDE_PATTERN" || true
 
           echo ""
           echo "🔍 Showing uncovered lines in src/clocks.cpp:"
-          gcovr -r . --exclude 'tests' --filter 'src/clocks.cpp' --print-summary || true
+          gcovr -r . --exclude "$EXCLUDE_PATTERN" --filter 'src/clocks.cpp' --print-summary || true
 
           echo ""
           echo "📝 Full detailed report for clocks.cpp:"
-          gcovr -r . --exclude 'tests' --filter 'src/clocks.cpp' || true
+          gcovr -r . --exclude "$EXCLUDE_PATTERN" --filter 'src/clocks.cpp' || true
 
-          LINE_PCT=$(gcovr -r . --exclude 'tests' | grep 'TOTAL' | awk '{print $4}' | sed 's/%//' || echo 0)
+          LINE_PCT=$(gcovr -r . --exclude "$EXCLUDE_PATTERN" | grep 'TOTAL' | awk '{print $4}' | sed 's/%//' || echo 0)
           echo ""
           echo "Line coverage: ${LINE_PCT}%";
           python -c "import sys, os; val=float(os.environ.get('LINE_PCT','${LINE_PCT:-0}')); min_cov=float(os.environ.get('MIN_TEST_COVERAGE','80')); print(f'Coverage threshold check: {val:.2f}% vs {min_cov:.2f}%'); sys.exit(0 if val>=min_cov else 1)"
