@@ -19,6 +19,7 @@ erDiagram
 | REQ-NF-P-001 | QA-SC-001 | ADR-002 | ARC-C-007 | logical, process, deployment | TEST-PERF-001 |  |
 | REQ-NF-S-001 | QA-SC-003 | ADR-004 | ARC-C-003, ARC-C-010 | security, logical | TEST-SEC-LOGIN-001 |  |
 | REQ-F-010 | QA-SC-002 | ADR-003 | ARC-C-002 | deployment, data | TEST-AVAIL-FAILOVER-001 |  |
+| REQ-F-002 | QA-SC-BMCA-ROLE | ADR-002 | DES-C-003, DES-C-010 | logical, behavioral | TEST-UNIT-BMCA-RoleAssignment, TEST-UNIT-BMCA-TiePassive |  |
 
 ## Orphan Detection Checklist
 - [ ] Any Requirement without Scenario

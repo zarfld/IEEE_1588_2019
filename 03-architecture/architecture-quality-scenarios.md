@@ -190,6 +190,103 @@ status: draft
 ```
 
  
+### QA-SC-007 Reliability - BMCA Passive Tie Stability
+
+```yaml
+id: QA-SC-007
+qualityAttribute: Reliability
+source: Multiple ordinary clocks with identical PriorityVector values on the same domain
+stimulus: A true priority vector tie occurs between the local clock and one or more foreign clocks
+stimulusEnvironment: Normal Operation
+artifact: BMCA implementation and Port State Machine
+response: Local port transitions to PASSIVE state only on true foreign equality; no false PASSIVE when equality is self-only
+responseMeasure: 0 false PASSIVE transitions under self-only equality; 100% PASSIVE on true foreign equality across 100 randomized tie trials; BMCA_PassiveWins metric increments exactly by the number of true ties observed
+relatedRequirements:
+  - REQ-F-002
+  - REQ-S-001
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - logical
+  - process
+validationMethod: test
+status: verified
+```
+
+
+### QA-SC-008 Availability - BMCA Re-election Robustness
+
+```yaml
+id: QA-SC-008
+qualityAttribute: Availability
+source: Network topology changes or foreign master announcements impacting BMCA outcomes
+stimulus: Introduce competing foreign clocks with higher, lower, and equal PriorityVectors while varying announce receipt order
+stimulusEnvironment: Normal Operation
+artifact: BMCA comparator, decision loop, and role assignment
+response: Deterministic selection of MASTER/SLAVE/PASSIVE consistent with IEEE 1588-2019 BMCA rules; no oscillations; graceful transitions
+responseMeasure: 0 role oscillations over 10,000 election cycles; state transitions complete within 2 announce intervals; metrics counters (BMCA_Selections, BMCA_LocalWins, BMCA_ForeignWins) reflect expected counts within ±1 of theoretical values
+relatedRequirements:
+  - REQ-F-001
+  - REQ-F-002
+  - REQ-S-001
+  - REQ-S-004
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - process
+  - deployment
+validationMethod: simulation
+status: draft
+```
+
+ 
+### QA-SC-009 Interoperability - Cross-Standard Architecture Conformance
+
+```yaml
+id: QA-SC-009
+qualityAttribute: Interoperability
+source: System integrator deploying combined IEEE 1588/gPTP/AVTP/AVDECC stack
+stimulus: Integrate timing and media components across standards layers with varied configurations and domains
+stimulusEnvironment: Normal Operation
+artifact: Cross-standard architecture, interfaces, and configuration model
+response: Demonstrate traceable conformance to architecture requirements with consistent behavior across layers
+responseMeasure: All linked architecture requirements have at least one verified scenario; no unresolved inconsistencies in interfaces or timing assumptions
+relatedRequirements:
+  - REQ-F-CROSSARCH-001
+  - REQ-F-CROSSARCH-002
+  - REQ-F-CROSSARCH-003
+  - REQ-F-CROSSARCH-004
+  - REQ-F-CROSSARCH-005
+  - REQ-F-CROSSARCH-006
+  - REQ-F-CROSSARCH-007
+  - REQ-F-CROSSARCH-008
+  - REQ-FUNC-ARCH-001
+  - REQ-FUNC-ARCH-002
+  - REQ-FUNC-ARCH-003
+  - REQ-FUNC-ARCH-004
+  - REQ-FUNC-ARCH-005
+  - REQ-FUNC-ARCH-006
+  - REQ-SYS-ARCH-001
+  - REQ-SYS-ARCH-002
+  - REQ-SYS-ARCH-003
+  - REQ-SYS-ARCH-004
+  - REQ-SYS-ARCH-005
+  - REQ-NFR-ARCH-001
+  - REQ-NFR-ARCH-002
+  - REQ-NFR-ARCH-003
+  - REQ-NFR-ARCH-004
+  - REQ-NFR-ARCH-005
+relatedADRs:
+  - ADR-001
+relatedViews:
+  - logical
+  - deployment
+  - process
+validationMethod: inspection
+status: draft
+```
+
+ 
 ## Coverage Matrix
 
 | Scenario ID | Quality Attribute | Requirements | ADRs | Views | Validation Method | Status |

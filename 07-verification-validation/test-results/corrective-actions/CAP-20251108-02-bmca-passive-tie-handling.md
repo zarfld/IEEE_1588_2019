@@ -5,7 +5,7 @@ Anomaly ID(s): ANOM-20251108-BMCA-TIE-001
 Date Opened: 2025-11-08
 Owner: BMCA Integration Stream
 Integrity Level: 2
-Status: IN REVIEW
+Status: AWAITING_REVERIFY
 
 ## 1. Summary
 
@@ -79,18 +79,19 @@ Status: IN REVIEW
 | 2 | Implement tie/passive handling & BMCA_PassiveWins counter | Build PASS | MSBuild Debug build (2025-11-08) |
 | 3 | Re-run BMCA suite (focused) | PASS | See test IDs 17,18,19,30,31 (all green) |
 | 4 | Non-BMCA regression smoke | PASS | Test IDs 7,20,21,22 green |
-| 5 | Update design & requirements | Pending | — |
-| 6 | Update traceability matrix | Pending | — |
+| 5 | Update design & requirements | PASS | REQ-F-002 updated; DES-C-003, DES-C-010 updated |
+| 6 | Update traceability matrix | PASS | Added REQ-F-002 row linking to tests in architecture-traceability-matrix.md |
 | 7 | Risk review | Pending | — |
 
 ## 9. Traceability Updates (Planned)
 
 | Artifact Type | ID | Updated? | Link |
 |--------------|----|----------|------|
-| Requirement | REQ-F-002 | Yes | commit (pending) |
-| Design | DES-C-003 | Yes | design spec diff |
+| Requirement | REQ-F-002 | Yes | 02-requirements/system-requirements-specification.md |
+| Design | DES-C-003 | Yes | 04-design/components/ieee-1588-2019-bmca-design.md |
+| Design | DES-C-010 | Yes | 04-design/components/ieee-1588-2019-state-machine-design.md |
 | Code | bmca.cpp | Yes | PR link |
-| Test | TEST-UNIT-BMCA-TiePassive | New | tests path |
+| Test | TEST-UNIT-BMCA-TiePassive | New | 05-implementation/tests/test_bmca_tie_passive.cpp |
 | SFMEA | FM-Clock-Arbitration | Review | sfmea doc |
 
 ## 10. Risk & Integrity Review (Preliminary)
@@ -107,7 +108,7 @@ Status: IN REVIEW
 | Failing tie test added | Done |
 | Passive logic implemented | Done |
 | Regression suite green | Done (focused + smoke) |
-| Traceability updated | Pending |
+| Traceability updated | Done |
 | Risk review complete | Pending |
 | Stakeholder sign-off | Pending |
 
