@@ -79,4 +79,27 @@ target_include_directories(offset_calculation_tests PRIVATE
 target_link_libraries(offset_calculation_tests PRIVATE IEEE1588_2019_interface)
 add_test(NAME offset_calculation_robustness COMMAND offset_calculation_tests)
 
+# Test 7: Fault injection - offset jitter
+add_executable(fault_injection_offset
+    ${CMAKE_CURRENT_LIST_DIR}/test_fault_injection_offset.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(fault_injection_offset PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(fault_injection_offset PRIVATE IEEE1588_2019_interface)
+add_test(NAME fault_injection_offset_jitter COMMAND fault_injection_offset)
+
+# Test 8: Fault injection - BMCA tie behavior
+add_executable(fault_injection_bmca
+    ${CMAKE_CURRENT_LIST_DIR}/test_fault_injection_bmca.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(fault_injection_bmca PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(fault_injection_bmca PRIVATE IEEE1588_2019_interface)
+add_test(NAME fault_injection_bmca_tie COMMAND fault_injection_bmca)
+
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")

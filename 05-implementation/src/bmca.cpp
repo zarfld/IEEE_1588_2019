@@ -23,6 +23,7 @@ Notes: Keep IDs current when refactoring; maintain links in tests and design doc
 #include <tuple>
 #include "Common/utils/logger.hpp"
 #include "Common/utils/metrics.hpp"
+#include "Common/utils/fault_injection.hpp"
 #include "IEEE/1588/PTP/2019/types.hpp"
 #include "IEEE/1588/PTP/2019/messages.hpp"
 #include "clocks.hpp"
@@ -64,7 +65,8 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
     if (list.empty()) return -1;
     int best = 0;
     for (int i = 1; i < static_cast<int>(list.size()); ++i) {
-        auto r = comparePriorityVectors(list[i], list[best]);
+        auto r = Common::utils::fi::consume_bmca_tie_token() ? CompareResult::Equal
+                                                             : comparePriorityVectors(list[i], list[best]);
         if (r == CompareResult::ABetter) {
             best = i;
             Common::utils::logging::debug("BMCA", 0x0101, "Best master candidate updated");

@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <array>
 #include "Common/utils/logger.hpp"
+#include "Common/utils/fault_injection.hpp"
 #include "Common/utils/metrics.hpp"
 
 namespace IEEE {
@@ -226,7 +227,11 @@ struct SynchronizationData {
         const Types::TimeInterval t4_minus_t3 = (delay_resp_timestamp - delay_req_timestamp);
         // Work directly on scaled nanoseconds (2^-16 ns units) to avoid float rounding
         const Types::Integer64 scaled = (t2_minus_t1.scaled_nanoseconds - t4_minus_t3.scaled_nanoseconds) / 2;
-        offsetFromMaster = Types::TimeInterval{scaled};
+        Types::Integer64 adjusted = scaled;
+        if (Common::utils::fi::is_offset_jitter_enabled()) {
+            adjusted += (Common::utils::fi::get_offset_jitter_ns() << 16); // convert ns to scaled (2^-16 ns)
+        }
+        offsetFromMaster = Types::TimeInterval{adjusted};
         Common::utils::logging::debug("Offset", 0x0200, "Offset from master calculated");
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::OffsetsComputed, 1);
         return Types::PTPResult<Types::TimeInterval>::success(offsetFromMaster);
