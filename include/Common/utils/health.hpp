@@ -31,6 +31,7 @@ struct SelfTestReport {
     // Recent calculation data
     long long lastOffsetNanoseconds{0};
     int lastBMCABestIndex{-1};
+    bool lastBMCALocalWin{false};
     // Fault injection status
     bool faultInjectionActive{false};
     // Simple derived health indicators
@@ -79,6 +80,7 @@ inline SelfTestReport self_test() noexcept {
     r.bmcaForeignWins = snap.bmcaForeignWins;
     r.lastOffsetNanoseconds = detail::last_offset_ns().load(std::memory_order_relaxed);
     r.lastBMCABestIndex = detail::last_bmca_index().load(std::memory_order_relaxed);
+    r.lastBMCALocalWin = (r.lastBMCABestIndex == 0);
     r.faultInjectionActive = Common::utils::fi::is_offset_jitter_enabled();
     r.bmcaTieForcedLast = detail::bmca_tie_forced().load(std::memory_order_relaxed);
     // Heuristic: if we have at least one offset computed and validationsFailed == 0 treat as synchronized likely
