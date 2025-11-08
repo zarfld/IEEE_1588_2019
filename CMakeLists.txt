@@ -75,6 +75,14 @@ target_include_directories(IEEE1588_2019
 )
 target_link_libraries(IEEE1588_2019 PUBLIC IEEE1588_2019_interface)
 
+# Phase 06 reliability tool: Laplace trend analyzer (non-gating)
+add_executable(laplace_trend
+    06-integration/integration-tests/reliability/laplace_trend.cpp
+)
+set_target_properties(laplace_trend PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/reliability"
+)
+
 # Testing support
 if(BUILD_TESTING)
     enable_testing()
@@ -85,6 +93,12 @@ if(BUILD_TESTING)
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/06-integration/integration-tests/CMakeLists.txt)
         add_subdirectory(06-integration/integration-tests)
     endif()
+    # Non-failing reliability trend observation test
+    add_test(NAME reliability-trend
+        COMMAND $<TARGET_FILE:laplace_trend> "${CMAKE_BINARY_DIR}/reliability/reliability_history.csv")
+    set_tests_properties(reliability-trend PROPERTIES
+        LABELS "reliability;trend"
+        PASS_REGULAR_EXPRESSION "LAPLACE_TREND:")
     # Register example smoke test as part of CTest if examples enabled
     if(IEEE1588_2019_BUILD_EXAMPLES)
         # Ensure example targets are created before registering tests
