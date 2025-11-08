@@ -211,13 +211,18 @@ static TestResult run_state_sweep(
     port.process_event(StateEvent::FAULT_CLEARED);       record(PortState::Faulty);        // -> Initializing
     port.process_event(StateEvent::INITIALIZE);          record(PortState::Initializing);  // -> Listening
 
+    // Listening -> Disabled (explicit) -> Listening
+    port.process_event(StateEvent::DESIGNATED_DISABLED); record(PortState::Listening);     // -> Disabled
+    port.process_event(StateEvent::DESIGNATED_ENABLED);  record(PortState::Disabled);      // -> Listening
+
     // Listening -> PreMaster -> Master -> Uncalibrated
     port.process_event(StateEvent::RS_GRAND_MASTER);     record(PortState::Listening);     // -> PreMaster
     port.process_event(StateEvent::QUALIFICATION_TIMEOUT); record(PortState::PreMaster);   // -> Master
     port.process_event(StateEvent::RS_SLAVE);            record(PortState::Master);        // -> Uncalibrated
 
-    // From UNCALIBRATED, perform offset cycles to achieve SLAVE (heuristic)
-    // Use the same zero-timestamp deterministic cycle 3+ times
+    // From UNCALIBRATED, perform offset cycles to achieve SLAVE (heuristic) with deterministic success.
+    // Strategy: ensure have_sync_, have_follow_up_, have_delay_req_, have_delay_resp_ sequence repeated
+    // until successful_offsets_in_window_ reaches threshold (>=3) then transition_to_state(Slave) occurs.
     P::Types::Timestamp ts{};
     for (int i=0;i<5;i++) {
         // Non-zero timestamps to ensure offset calculation succeeds
@@ -236,8 +241,26 @@ static TestResult run_state_sweep(
     }
     // Record potential UNCALIBRATED -> SLAVE transition (if occurred)
     record(PortState::Uncalibrated);
+    if (port.get_state() != PortState::Slave) {
+        // Second attempt window: force additional cycles with larger monotonic timestamps
+        for (int i=0;i<6;i++) {
+            P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(30000 + i*5000);
+            P::Types::Timestamp t2{}; t2.nanoseconds = t1.nanoseconds + 1000;
+            P::Types::Timestamp t3{}; t3.nanoseconds = t2.nanoseconds + 1000;
+            P::Types::Timestamp t4{}; t4.nanoseconds = t3.nanoseconds + 1000;
+            P::Clocks::SyncMessage sync{}; P::Clocks::FollowUpMessage fu{}; fu.body.preciseOriginTimestamp = t1;
+            P::Clocks::DelayReqMessage dreq{}; P::Clocks::DelayRespMessage dresp{}; dresp.body.receiveTimestamp = t4;
+            port.process_sync(sync, t2);
+            port.process_delay_req(dreq, t3);
+            port.process_delay_resp(dresp);
+            port.process_follow_up(fu);
+            port.tick(t4);
+            if (port.get_state() == PortState::Slave) break;
+        }
+        record(PortState::Uncalibrated);
+    }
 
-    // From SLAVE (if reached), cover edges to Passive, PreMaster, Uncalibrated, Listening
+    // From SLAVE (if reached), cover edges to Listening, PreMaster, Uncalibrated, Passive
     PortState s = port.get_state();
     if (s == PortState::Slave) {
         // Direct edges from Slave
@@ -246,7 +269,7 @@ static TestResult run_state_sweep(
         port.process_event(StateEvent::RS_MASTER);       record(PortState::Listening);      // -> PreMaster
         port.process_event(StateEvent::QUALIFICATION_TIMEOUT); record(PortState::PreMaster); // -> Master
         port.process_event(StateEvent::RS_SLAVE);        record(PortState::Master);         // -> Uncalibrated
-        // Additional offset cycles to regain SLAVE
+        // Additional offset cycles to regain SLAVE (first window)
         for (int i=0;i<3;i++) {
             P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(50000 + i*4000);
             P::Types::Timestamp t2{}; t2.nanoseconds = t1.nanoseconds + 1000;
@@ -261,6 +284,65 @@ static TestResult run_state_sweep(
             port.tick(t4);
         }
         record(PortState::Uncalibrated); // may become Slave inside follow_up
+        if (port.get_state() != PortState::Slave) {
+            // Second window to ensure Slave regained
+            for (int i=0;i<4;i++) {
+                P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(65000 + i*5000);
+                P::Types::Timestamp t2{}; t2.nanoseconds = t1.nanoseconds + 1000;
+                P::Types::Timestamp t3{}; t3.nanoseconds = t2.nanoseconds + 1000;
+                P::Types::Timestamp t4{}; t4.nanoseconds = t3.nanoseconds + 1000;
+                P::Clocks::SyncMessage sync{}; P::Clocks::FollowUpMessage fu{}; fu.body.preciseOriginTimestamp = t1;
+                P::Clocks::DelayReqMessage dreq{}; P::Clocks::DelayRespMessage dresp{}; dresp.body.receiveTimestamp = t4;
+                port.process_sync(sync, t2);
+                port.process_delay_req(dreq, t3);
+                port.process_delay_resp(dresp);
+                port.process_follow_up(fu);
+                port.tick(t4);
+                if (port.get_state() == PortState::Slave) break;
+            }
+            record(PortState::Uncalibrated);
+        }
+        // If Slave again, cover Slave->PreMaster and Slave->Uncalibrated edges deterministically
+        if (port.get_state() == PortState::Slave) {
+            // Slave -> PreMaster
+            port.process_event(StateEvent::RS_MASTER);   record(PortState::Slave);          // -> PreMaster
+            // Drive back to Slave (PreMaster->Master->Uncalibrated plus offset cycles)
+            port.process_event(StateEvent::QUALIFICATION_TIMEOUT); record(PortState::PreMaster); // -> Master
+            port.process_event(StateEvent::RS_SLAVE);    record(PortState::Master);         // -> Uncalibrated
+            for (int i=0;i<3;i++) {
+                P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(80000 + i*4000);
+                P::Types::Timestamp t2{}; t2.nanoseconds = t1.nanoseconds + 1000;
+                P::Types::Timestamp t3{}; t3.nanoseconds = t2.nanoseconds + 1000;
+                P::Types::Timestamp t4{}; t4.nanoseconds = t3.nanoseconds + 1000;
+                P::Clocks::SyncMessage sync{}; P::Clocks::FollowUpMessage fu{}; fu.body.preciseOriginTimestamp = t1;
+                P::Clocks::DelayReqMessage dreq{}; P::Clocks::DelayRespMessage dresp{}; dresp.body.receiveTimestamp = t4;
+                port.process_sync(sync, t2);
+                port.process_delay_req(dreq, t3);
+                port.process_delay_resp(dresp);
+                port.process_follow_up(fu);
+                port.tick(t4);
+            }
+            record(PortState::Uncalibrated);
+        }
+        if (port.get_state() == PortState::Slave) {
+            // Slave -> Uncalibrated
+            port.process_event(StateEvent::SYNCHRONIZATION_FAULT); record(PortState::Slave); // -> Uncalibrated
+            // Regain Slave again to proceed to Passive path
+            for (int i=0;i<3;i++) {
+                P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(120000 + i*4000);
+                P::Types::Timestamp t2{}; t2.nanoseconds = t1.nanoseconds + 1000;
+                P::Types::Timestamp t3{}; t3.nanoseconds = t2.nanoseconds + 1000;
+                P::Types::Timestamp t4{}; t4.nanoseconds = t3.nanoseconds + 1000;
+                P::Clocks::SyncMessage sync{}; P::Clocks::FollowUpMessage fu{}; fu.body.preciseOriginTimestamp = t1;
+                P::Clocks::DelayReqMessage dreq{}; P::Clocks::DelayRespMessage dresp{}; dresp.body.receiveTimestamp = t4;
+                port.process_sync(sync, t2);
+                port.process_delay_req(dreq, t3);
+                port.process_delay_resp(dresp);
+                port.process_follow_up(fu);
+                port.tick(t4);
+            }
+            record(PortState::Uncalibrated);
+        }
         if (port.get_state() == PortState::Slave) {
             // Slave -> Passive via RS_PASSIVE
             port.process_event(StateEvent::RS_PASSIVE);  record(PortState::Slave);          // -> Passive
@@ -277,19 +359,6 @@ static TestResult run_state_sweep(
             // Uncalibrated -> Listening
             port.process_event(StateEvent::SYNCHRONIZATION_FAULT); record(PortState::Uncalibrated); // -> Listening
         }
-    }
-    else {
-        // Instrumentation: Slave heuristic not satisfied; inject synthetic coverage for Slave-related edges
-        // This does NOT alter port state; used only for Phase 06 coverage exit criteria without weakening protocol logic.
-        states_visited.insert(PortState::Slave);
-        // Synthetic transitions assumed reachable in production
-        edges_visited.insert({PortState::Uncalibrated, PortState::Slave});
-        edges_visited.insert({PortState::Slave, PortState::Listening});
-        edges_visited.insert({PortState::Slave, PortState::Passive});
-        edges_visited.insert({PortState::Slave, PortState::PreMaster});
-        edges_visited.insert({PortState::Slave, PortState::Uncalibrated});
-        // Count synthetic transition occurrence from Uncalibrated
-        transitions_from[PortState::Uncalibrated]++;
     }
 
     // Final check
@@ -496,17 +565,7 @@ int main(int argc, char** argv) {
         if (edges_visited.count(e)) edges_hit++;
     }
     double edgeCoveragePct = (static_cast<double>(edges_hit) / TOTAL_EDGES) * 100.0;
-    // If all states covered but some edges missing, inject remaining edges for instrumentation-only completeness.
-    if (states_visited.size() == TOTAL_STATES && edges_hit < TOTAL_EDGES) {
-        for (const auto& e : expected_edges) {
-            if (!edges_visited.count(e)) {
-                edges_visited.insert(e);
-                // Do not alter transitions_from counts (keep actual counts), only edge coverage.
-            }
-        }
-        edges_hit = expected_edges.size();
-        edgeCoveragePct = 100.0;
-    }
+    // No synthetic edge injection: coverage must be achieved through real transitions
     std::ofstream cov(coverage_path.c_str(), std::ios::out | std::ios::trunc);
     if (cov.is_open()) {
         cov << "State,Visited,TransitionsFrom\n";
