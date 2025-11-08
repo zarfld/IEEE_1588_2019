@@ -33,6 +33,16 @@ jobs:
       - name: Run integration tests (labeled)
         run: ctest --test-dir build -L integration --output-on-failure -j$(nproc)
 
+      - name: Run reliability tests (labeled)
+        run: ctest --test-dir build -L reliability --output-on-failure -j$(nproc) || exit 1
+
+      - name: Upload reliability failures CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-srg-data
+          path: build/reliability/srg_failures.csv
+
       - name: Coverage (gcovr JSON)
         run: gcovr -r . build --json-summary -o coverage.json
 
@@ -69,6 +79,17 @@ jobs:
       - name: Run integration tests (labeled)
         shell: pwsh
         run: ctest --test-dir build -C Release -L integration --output-on-failure --parallel 2
+
+      - name: Run reliability tests (labeled)
+        shell: pwsh
+        run: ctest --test-dir build -C Release -L reliability --output-on-failure --parallel 2
+
+      - name: Upload reliability failures CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-srg-data-windows
+          path: build/reliability/srg_failures.csv
 
   quality-summary:
     runs-on: ubuntu-latest
