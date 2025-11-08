@@ -363,3 +363,15 @@ target_include_directories(getting_started_and_ci_presence PRIVATE ${CMAKE_SOURC
 target_link_libraries(getting_started_and_ci_presence PRIVATE IEEE1588_2019_interface)
 target_compile_definitions(getting_started_and_ci_presence PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME getting_started_and_ci_presence COMMAND getting_started_and_ci_presence)
+
+# Performance: Servo convergence deterministic simulation (STR-PERF-003)
+add_executable(servo_convergence_sim
+    ${CMAKE_CURRENT_LIST_DIR}/test_servo_convergence_sim.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(servo_convergence_sim PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(servo_convergence_sim PRIVATE IEEE1588_2019_interface)
+add_test(NAME servo_convergence_sim COMMAND servo_convergence_sim)
