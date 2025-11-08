@@ -9,6 +9,7 @@
 #endif
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <iostream>
 #include <sstream>
 #include <string>
