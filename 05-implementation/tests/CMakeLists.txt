@@ -260,4 +260,28 @@ target_include_directories(calculate_offset_and_delay PRIVATE
 target_link_libraries(calculate_offset_and_delay PRIVATE IEEE1588_2019_interface)
 add_test(NAME calculate_offset_and_delay COMMAND calculate_offset_and_delay)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay")
+# Test 22: OrdinaryClock message dispatcher (lines 912-946, 35-line coverage)
+add_executable(ordinary_clock_dispatcher
+    ${CMAKE_CURRENT_LIST_DIR}/test_ordinary_clock_dispatcher.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(ordinary_clock_dispatcher PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(ordinary_clock_dispatcher PRIVATE IEEE1588_2019_interface)
+add_test(NAME ordinary_clock_dispatcher COMMAND ordinary_clock_dispatcher)
+
+# Test 23: Configuration setters (lines 855-874, 20-line coverage)
+add_executable(configuration_setters
+    ${CMAKE_CURRENT_LIST_DIR}/test_configuration_setters.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(configuration_setters PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(configuration_setters PRIVATE IEEE1588_2019_interface)
+add_test(NAME configuration_setters COMMAND configuration_setters)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, ordinary_clock_dispatcher, configuration_setters")
