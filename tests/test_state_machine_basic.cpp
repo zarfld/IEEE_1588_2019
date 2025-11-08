@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <string>
 #include "clocks.hpp"
 
 using namespace IEEE::_1588::PTP::_2019;
@@ -26,7 +27,24 @@ static void on_state_change(PortState old_s, PortState new_s) {
 }
 static void on_fault(const char*) {}
 
-int main() {
+// Forward declarations to dispatch into other test translation units
+int messages_main();
+int timestamp_main();
+
+static Timestamp make_ns(uint64_t ns_total) {
+    Timestamp t{};
+    t.setTotalSeconds(ns_total / 1'000'000'000ULL);
+    t.nanoseconds = static_cast<std::uint32_t>(ns_total % 1'000'000'000ULL);
+    return t;
+}
+
+int main(int argc, char** argv) {
+    // Dispatch to focused tests when requested by CTest
+    if (argc > 2 && std::string(argv[1]) == "--case") {
+        std::string which = argv[2];
+        if (which == "messages") return messages_main();
+        if (which == "timestamp") return timestamp_main();
+    }
     // Arrange: minimal port configuration and callbacks
     PortConfiguration cfg{};
     cfg.port_number = 1;
@@ -77,11 +95,21 @@ int main() {
     if (!port.process_event(StateEvent::RS_SLAVE).is_success()) return 11;
     if (port.get_state() != PortState::Uncalibrated) return 12;
 
-    // Follow_Up reception triggers simple sync completion path
-    FollowUpMessage fu{};
-    fu.initialize(MessageType::Follow_Up, 0, port.get_identity());
-    if (!port.process_follow_up(fu).is_success()) return 13;
-    // In simplified logic, Uncalibrated transitions to Slave after follow_up
+    // New heuristic requires 3 full successful offset samples; provide them
+    SyncMessage sync{}; sync.header.setMessageType(MessageType::Sync);
+    FollowUpMessage fu{}; fu.header.setMessageType(MessageType::Follow_Up);
+    fu.body.preciseOriginTimestamp = make_ns(0);
+    for (int i = 0; i < 3; ++i) {
+        // Provide T2, T3, T4 in order with positive path delay
+        if (!port.process_sync(sync, make_ns(1'000 + i)).is_success()) return 13;
+        if (!port.process_delay_req(DelayReqMessage{}, Timestamp{}).is_success()) return 13;
+        DelayRespMessage dr{}; dr.body.requestingPortIdentity = port.get_identity();
+        dr.body.receiveTimestamp = make_ns(2'000 + i);
+        if (!port.process_delay_resp(dr).is_success()) return 13;
+        if (!port.process_follow_up(fu).is_success()) return 13;
+        // Should remain UNCALIBRATED until after the third sample
+        if (i < 2 && port.get_state() != PortState::Uncalibrated) return 14;
+    }
     if (port.get_state() != PortState::Slave) return 14;
 
     // Timeout path: advance time to trigger announce timeout back to Listening
