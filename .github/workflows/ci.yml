@@ -52,6 +52,14 @@ jobs:
           path: build/reliability/state_transition_coverage.csv
           if-no-files-found: ignore
 
+      - name: Upload reliability history CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-history
+          path: build/reliability/reliability_history.csv
+          if-no-files-found: ignore
+
       - name: Coverage (gcovr JSON)
         run: gcovr -r . build --json-summary -o coverage.json
 
@@ -107,6 +115,14 @@ jobs:
         with:
           name: reliability-coverage-data-windows
           path: build/reliability/state_transition_coverage.csv
+          if-no-files-found: ignore
+
+      - name: Upload reliability history CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-history-windows
+          path: build/reliability/reliability_history.csv
           if-no-files-found: ignore
 
   quality-summary:
