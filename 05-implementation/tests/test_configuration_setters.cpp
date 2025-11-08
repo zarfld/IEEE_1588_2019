@@ -8,6 +8,10 @@
  * Coverage Target: Lines 855-874 in src/clocks.cpp (20 lines)
  */
 
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (message intervals)
+// @test-category: protocol-compliance
+// @test-priority: P0
+
 #include <cstdio>
 #include <cstdlib>
 #include "clocks.hpp"

@@ -599,59 +599,29 @@ jobs:
           # Coverage already validated in unit-tests job, just report status
           echo "✅ PASS: Coverage validated in unit-tests job (86% core library)"
 
-      - name: Generate acceptance test report
+      - name: Setup Python for traceability report
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Generate traceability report
         if: always()
         run: |
-          cat > build/acceptance-test-report.md << 'EOF'
-          # IEEE 1588-2019 PTP Acceptance Test Report
-
-          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          **Branch**: ${{ github.ref_name }}
-          **Commit**: ${{ github.sha }}
-
-          ## Stakeholder Requirement Validation
-
-          Based on `01-stakeholder-requirements/stakeholder-requirements-spec.md`:
-
-          ### STR-STD-001: IEEE 1588-2019 Protocol Compliance ✅
-          - Message types (Sync, Delay_Req, Follow_Up, Delay_Resp, Announce): **VALIDATED**
-          - BMCA implementation: **VALIDATED** (6 BMCA tests passing)
-          - Clock state machines: **VALIDATED** (state machine tests passing)
-
-          ### STR-STD-002: Message Format Correctness ✅
-          - Network byte order: **VALIDATED** (message validation tests)
-          - TLV format compliance: **VALIDATED**
-
-          ### STR-STD-003: Best Master Clock Algorithm ✅
-          - Dataset comparison: **VALIDATED** (bmca_tdd_tests)
-          - Announce qualification: **VALIDATED** (bmca_tdd_edges)
-          - State decision: **VALIDATED** (bmca_tdd_selection)
-
-          ### STR-PERF-002: Timing Determinism ✅
-          - No dynamic allocation: **VALIDATED** (symbol analysis)
-          - Bounded execution: **VALIDATED** (static allocation confirmed)
-
-          ### STR-PORT-001: Hardware Abstraction Layer ✅
-          - Platform-agnostic core: **VALIDATED** (no platform headers in src/)
-          - HAL architecture: **VALIDATED** (function pointer interface)
-
-          ### STR-SEC-001: Input Validation ✅
-          - Message validation: **VALIDATED** (validation test suite)
-          - Bounds checking: **VALIDATED** (fault injection tests)
-
-          ### STR-USE-003: Example Applications ✅
-          - Basic example: **VALIDATED** (compiles and runs)
-
-          ### STR-MAINT-001: Code Quality ✅
-          - Test coverage >80%: **VALIDATED** (86% core library coverage)
-          - Unit tests: **43/44 PASSING** (ordinary_clock_dispatcher blocked)
-
-          ## Overall Status: ✅ PASSING
-
-          All critical stakeholder requirements validated against IEEE 1588-2019 specification.
-          EOF
-
-          cat build/acceptance-test-report.md
+          echo "📊 Generating stakeholder requirements → test cases traceability report..."
+          python scripts/generate-traceability-report.py \
+            --requirements 01-stakeholder-requirements/stakeholder-requirements-spec.md \
+            --test-dir tests/ \
+            --test-results build/Testing/Temporary/LastTest.log \
+            --output 07-verification-validation/traceability/acceptance-test-report.md \
+            --threshold 75 \
+            --fail-under-threshold || echo "⚠️  Coverage below threshold"
+          
+          echo ""
+          echo "📋 Traceability Report Summary:"
+          head -30 07-verification-validation/traceability/acceptance-test-report.md
+          
+          # Also copy to build/ for artifact upload
+          cp 07-verification-validation/traceability/acceptance-test-report.md build/
 
       - name: Upload test results
         if: always()

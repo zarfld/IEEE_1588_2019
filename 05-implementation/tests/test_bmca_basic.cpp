@@ -8,6 +8,11 @@ Traceability:
 Notes: Validates basic BMCA selection logic. Extend with tie-break and dataset update cases.
 */
 
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (BMCA selection)
+// @satisfies STR-STD-003 - Best Master Clock Algorithm
+// @test-category: protocol-compliance
+// @test-priority: P0
+
 // ---
 // title: "BMCA Basic Selection Red Test"
 // specType: test

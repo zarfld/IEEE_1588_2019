@@ -2,6 +2,12 @@
 // REQ Trace: REQ-F-001 (Message Type Support), REQ-NF-P-001 (Accuracy - validation speed)
 // Purpose: Validate CommonHeader and Announce/Sync body field basic checks
 // IEEE 1588-2019 Sections: 13.3 (Common Header), 13.5 (Announce), 13.6 (Sync)
+
+// @satisfies STR-STD-002 - Message Format Correctness
+// @satisfies STR-SEC-001 - Input Validation and Fuzzing
+// @test-category: message-validation
+// @test-priority: P0
+
 #include <cstdio>
 #include <cstdint>
 #include "IEEE/1588/PTP/2019/messages.hpp"

@@ -8,6 +8,12 @@ Traceability:
 Notes: Validates offset and mean path delay calculation from T1/T2/T3/T4 timestamps.
 */
 
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (offset calculation)
+// @satisfies STR-PERF-001 - Synchronization Accuracy (nanosecond precision)
+// @satisfies STR-PERF-004 - Path Delay Measurement
+// @test-category: protocol-compliance
+// @test-priority: P0
+
 #include <cstdio>
 #include "clocks.hpp"
 #include "IEEE/1588/PTP/2019/types.hpp"
