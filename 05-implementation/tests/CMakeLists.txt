@@ -284,4 +284,16 @@ target_include_directories(configuration_setters PRIVATE
 target_link_libraries(configuration_setters PRIVATE IEEE1588_2019_interface)
 add_test(NAME configuration_setters COMMAND configuration_setters)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, ordinary_clock_dispatcher, configuration_setters")
+# Test 24: Master delay response (lines 472-491, 20-line coverage)
+add_executable(master_delay_response
+    ${CMAKE_CURRENT_LIST_DIR}/test_master_delay_response.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(master_delay_response PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(master_delay_response PRIVATE IEEE1588_2019_interface)
+add_test(NAME master_delay_response COMMAND master_delay_response)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, ordinary_clock_dispatcher, configuration_setters, master_delay_response")
