@@ -117,6 +117,25 @@ This repository provides timing services to higher-layer protocol implementation
 **Parent Project**: [libmedia-network-standards](https://github.com/zarfld/libmedia-network-standards)  
 **Standards Organization**: IEEE Standards Association
 
+## Getting Started
+
+This project uses CMake with a Visual Studio toolchain on Windows and standard Makefiles or Ninja on other platforms. A minimal workflow:
+
+1. Configure the build
+  - Windows (Visual Studio): Generate a VS solution in the `build` folder.
+  - Cross-platform: Use CMake to generate your preferred build system.
+
+2. Build the code and tests
+  - Build the solution or invoke the build target from the command line.
+
+3. Run the tests
+  - Execute the test suite through the generated targets or your build system's test runner.
+
+Notes:
+- The build system places all generated artifacts under `build/` to keep the repository clean.
+- Tests include requirement traceability annotations to map to stakeholder IDs (STR-*).
+- CI workflows demonstrate a reference configuration.
+
 
 =======
 >>>>>>> 3fbe2b2d3fcdd5d3e597344c9c3c30c4b014d93a

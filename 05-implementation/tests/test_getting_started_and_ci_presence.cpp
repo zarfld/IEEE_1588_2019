@@ -19,6 +19,8 @@
 #endif
 
 int main(){
+    // Emit diagnostic of SOURCE_DIR for CTest environment.
+    std::printf("SOURCE_DIR=%s\n", SOURCE_DIR);
     const std::string root = SOURCE_DIR;
 
 #if USE_FS
@@ -53,10 +55,10 @@ int main(){
     // C++14 fallback: minimal existence checks without directory iteration.
     auto pathExists = [](const std::string& p){ struct stat st; return stat(p.c_str(), &st) == 0; };
     // Workflows directory and ci.yml file evidence
-    if(!pathExists(root+"/.github/workflows")) return 1;
-    if(!pathExists(root+"/.github/workflows/ci.yml")) return 2; // core CI missing
+    if(!pathExists(root+"/.github/workflows")) { std::puts("missing workflows dir"); return 1; }
+    if(!pathExists(root+"/.github/workflows/ci.yml")) { std::puts("missing ci.yml"); return 2; }
     bool hasContrib = pathExists(root+"/CONTRIBUTING.md");
-    if(!pathExists(root+"/examples")) return 4; // examples root missing
+    if(!pathExists(root+"/examples")) { std::puts("missing examples dir"); return 4; }
     // Can't iterate examples; assume presence of directory is minimal evidence.
     if(!pathExists(root+"/README.md")) return 7;
     {
@@ -64,7 +66,7 @@ int main(){
         while(std::getline(in,line)){
             if(line.find("Getting Started")!=std::string::npos || line.find("getting started")!=std::string::npos){ found=true; break; }
         }
-        if(!found) return 6;
+        if(!found) { std::puts("README missing Getting Started section"); return 6; }
     }
 #endif
     if(!hasContrib) {
