@@ -1,3 +1,4 @@
+// @satisfies STR-STD-002 - Message Format Correctness (bodies & TLV validation)
 /*
 Test: TEST-UNIT-MSG-BODIES-VALIDATION
 Phase: 05-implementation

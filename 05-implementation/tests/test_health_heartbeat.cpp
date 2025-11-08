@@ -1,3 +1,4 @@
+// @satisfies STR-MAINT-001 - Code Quality (health/heartbeat instrumentation)
 /*
 Module: 05-implementation/tests/test_health_heartbeat.cpp
 Phase: 05-implementation

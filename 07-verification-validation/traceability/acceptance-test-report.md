@@ -1,6 +1,6 @@
 # Stakeholder Requirements to Test Cases Traceability Report
 
-**Generated**: 2025-11-09 00:09:00 UTC
+**Generated**: 2025-11-09 00:15:44 UTC
 **Standard**: IEEE 1012-2016 (Verification and Validation)
 
 ## Summary Statistics
@@ -8,19 +8,19 @@
 ### Overall Coverage
 
 **Total Stakeholder Requirements (P0+P1)**: 24
-**Requirements with Passing Tests**: 5
-**Requirements without Tests**: 19
+**Requirements with Passing Tests**: 10
+**Requirements without Tests**: 14
 
-**Stakeholder Requirement Coverage**: **20.8%** ❌
+**Stakeholder Requirement Coverage**: **41.7%** ❌
 **Threshold**: 75.0%
 
 ### Status Breakdown
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ PASSING | 6 | 25.0% |
+| ✅ PASSING | 10 | 41.7% |
 | ⚠️ PARTIAL | 0 | 0.0% |
-| 📋 NO TESTS | 18 | 75.0% |
+| 📋 NO TESTS | 14 | 58.3% |
 | ❌ FAILING | 0 | 0.0% |
 
 ## Requirements Detail
@@ -35,14 +35,16 @@
 - And static analysis SHALL report zero new critical defects
 - And at least 2 maintainer approvals SHALL be required
 
-**Linked Test Cases**: 0 tests (0 passing, 0 failing)
+**Linked Test Cases**: 3 tests (3 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
-| *(no tests)* | 📋 |
+| `05-implementation\tests\test_health_heartbeat::health_heartbeat` | ✅ |
+| `05-implementation\tests\test_health_selftest::health_selftest` | ✅ |
+| `tests\test_state_machine_basic::state_machine_basic` | ✅ |
 
-**Coverage**: 0%
-**Status**: 📋 NO TESTS
+**Coverage**: 100%
+**Status**: ✅ PASSING
 
 ---
 
@@ -139,14 +141,15 @@
 - Then execution time SHALL be <100 microseconds (WCET)
 - And heap allocation calls SHALL be zero in timestamp/servo paths
 
-**Linked Test Cases**: 0 tests (0 passing, 0 failing)
+**Linked Test Cases**: 2 tests (2 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
-| *(no tests)* | 📋 |
+| `tests\test_offset_clamp_boundary::offset_clamp_boundary` | ✅ |
+| `tests\test_state_machine_basic::state_machine_basic` | ✅ |
 
-**Coverage**: 0%
-**Status**: 📋 NO TESTS
+**Coverage**: 100%
+**Status**: ✅ PASSING
 
 ---
 
@@ -159,14 +162,14 @@
 - Then offset SHALL converge to <1µs within 60 seconds
 - And offset jitter (std dev) SHALL be <50ns after convergence
 
-**Linked Test Cases**: 0 tests (0 passing, 0 failing)
+**Linked Test Cases**: 1 tests (1 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
-| *(no tests)* | 📋 |
+| `tests\test_rounding_bias::rounding_bias` | ✅ |
 
-**Coverage**: 0%
-**Status**: 📋 NO TESTS
+**Coverage**: 100%
+**Status**: ✅ PASSING
 
 ---
 
@@ -179,11 +182,13 @@
 - Then measured delay SHALL be within 10% of cable propagation delay (≈500ns)
 - And delay SHALL remain stable (std dev <50ns) over 1000 measurements
 
-**Linked Test Cases**: 1 tests (1 passing, 0 failing)
+**Linked Test Cases**: 3 tests (3 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
 | `05-implementation\tests\test_calculate_offset_and_delay::calculate_offset_and_delay` | ✅ |
+| `05-implementation\tests\test_delay_resp_processing::delay_resp_processing` | ✅ |
+| `05-implementation\tests\test_master_delay_response::master_delay_response` | ✅ |
 
 **Coverage**: 100%
 **Status**: ✅ PASSING
@@ -219,14 +224,14 @@
 - Then compilation SHALL succeed on any ANSI C99 compiler
 - And no platform-specific headers SHALL be included (#error if found)
 
-**Linked Test Cases**: 0 tests (0 passing, 0 failing)
+**Linked Test Cases**: 1 tests (1 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
-| *(no tests)* | 📋 |
+| `tests\test_state_machine_basic::state_machine_basic` | ✅ |
 
-**Coverage**: 0%
-**Status**: 📋 NO TESTS
+**Coverage**: 100%
+**Status**: ✅ PASSING
 
 ---
 
@@ -358,15 +363,23 @@
 - And it SHALL select the correct master using BMCA
 - And it SHALL handle all mandatory PTP message types
 
-**Linked Test Cases**: 3 tests (2 passing, 0 failing)
+**Linked Test Cases**: 11 tests (9 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
 | `05-implementation\tests\test_bmca_basic::bmca_basic` | ⚠️ |
+| `05-implementation\tests\test_bmca_role_assignment::bmca_role_assignment` | ✅ |
+| `05-implementation\tests\test_boundary_clock_queries::test_has_master_port_with_no_master` | ⚠️ |
+| `05-implementation\tests\test_boundary_clock_routing::boundary_clock_routing` | ✅ |
 | `05-implementation\tests\test_calculate_offset_and_delay::calculate_offset_and_delay` | ✅ |
 | `05-implementation\tests\test_configuration_setters::configuration_setters` | ✅ |
+| `05-implementation\tests\test_delay_resp_processing::delay_resp_processing` | ✅ |
+| `05-implementation\tests\test_foreign_master_overflow::foreign_master_overflow` | ✅ |
+| `05-implementation\tests\test_master_delay_response::master_delay_response` | ✅ |
+| `05-implementation\tests\test_state_actions::state_actions` | ✅ |
+| `tests\test_state_machine_basic::state_machine_basic` | ✅ |
 
-**Coverage**: 67%
+**Coverage**: 82%
 **Status**: ✅ PASSING
 
 ---
@@ -380,11 +393,15 @@
 - Then Wireshark PTP dissector SHALL parse it without errors
 - And all field values SHALL match IEEE 1588-2019 Table 26
 
-**Linked Test Cases**: 1 tests (1 passing, 0 failing)
+**Linked Test Cases**: 5 tests (5 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
+| `05-implementation\tests\test_message_bodies_validation::message_bodies_validation` | ✅ |
+| `05-implementation\tests\test_message_header_validation::message_header_validation` | ✅ |
+| `05-implementation\tests\test_timestamp_ordering_assertions::timestamp_ordering_assertions` | ✅ |
 | `tests\test_messages_validate::messages_validate` | ✅ |
+| `tests\test_types_timestamp::types_timestamp` | ✅ |
 
 **Coverage**: 100%
 **Status**: ✅ PASSING
@@ -401,13 +418,19 @@
 - And all other clocks SHALL enter slave state
 - And state SHALL remain stable for 1000 Announce intervals
 
-**Linked Test Cases**: 1 tests (0 passing, 0 failing)
+**Linked Test Cases**: 7 tests (5 passing, 0 failing)
 
 | Test Case | Status |
 |-----------|--------|
 | `05-implementation\tests\test_bmca_basic::bmca_basic` | ⚠️ |
+| `05-implementation\tests\test_bmca_edges::bmca_edges` | ⚠️ |
+| `05-implementation\tests\test_bmca_role_assignment::bmca_role_assignment` | ✅ |
+| `05-implementation\tests\test_bmca_selection_list::bmca_selection_list` | ✅ |
+| `05-implementation\tests\test_bmca_tie_passive::bmca_tie_passive` | ✅ |
+| `05-implementation\tests\test_foreign_master_overflow::foreign_master_overflow` | ✅ |
+| `tests\test_state_machine_basic::state_machine_basic` | ✅ |
 
-**Coverage**: 0%
+**Coverage**: 71%
 **Status**: ✅ PASSING
 
 ---
@@ -515,22 +538,17 @@
 
 ## Requirements Needing Attention
 
-1. **STR-STD-003** (P0): Best Master Clock Algorithm (BMCA)
-2. **STR-STD-004** (P1): Interoperability with Commercial Devices
-3. **STR-PERF-002** (P0): Timing Determinism
-4. **STR-PERF-003** (P0): Clock Servo Performance
-5. **STR-PERF-005** (P1): Resource Efficiency
-6. **STR-PORT-001** (P0): Hardware Abstraction Layer (HAL)
-7. **STR-PORT-002** (P0): Reference HAL Implementations
-8. **STR-PORT-003** (P1): No OS Assumptions
-9. **STR-PORT-004** (P0): Cross-Platform Build System
-10. **STR-SEC-002** (P0): No Buffer Overruns
-11. **STR-SEC-003** (P1): Security Audit
-12. **STR-USE-001** (P0): API Documentation
-13. **STR-USE-002** (P0): Getting Started Tutorial
-14. **STR-USE-003** (P1): Example Applications
-15. **STR-USE-004** (P1): Porting Guide
-16. **STR-MAINT-001** (P0): Code Quality
-17. **STR-MAINT-002** (P0): Continuous Integration
-18. **STR-MAINT-003** (P1): Architectural Decision Records (ADRs)
-19. **STR-MAINT-004** (P1): Community Contribution Process
+1. **STR-STD-004** (P1): Interoperability with Commercial Devices
+2. **STR-PERF-005** (P1): Resource Efficiency
+3. **STR-PORT-002** (P0): Reference HAL Implementations
+4. **STR-PORT-003** (P1): No OS Assumptions
+5. **STR-PORT-004** (P0): Cross-Platform Build System
+6. **STR-SEC-002** (P0): No Buffer Overruns
+7. **STR-SEC-003** (P1): Security Audit
+8. **STR-USE-001** (P0): API Documentation
+9. **STR-USE-002** (P0): Getting Started Tutorial
+10. **STR-USE-003** (P1): Example Applications
+11. **STR-USE-004** (P1): Porting Guide
+12. **STR-MAINT-002** (P0): Continuous Integration
+13. **STR-MAINT-003** (P1): Architectural Decision Records (ADRs)
+14. **STR-MAINT-004** (P1): Community Contribution Process

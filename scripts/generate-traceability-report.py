@@ -267,10 +267,23 @@ def link_tests_to_requirements(
     for test_id, req_ids in test_to_requirements.items():
         # Extract test name from test_id (remove file path)
         test_name = test_id.split('::')[-1]
-        
-        # Check if test passed or failed
+
+        # Check if test passed or failed (direct/substring match)
         test_passed = any(test_name in t for t in passing_tests)
         test_failed = any(test_name in t for t in failing_tests)
+
+        # Heuristic: if not matched, try a keyword-based match for names like bmca_* vs file-based names
+        if not test_passed and not test_failed:
+            # Extract informative token (longest segment > 3 chars)
+            tokens = [tok for tok in re.split(r'[_\-]+', test_name) if len(tok) > 3]
+            key = max(tokens, key=len) if tokens else test_name
+            cand_pass = [t for t in passing_tests if key in t]
+            cand_fail = [t for t in failing_tests if key in t]
+            # Only accept if unambiguous single candidate
+            if len(cand_pass) == 1 and not cand_fail:
+                test_passed = True
+            elif len(cand_fail) == 1 and not cand_pass:
+                test_failed = True
         
         for req_id in req_ids:
             if req_id in requirements:

@@ -1,3 +1,4 @@
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (boundary clock queries)
 /**
  * @file test_boundary_clock_queries.cpp
  * @brief Test BoundaryClock helper query methods

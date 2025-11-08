@@ -1,3 +1,4 @@
+// @satisfies STR-STD-002 - Message Format Correctness (header validation)
 /*
 Test: TEST-UNIT-MSG-HEADER-VALIDATION
 Phase: 05-implementation

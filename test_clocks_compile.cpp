@@ -1,3 +1,6 @@
+// @satisfies STR-PORT-001 - Hardware Abstraction Layer (pure headers, no OS deps)
+// @satisfies STR-PORT-003 - No OS Assumptions (compiles without POSIX/Win headers)
+// @satisfies STR-PORT-004 - Cross-Platform Build System (CMake host build)
 /**
  * @file test_clocks_compile.cpp
  * @brief Comprehensive compilation test for clocks.hpp IEEE 1588-2019 implementation

@@ -1,3 +1,4 @@
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (candidate list selection)
 /*
 Test: TEST-UNIT-BMCA-SELECTION
 Phase: 05-implementation

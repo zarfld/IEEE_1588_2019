@@ -1,3 +1,4 @@
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (priority vector comparison edges)
 /*
 Test: TEST-UNIT-BMCA-EDGES
 Phase: 05-implementation

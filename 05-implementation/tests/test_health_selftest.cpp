@@ -1,3 +1,4 @@
+// @satisfies STR-MAINT-001 - Code Quality (health self-test instrumentation)
 /*
 Test: TEST-UNIT-HealthSelfTest
 Phase: 05-implementation

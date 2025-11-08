@@ -1,3 +1,5 @@
+// @satisfies STR-PERF-004 - Path Delay Measurement (Master Delay_Resp handling)
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (message handling)
 /**
  * @file test_master_delay_response.cpp
  * @brief Test Master-side process_delay_req() sending Delay_Resp (lines 472-491)

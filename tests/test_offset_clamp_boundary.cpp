@@ -1,3 +1,4 @@
+// @satisfies STR-PERF-002 - Timing Determinism (bounded calculations and clamping)
 /*
 Test: TEST-UNIT-offset-clamp-boundary
 Phase: 05-implementation

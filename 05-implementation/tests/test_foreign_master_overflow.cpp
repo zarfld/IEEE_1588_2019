@@ -1,3 +1,5 @@
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (foreign master list management)
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (foreign master dataset handling)
 /*
 Test: TEST-UNIT-FOREIGN-MASTER-OVERFLOW
 Phase: 05-implementation

@@ -1,3 +1,4 @@
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (state-specific actions)
 /*
 Test: TEST-UNIT-STATE-ACTIONS
 Phase: 05-implementation

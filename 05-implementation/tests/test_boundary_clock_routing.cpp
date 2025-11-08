@@ -1,3 +1,4 @@
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (boundary clock routing)
 /*
 Test: TEST-UNIT-BC-ROUTING
 Phase: 05-implementation

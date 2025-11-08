@@ -1,3 +1,5 @@
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (integration role assignment)
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (announce handling)
 /*
 Test: TEST-UNIT-BMCA-ROLE-ASSIGNMENT (GREEN increment)
 Phase: 05-implementation

@@ -1,3 +1,4 @@
+// @satisfies STR-PERF-003 - Clock Servo Performance (rounding/jitter characterization)
 /*
 Test: TEST-UNIT-rounding-bias-characterization
 Phase: 05-implementation

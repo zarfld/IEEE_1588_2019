@@ -1,3 +1,4 @@
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (tie -> passive recommendation)
 /*
 Test: TEST-UNIT-BMCA-TiePassive
 Phase: 05-implementation

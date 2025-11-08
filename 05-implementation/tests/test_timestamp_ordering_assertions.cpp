@@ -1,3 +1,4 @@
+// @satisfies STR-STD-002 - Message Format Correctness (timestamp validation and invariants)
 /*
 Test: TEST-UNIT-TIMESTAMP-ORDERING
 Phase: 05-implementation

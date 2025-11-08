@@ -1,3 +1,4 @@
+// @satisfies STR-STD-002 - Message Format Correctness (timestamp fields handling)
 // TEST: TEST-TIMESTAMP-ARITH-001
 // REQ Trace: REQ-F-003 (Clock Offset Calculation), REQ-NF-P-001 (Determinism)
 // Purpose: Validate Timestamp helpers (validate, operators, arithmetic)

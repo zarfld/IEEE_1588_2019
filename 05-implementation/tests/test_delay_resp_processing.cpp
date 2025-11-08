@@ -1,3 +1,5 @@
+// @satisfies STR-PERF-004 - Path Delay Measurement (Delay_Resp processing)
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (message processing)
 /*
 Test: TEST-UNIT-DELAY-RESP
 Phase: 05-implementation

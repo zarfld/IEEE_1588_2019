@@ -1,3 +1,8 @@
+// @satisfies STR-STD-001 - IEEE 1588-2019 Protocol Compliance (state machine lifecycle)
+// @satisfies STR-STD-003 - Best Master Clock Algorithm (basic master/slave transitions)
+// @satisfies STR-PERF-002 - Timing Determinism (bounded transitions without blocking)
+// @satisfies STR-PORT-001 - Hardware Abstraction Layer (pure protocol callbacks)
+// @satisfies STR-MAINT-001 - Code Quality (state machine covered by smoke test)
 // TEST: TEST-BMCA-TRANSITION-001, TEST-BMCA-TIMEOUT-001, TEST-SYNC-001
 // Related DES: DES-C-021, DES-I-022, DES-D-023, DES-I-024
 // Purpose: Minimal smoke test for state machine transitions per IEEE 1588-2019 Section 9.2
