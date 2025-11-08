@@ -134,4 +134,15 @@ target_include_directories(foreign_master_overflow PRIVATE
 target_link_libraries(foreign_master_overflow PRIVATE IEEE1588_2019_interface)
 add_test(NAME foreign_master_overflow_guard COMMAND foreign_master_overflow)
 
+# Test 12: Health heartbeat emission
+add_executable(health_heartbeat
+    ${CMAKE_CURRENT_LIST_DIR}/test_health_heartbeat.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(health_heartbeat PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(health_heartbeat PRIVATE IEEE1588_2019_interface)
+add_test(NAME health_heartbeat_emission COMMAND health_heartbeat)
+
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")

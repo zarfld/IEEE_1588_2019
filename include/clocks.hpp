@@ -509,6 +509,8 @@ private:
     Types::Timestamp last_delay_req_time_{};
     Types::Timestamp announce_timeout_time_{};
     Types::Timestamp sync_timeout_time_{};
+    // Health heartbeat throttling
+    Types::Timestamp last_health_emit_time_{};
     std::uint16_t announce_sequence_id_{0};
     std::uint16_t sync_sequence_id_{0};
     std::uint16_t delay_req_sequence_id_{0};

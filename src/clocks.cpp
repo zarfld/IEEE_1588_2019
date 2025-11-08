@@ -95,6 +95,7 @@ Types::PTPResult<void> PtpPort::initialize() noexcept {
     last_delay_req_time_ = Types::Timestamp{};
     announce_timeout_time_ = Types::Timestamp{};
     sync_timeout_time_ = Types::Timestamp{};
+    last_health_emit_time_ = Types::Timestamp{};
     
     // Reset sequence IDs
     announce_sequence_id_ = 0;
@@ -488,6 +489,12 @@ Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexc
     // Attempt offset calculation if all timestamps collected
     if (have_sync_ && have_follow_up_ && have_delay_req_ && have_delay_resp_) {
         calculate_offset_and_delay();
+    }
+    // Health heartbeat emission (FM-007): throttle to 1 second
+    const auto one_second = time_interval_for_log_interval(0, 1);
+    if (is_timeout_expired(last_health_emit_time_, current_time, one_second)) {
+        Common::utils::health::emit();
+        last_health_emit_time_ = current_time;
     }
     return Types::PTPResult<void>::success();
 }

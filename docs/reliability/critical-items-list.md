@@ -20,7 +20,7 @@ Source SFMEA: `sfmea-ptp-initial.md` (REL-SFMEA-001). Inclusion threshold RPN â‰
 | FM-001 | Incorrect offset sign | 192 | Timestamp ordering assertions + ordering violation test implemented | impl | 2025-11-10 | done |
 | FM-002 | Scaled arithmetic overflow | 189 | Clamp + log + validation counters (implemented) add overflow test | impl | 2025-11-09 | in-progress |
 | FM-004 | Tie token misuse selecting wrong master | 210 | Distinct telemetry/log (implemented), add forced tie post-check test | impl | 2025-11-09 | done |
-| FM-007 | Stale health report emission gap | 168* | Heartbeat emit in tick + observer presence test | impl | 2025-11-12 | open |
+| FM-007 | Stale health report emission gap | 168* | Heartbeat emit in tick + observer presence test (implemented) | impl | 2025-11-12 | done |
 | FM-008 | Over-permissive sync heuristic | 180 | Add min offset count threshold & validations gating | impl | 2025-11-13 | open |
 | FM-014 | Integer division rounding bias | 192 | Add rounding characterization test & optional compensation toggle | impl | 2025-11-14 | open |
 | FM-018 | Foreign master list overflow | 168* | Overflow guard + telemetry + test implemented | impl | 2025-11-11 | done |
