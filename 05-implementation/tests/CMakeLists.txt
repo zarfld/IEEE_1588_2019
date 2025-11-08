@@ -311,3 +311,55 @@ target_link_libraries(boundary_clock_queries PRIVATE IEEE1588_2019_interface)
 add_test(NAME boundary_clock_queries COMMAND boundary_clock_queries)
 
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, configuration_setters, master_delay_response, boundary_clock_queries")
+
+# Security: No buffer overruns (STR-SEC-002)
+add_executable(no_buffer_overruns
+    ${CMAKE_CURRENT_LIST_DIR}/test_no_buffer_overruns.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(no_buffer_overruns PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(no_buffer_overruns PRIVATE IEEE1588_2019_interface)
+add_test(NAME no_buffer_overruns COMMAND no_buffer_overruns)
+
+# Performance: Resource efficiency evidence (STR-PERF-005)
+add_executable(resource_efficiency
+    ${CMAKE_CURRENT_LIST_DIR}/test_resource_efficiency.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(resource_efficiency PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(resource_efficiency PRIVATE IEEE1588_2019_interface)
+add_test(NAME resource_efficiency COMMAND resource_efficiency)
+
+# Portability: Reference HALs / DI compile evidence (STR-PORT-002)
+add_executable(dependency_injection_compile
+    ${CMAKE_CURRENT_LIST_DIR}/test_dependency_injection_compile.cpp
+)
+target_include_directories(dependency_injection_compile PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(dependency_injection_compile PRIVATE IEEE1588_2019)
+add_test(NAME dependency_injection_compile COMMAND dependency_injection_compile)
+
+# Usability: API docs presence (STR-USE-001)
+add_executable(api_docs_presence
+    ${CMAKE_CURRENT_LIST_DIR}/test_api_docs_presence.cpp
+)
+target_include_directories(api_docs_presence PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(api_docs_presence PRIVATE IEEE1588_2019_interface)
+target_compile_definitions(api_docs_presence PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME api_docs_presence COMMAND api_docs_presence)
+
+# Usability: Getting started/tutorial presence (STR-USE-002) and Maintainability: CI & contribution (STR-MAINT-002, STR-MAINT-004)
+add_executable(getting_started_and_ci_presence
+    ${CMAKE_CURRENT_LIST_DIR}/test_getting_started_and_ci_presence.cpp
+)
+target_include_directories(getting_started_and_ci_presence PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(getting_started_and_ci_presence PRIVATE IEEE1588_2019_interface)
+target_compile_definitions(getting_started_and_ci_presence PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME getting_started_and_ci_presence COMMAND getting_started_and_ci_presence)
