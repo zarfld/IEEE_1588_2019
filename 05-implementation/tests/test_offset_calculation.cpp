@@ -13,6 +13,7 @@ Notes: Validates E2E offset calculation formula and edge cases (negative, large 
 #include <cmath>
 #include "IEEE/1588/PTP/2019/types.hpp"
 #include "clocks.hpp"
+#include "Common/utils/metrics.hpp"
 
 using namespace IEEE::_1588::PTP::_2019;
 
@@ -28,6 +29,7 @@ static bool nearlyEqual(double a, double b, double eps = 1e-9) {
 }
 
 int main() {
+    Common::utils::metrics::reset();
     // Happy path: offset = ((T2-T1) - (T4-T3)) / 2
     {
         Clocks::SynchronizationData s{};
@@ -42,6 +44,10 @@ int main() {
         if (!nearlyEqual(ns, 495.0)) {
             std::fprintf(stderr, "Expected 495 ns, got %.3f ns\n", ns);
             return 2;
+        }
+        if (Common::utils::metrics::get(Common::utils::metrics::CounterId::OffsetsComputed) == 0) {
+            std::fprintf(stderr, "Metrics counter OffsetsComputed not incremented\n");
+            return 100;
         }
     }
 

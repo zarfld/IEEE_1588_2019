@@ -15,6 +15,7 @@ Notes: Validates basic BMCA selection logic. Extend with tie-break and dataset u
 // status: active
 // relatedRequirements:
 //   - REQ-F-002
+#include "Common/utils/metrics.hpp"
 // relatedDesign:
 //   - DES-C-031
 //   - DES-I-032
@@ -34,6 +35,7 @@ Notes: Validates basic BMCA selection logic. Extend with tie-break and dataset u
 using namespace IEEE::_1588::PTP::_2019::BMCA;
 
 int main() {
+    Common::utils::metrics::reset();
     // Arrange: Two candidate priority vectors where second SHOULD win per Section 9.3 ordering
     PriorityVector a{}; // lower quality
     a.priority1 = 128; a.clockClass = 248; a.clockAccuracy = 0xFFFF; a.variance = 65535; a.priority2 = 128; a.grandmasterIdentity = 0xABCDEF01ULL; a.stepsRemoved = 2;
@@ -69,6 +71,16 @@ int main() {
     y.stepsRemoved = 3; // y better due to fewer steps
     auto cmp_steps = comparePriorityVectors(x, y);
     if (cmp_steps != CompareResult::BBetter) {
+    auto candidateUpdates = Common::utils::metrics::get(Common::utils::metrics::CounterId::BMCA_CandidateUpdates);
+    auto selections = Common::utils::metrics::get(Common::utils::metrics::CounterId::BMCA_Selections);
+    if (selections == 0) {
+        std::fprintf(stderr, "BMCA selections counter not incremented\n");
+        return 50;
+    }
+    if (candidateUpdates == 0) {
+        std::fprintf(stderr, "BMCA candidate updates counter not incremented (expected >0)\n");
+        return 51;
+    }
         std::fprintf(stderr, "TEST-BMCA-COMPARE-001 FAILED: Expected y with fewer stepsRemoved to win\n");
         return 3;
     }
