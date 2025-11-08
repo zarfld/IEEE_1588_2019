@@ -375,3 +375,12 @@ target_include_directories(servo_convergence_sim PRIVATE
 )
 target_link_libraries(servo_convergence_sim PRIVATE IEEE1588_2019_interface)
 add_test(NAME servo_convergence_sim COMMAND servo_convergence_sim)
+
+# Standards: Interoperability evidence placeholder (STR-STD-004)
+add_executable(interoperability_evidence
+    ${CMAKE_CURRENT_LIST_DIR}/test_interoperability_evidence.cpp
+)
+target_include_directories(interoperability_evidence PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(interoperability_evidence PRIVATE IEEE1588_2019_interface)
+target_compile_definitions(interoperability_evidence PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+add_test(NAME interoperability_evidence COMMAND interoperability_evidence)
