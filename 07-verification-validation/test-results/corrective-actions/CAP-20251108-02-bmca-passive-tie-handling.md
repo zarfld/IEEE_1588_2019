@@ -5,7 +5,7 @@ Anomaly ID(s): ANOM-20251108-BMCA-TIE-001
 Date Opened: 2025-11-08
 Owner: BMCA Integration Stream
 Integrity Level: 2
-Status: AWAITING_REVERIFY
+Status: AWAITING_RISK_REVIEW
 
 ## 1. Summary
 
@@ -80,8 +80,9 @@ Status: AWAITING_REVERIFY
 | 3 | Re-run BMCA suite (focused) | PASS | See test IDs 17,18,19,30,31 (all green) |
 | 4 | Non-BMCA regression smoke | PASS | Test IDs 7,20,21,22 green |
 | 5 | Update design & requirements | PASS | REQ-F-002 updated; DES-C-003, DES-C-010 updated |
-| 6 | Update traceability matrix | PASS | Added REQ-F-002 row linking to tests in architecture-traceability-matrix.md |
-| 7 | Risk review | Pending | — |
+| 6 | Update traceability (automated) | PASS | validate-trace-coverage scenario coverage 56.86% (threshold 10%) |
+| 7 | Add QA scenarios (QA-SC-007..009) | PASS | architecture-quality-scenarios.md updated; links to REQ-F-002 et al. |
+| 8 | Risk review | Pending | — |
 
 ## 9. Traceability Updates (Planned)
 
@@ -108,7 +109,8 @@ Status: AWAITING_REVERIFY
 | Failing tie test added | Done |
 | Passive logic implemented | Done |
 | Regression suite green | Done (focused + smoke) |
-| Traceability updated | Done |
+| Traceability (automated) updated | Done (coverage thresholds PASS) |
+| QA scenarios added (BMCA & cross-arch) | Done |
 | Risk review complete | Pending |
 | Stakeholder sign-off | Pending |
 
