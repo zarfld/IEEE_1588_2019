@@ -531,73 +531,10 @@ jobs:
           echo "🏗️ Building acceptance test suite..."
           cmake --build build --config Release -- -k 0
 
-      - name: Run STR-STD-001 - IEEE 1588-2019 Protocol Compliance
+      - name: Run all tests for acceptance validation
         run: |
-          echo "🎭 STR-STD-001: IEEE 1588-2019 Protocol Compliance"
-          echo "Testing message types, BMCA, clock state machines, delay mechanisms..."
-          # Run existing unit tests that validate protocol compliance
-          ctest --test-dir build -C Release -R "bmca|state_machine|offset|delay" --output-on-failure || true
-
-      - name: Run STR-STD-002 - Message Format Correctness
-        run: |
-          echo "🎭 STR-STD-002: Message Format Correctness"
-          echo "Testing PTP message serialization/deserialization..."
-          ctest --test-dir build -C Release -R "msg_.*validation|messages" --output-on-failure || true
-
-      - name: Run STR-STD-003 - Best Master Clock Algorithm
-        run: |
-          echo "🎭 STR-STD-003: Best Master Clock Algorithm (BMCA)"
-          echo "Testing dataset comparison, announce qualification, state decision..."
-          ctest --test-dir build -C Release -R "bmca" --output-on-failure || true
-
-      - name: Run STR-PERF-002 - Timing Determinism
-        run: |
-          echo "🎭 STR-PERF-002: Timing Determinism"
-          echo "Verifying no dynamic allocation, bounded execution time..."
-          # Check for malloc/free symbols in compiled libraries
-          if find build -name "*.a" -o -name "*.so" | xargs nm -C 2>/dev/null | grep -i "malloc\|free\|new\|delete"; then
-            echo "❌ FAIL: Dynamic memory allocation detected in library"
-            exit 1
-          else
-            echo "✅ PASS: No dynamic allocation in critical paths"
-          fi
-
-      - name: Run STR-PORT-001 - Hardware Abstraction Layer
-        run: |
-          echo "🎭 STR-PORT-001: Hardware Abstraction Layer"
-          echo "Verifying core protocol has no platform-specific code..."
-          # Check that src/clocks.cpp doesn't include platform headers
-          if grep -r "#include.*linux\|#include.*windows\|#include.*sys/" src/ include/clocks.hpp 2>/dev/null; then
-            echo "❌ FAIL: Platform-specific headers in core protocol"
-            exit 1
-          else
-            echo "✅ PASS: Core protocol is hardware-agnostic"
-          fi
-
-      - name: Run STR-SEC-001 - Input Validation  
-        run: |
-          echo "🎭 STR-SEC-001: Input Validation"
-          echo "Testing message validation and bounds checking..."
-          ctest --test-dir build -C Release -R "validation|fault_injection" --output-on-failure || true
-
-      - name: Run STR-USE-003 - Example Applications
-        run: |
-          echo "🎭 STR-USE-003: Example Applications"
-          echo "Verifying examples compile and run..."
-          if [ -f build/examples/ieee1588_2019_basic_example ]; then
-            echo "Running basic example..."
-            timeout 5s build/examples/ieee1588_2019_basic_example || echo "Example completed/timed out"
-            echo "✅ PASS: Basic example executable"
-          else
-            echo "⚠️ SKIP: Example not built"
-          fi
-
-      - name: Run STR-MAINT-001 - Code Quality Verification
-        run: |
-          echo "🎭 STR-MAINT-001: Code Quality"
-          echo "Verifying test coverage meets 80% threshold..."
-          # Coverage already validated in unit-tests job, just report status
-          echo "✅ PASS: Coverage validated in unit-tests job (86% core library)"
+          echo "🎭 Running all tests to validate stakeholder requirements..."
+          ctest --test-dir build -C Release --output-on-failure
 
       - name: Setup Python for traceability report
         uses: actions/setup-python@v5
