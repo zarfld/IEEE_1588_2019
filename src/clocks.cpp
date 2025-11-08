@@ -1,3 +1,13 @@
+/*
+Module: src/clocks.cpp
+Phase: 05-implementation
+Traceability:
+    Design: DES-C-010 (time sync), DES-I-007 (health)
+    Requirements: REQ-F-003 (E2E offset), REQ-NF-REL-003 (observability)
+    Tests: TEST-UNIT-SyncHeuristic, TEST-UNIT-HealthHeartbeat, TEST-UNIT-ForeignMasterOverflow, TEST-UNIT-TimestampOrdering
+Notes: Implements PTP port state machines and sync/offset logic; emits structured logs/metrics and health heartbeat for reliability evidence.
+*/
+
 /**
  * @file clocks.cpp
  * @brief IEEE 1588-2019 PTP Clock State Machines Implementation

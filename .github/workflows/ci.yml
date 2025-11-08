@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ lcov
+
+      - name: Configure (CMake)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build --config Debug -- -j$(nproc)
+
+      - name: Run tests
+        run: |
+          cd build
+          ctest --output-on-failure || exit 1
+
+      - name: Collect coverage
+        run: |
+          lcov --capture --directory build --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --list coverage.info
+
+      - name: Enforce coverage >=80%
+        run: |
+          COVER=$(lcov --list coverage.info | awk '/Total:/ {print $2}' | sed 's/%//')
+          echo "Total coverage: $COVER%"
+          awk -v c=$COVER 'BEGIN { if (c+0 < 80) { exit 1 } }'
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.info
+
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Echo gates
+        run: echo "Quality gates passed (build, tests, coverage >=80%)."

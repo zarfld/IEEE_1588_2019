@@ -1,3 +1,13 @@
+/*
+Module: include/clocks.hpp
+Phase: 05-implementation
+Traceability:
+    Design: DES-C-010 (time sync), DES-I-007 (health)
+    Requirements: REQ-F-003 (E2E offset), REQ-NF-REL-003 (observability)
+    Tests: TEST-UNIT-SyncHeuristic, TEST-UNIT-HealthHeartbeat, TEST-UNIT-ForeignMasterOverflow, TEST-UNIT-TimestampOrdering
+Notes: Public interface for PTP clocks and port state machines; aligns with IEEE 1588-2019 Sections 6, 8, 9, 11.
+*/
+
 /**
  * @file clocks.hpp
  * @brief IEEE 1588-2019 PTP Clock State Machines Implementation
@@ -11,9 +21,7 @@
  *       - Bounded execution time for all operations
  *       - POD types for hardware compatibility
  * 
- * @copyright Copyright (c) 2024 OpenAvnu
- * @author OpenAvnu Standards Implementation Team
- * @version IEEE 1588-2019 PTP v2.1
+ * © 2024 OpenAvnu — IEEE 1588-2019 PTP v2.1
  */
 
 #pragma once
