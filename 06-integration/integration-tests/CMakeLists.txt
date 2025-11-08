@@ -17,3 +17,14 @@ target_include_directories(health_aggregation_integration PRIVATE ${CMAKE_SOURCE
 target_link_libraries(health_aggregation_integration PRIVATE IEEE1588_2019)
 add_test(NAME health_aggregation_integration COMMAND health_aggregation_integration)
 set_tests_properties(health_aggregation_integration PROPERTIES LABELS "integration")
+
+# Reliability harness (Phase 06)
+add_executable(reliability_harness
+    ${CMAKE_CURRENT_LIST_DIR}/reliability/reliability_harness.cpp
+)
+target_include_directories(reliability_harness PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(reliability_harness PRIVATE IEEE1588_2019)
+
+add_test(NAME reliability_harness
+    COMMAND reliability_harness 200 ${CMAKE_BINARY_DIR}/reliability/srg_failures.csv)
+set_tests_properties(reliability_harness PROPERTIES LABELS "reliability")
