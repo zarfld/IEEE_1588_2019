@@ -30,6 +30,8 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure -j$(nproc)
+      - name: Run integration tests (labeled)
+        run: ctest --test-dir build -L integration --output-on-failure -j$(nproc)
 
       - name: Coverage (gcovr JSON)
         run: gcovr -r . build --json-summary -o coverage.json
@@ -64,6 +66,9 @@ jobs:
       - name: Run tests
         shell: pwsh
         run: ctest --test-dir build -C Release --output-on-failure --parallel 2
+      - name: Run integration tests (labeled)
+        shell: pwsh
+        run: ctest --test-dir build -C Release -L integration --output-on-failure --parallel 2
 
   quality-summary:
     runs-on: ubuntu-latest

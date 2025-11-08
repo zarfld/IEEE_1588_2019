@@ -923,14 +923,44 @@ Types::PTPResult<void> BoundaryClock::process_message(Types::PortNumber port_num
     if (!port) {
         return Types::PTPResult<void>::failure(Types::PTPError::INVALID_PORT);
     }
-    
-    // Delegate to the specific port (similar to OrdinaryClock implementation)
-    // This is simplified - full implementation would include message parsing
-    (void)message_type;
-    (void)message_data;
-    (void)message_size;
-    (void)rx_timestamp;
-    return Types::PTPResult<void>::success();
+
+    // Delegate to specific port (similar to OrdinaryClock implementation)
+    switch (static_cast<MessageType>(message_type)) {
+    case MessageType::Announce:
+        if (message_size >= sizeof(AnnounceMessage)) {
+            const auto* announce_msg = static_cast<const AnnounceMessage*>(message_data);
+            return port->process_announce(*announce_msg);
+        }
+        break;
+    case MessageType::Sync:
+        if (message_size >= sizeof(SyncMessage)) {
+            const auto* sync_msg = static_cast<const SyncMessage*>(message_data);
+            return port->process_sync(*sync_msg, rx_timestamp);
+        }
+        break;
+    case MessageType::Follow_Up:
+        if (message_size >= sizeof(FollowUpMessage)) {
+            const auto* follow_up_msg = static_cast<const FollowUpMessage*>(message_data);
+            return port->process_follow_up(*follow_up_msg);
+        }
+        break;
+    case MessageType::Delay_Req:
+        if (message_size >= sizeof(DelayReqMessage)) {
+            const auto* delay_req_msg = static_cast<const DelayReqMessage*>(message_data);
+            return port->process_delay_req(*delay_req_msg, rx_timestamp);
+        }
+        break;
+    case MessageType::Delay_Resp:
+        if (message_size >= sizeof(DelayRespMessage)) {
+            const auto* delay_resp_msg = static_cast<const DelayRespMessage*>(message_data);
+            return port->process_delay_resp(*delay_resp_msg);
+        }
+        break;
+    default:
+        return Types::PTPResult<void>::failure(Types::PTPError::UNSUPPORTED_MESSAGE);
+    }
+
+    return Types::PTPResult<void>::failure(Types::PTPError::INVALID_MESSAGE_SIZE);
 }
 
 Types::PTPResult<void> BoundaryClock::tick(const Types::Timestamp& current_time) noexcept {
