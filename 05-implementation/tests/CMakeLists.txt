@@ -145,4 +145,15 @@ target_include_directories(health_heartbeat PRIVATE
 target_link_libraries(health_heartbeat PRIVATE IEEE1588_2019_interface)
 add_test(NAME health_heartbeat_emission COMMAND health_heartbeat)
 
+# Test 13: Sync heuristic tightening
+add_executable(sync_heuristic_tightening
+    ${CMAKE_CURRENT_LIST_DIR}/test_sync_heuristic_tightening.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(sync_heuristic_tightening PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(sync_heuristic_tightening PRIVATE IEEE1588_2019_interface)
+add_test(NAME sync_heuristic_tightening COMMAND sync_heuristic_tightening)
+
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")
