@@ -57,4 +57,26 @@ target_include_directories(msg_header_validation PRIVATE
 target_link_libraries(msg_header_validation PRIVATE IEEE1588_2019_interface)
 add_test(NAME ptp_message_header_validation COMMAND msg_header_validation)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation")
+# Test 5: Message bodies validation (error branches)
+add_executable(msg_bodies_validation
+    ${CMAKE_CURRENT_LIST_DIR}/test_message_bodies_validation.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(msg_bodies_validation PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(msg_bodies_validation PRIVATE IEEE1588_2019_interface)
+add_test(NAME ptp_message_bodies_validation COMMAND msg_bodies_validation)
+
+# Test 6: Offset calculation robustness
+add_executable(offset_calculation_tests
+    ${CMAKE_CURRENT_LIST_DIR}/test_offset_calculation.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(offset_calculation_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(offset_calculation_tests PRIVATE IEEE1588_2019_interface)
+add_test(NAME offset_calculation_robustness COMMAND offset_calculation_tests)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")
