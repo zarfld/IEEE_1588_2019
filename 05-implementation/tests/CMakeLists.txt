@@ -396,3 +396,24 @@ target_include_directories(multi_instance_bmca_sync PRIVATE
 )
 target_link_libraries(multi_instance_bmca_sync PRIVATE IEEE1588_2019_interface)
 add_test(NAME multi_instance_bmca_sync COMMAND multi_instance_bmca_sync)
+
+ # Cross-platform build system presence evidence (@satisfies STR-PORT-004)
+ add_executable(build_system_presence test_build_system_presence.cpp)
+ add_test(NAME build_system_presence COMMAND build_system_presence)
+
+# Timing determinism evidence (@satisfies STR-PERF-002)
+add_executable(timing_determinism
+    ${CMAKE_CURRENT_LIST_DIR}/test_timing_determinism.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(timing_determinism PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(timing_determinism PRIVATE IEEE1588_2019_interface)
+add_test(NAME timing_determinism COMMAND timing_determinism)
+
+# ADR presence evidence (@satisfies STR-MAINT-003)
+add_executable(adrs_presence test_adrs_presence.cpp)
+target_compile_definitions(adrs_presence PRIVATE REPO_ROOT="${CMAKE_SOURCE_DIR}")
+add_test(NAME adrs_presence COMMAND adrs_presence)
