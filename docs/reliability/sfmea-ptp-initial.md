@@ -21,7 +21,7 @@ related:
 revision:
   created: 2025-11-08
   updated: 2025-11-08
-  version: 0.1.0
+  version: 0.2.0
 review:
   owner: reliability
   approvers: []
@@ -59,7 +59,7 @@ RPN = S × L × D. Initial mitigations reflect current code (tests, assertions p
 | FM-005 | BMCA | Priority comparison ordering defect | Field sequence regression | Wrong master selection | 9 | 3 | 6 | 162 | comparePriorityVectors tests | Add golden vector regression test & static_assert doc on order | 63 |
 | FM-006 | BMCA | Empty foreign master list unhandled | Logic path omission | Crash / invalid index | 8 | 2 | 3 | 48 | selectBestIndex returns -1 | Add health validation flag increment when -1; test for propagation | 36 |
 | FM-007 | Health | Health report stale (emit not called) | Missed emit call path | Operators rely on outdated status | 6 | 4 | 7 | 168 | emit in key functions (BMCA, offset) | Add periodic heartbeat tick emit + observer presence check test | 72 |
-| FM-008 | Health | Incorrect basicSynchronizedLikely heuristic | Heuristic too permissive | False sense of sync correctness | 6 | 5 | 6 | 180 | Simple heuristic only | Calibrate with additional validation counters & min sample count threshold | 72 |
+| FM-008 | Health | Incorrect basicSynchronizedLikely heuristic | Heuristic too permissive | False sense of sync correctness | 6 | 5 | 6 | 180 | Local per-port successful offset counter (3 sample gate) & validation failure gating now implemented | Add negative path test to ensure transition blocked on validation failure (pending) | 72 |
 | FM-009 | Metrics | Counter overflow (OffsetsComputed) | Long uptime (wrap) | Misleading monitoring / false alarms | 5 | 2 | 9 | 90 | 64-bit counters | Add wrap detection threshold & health flag | 40 |
 | FM-010 | Metrics | Lost increments under concurrency | Non-atomic update (future expansion) | Under-reported activity -> missed anomalies | 7 | 3 | 4 | 84 | Atomic increments | Add stress test w/ simulated concurrency | 60 |
 | FM-011 | FI | Fault injection API used in release build | Build flag misconfig | Latent test hooks enabling unintended behavior | 7 | 2 | 7 | 98 | Manual process | CMake option OFF by default + runtime assert if enabled in Release | 40 |
@@ -89,6 +89,18 @@ Planned next step: Create `critical-items-list.md` with mitigation owners & sche
 4. Implement health emission rate limit (configurable minimal interval) and distinct FI usage flag.
 5. Add build configuration guard: fault injection APIs assert if enabled in Release unless explicitly overridden.
 6. Logging: dedicated codes for forced tie (BMCA) and clamped offsets.
+
+## Closed Items Residual RPN Updates
+
+| FM ID | Mitigation Implemented | Residual RPN | Verification Artifacts |
+|-------|------------------------|--------------|------------------------|
+| FM-001 | Timestamp ordering invariant tests + sign validation | 80 | TEST-UNIT-state-machine-basic, TEST-UNIT-offset-calculation |
+| FM-004 | Forced tie telemetry + single-consume token logic | 90 | TEST-UNIT-bmca-basic (forced tie subcase) |
+| FM-008 | Sync heuristic tightened (3 successful offsets & zero validation failures before SLAVE) | 72 | TEST-UNIT-state-machine-basic (heuristic sequence) |
+| FM-018 | Foreign master list overflow guard & telemetry | 70 | TEST-UNIT-bmca-edges |
+| FM-019 | Distinct forced tie log code + health flag | 70 | TEST-UNIT-bmca-basic (telemetry) |
+
+Pending follow-up tests: Negative heuristic failure path (FM-008), explicit overflow boundary clamp test (FM-002), rounding bias characterization (FM-014).
 
 ## Assumptions
 

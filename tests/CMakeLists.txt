@@ -29,6 +29,12 @@ add_test(NAME ptp_offset_calc_red COMMAND ptp_offset_calc_red)
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
+add_executable(ptp_state_machine_heuristic_negative ${CMAKE_CURRENT_LIST_DIR}/test_state_machine_heuristic_negative.cpp)
+target_include_directories(ptp_state_machine_heuristic_negative PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(ptp_state_machine_heuristic_negative PRIVATE IEEE1588_2019)
+add_test(NAME ptp_state_machine_heuristic_negative COMMAND ptp_state_machine_heuristic_negative)
+
+# Additional compilation/API smoke tests
 add_executable(clocks_api_compile ${CMAKE_SOURCE_DIR}/test_clocks_api.cpp)
 target_include_directories(clocks_api_compile PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(clocks_api_compile PRIVATE IEEE1588_2019)

@@ -8,7 +8,7 @@ related:
 revision:
   created: 2025-11-08
   updated: 2025-11-08
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # Critical Items List (CIL) â€“ IEEE 1588-2019 PTP Library
@@ -21,7 +21,7 @@ Source SFMEA: `sfmea-ptp-initial.md` (REL-SFMEA-001). Inclusion threshold RPN â‰
 | FM-002 | Scaled arithmetic overflow | 189 | Clamp + log + validation counters (implemented) add overflow test | impl | 2025-11-09 | in-progress |
 | FM-004 | Tie token misuse selecting wrong master | 210 | Distinct telemetry/log (implemented), add forced tie post-check test | impl | 2025-11-09 | done |
 | FM-007 | Stale health report emission gap | 168* | Heartbeat emit in tick + observer presence test (implemented) | impl | 2025-11-12 | done |
-| FM-008 | Over-permissive sync heuristic | 180 | Add min offset count threshold & validations gating | impl | 2025-11-13 | open |
+| FM-008 | Over-permissive sync heuristic | 180 | Min sample threshold (3) + validation gating implemented; add negative failure path test | impl | 2025-11-13 | done |
 | FM-014 | Integer division rounding bias | 192 | Add rounding characterization test & optional compensation toggle | impl | 2025-11-14 | open |
 | FM-018 | Foreign master list overflow | 168* | Overflow guard + telemetry + test implemented | impl | 2025-11-11 | done |
 | FM-019 | Forced tie not telemetry-tagged | 175 | Implemented distinct log + health flag (done) add observer test | impl | 2025-11-09 | in-progress |
@@ -41,5 +41,9 @@ Source SFMEA: `sfmea-ptp-initial.md` (REL-SFMEA-001). Inclusion threshold RPN â‰
 2. Add residual RPN update section in SFMEA after each closed item (FM-001, FM-004, FM-018, FM-019 done).
 3. Add observer-based test for forced tie telemetry (FM-019) and clamp overflow explicit test (FM-002).
 4. Promote CIL to `status: approved` post remaining high-RPN mitigations.
+
+## Notes (2025-11-08)
+
+- FM-008 mitigation logic merged: transition to SLAVE now gated on local `successful_offsets_in_window_ >= 3` and zero validation failures. Remaining action: add explicit negative test to assert transition blocking when a validation failure occurs within the window.
 
 ---

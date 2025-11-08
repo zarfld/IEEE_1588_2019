@@ -1,29 +1,31 @@
 ---
 title: "Operational Profile - IEEE 1588-2019 PTP Library"
 specType: operational-profile
-version: 0.1.0
+version: 0.1.1
 author: reliability-eng
 phase: 05-implementation
-status: draft
+status: candidate
 standard: IEEE 1633-2016
 component: ptp-core-lib
 relatedRequirements:
-  - REQ-NF-Reliability-001
-  - REQ-NF-Observability-002
-  - REQ-F-003   # Offset calculation
-  - REQ-F-010   # BMCA selection correctness
+ - REQ-NF-Reliability-001
+ - REQ-NF-Observability-002
+ - REQ-F-003   # Offset calculation
+ - REQ-F-010   # BMCA selection correctness
 relatedDesign:
-  - DES-CLOCK-STATE-MACHINES
-  - DES-BMCA-ALGO
-  - DES-OFFSET-CALC
+ - DES-CLOCK-STATE-MACHINES
+ - DES-BMCA-ALGO
+ - DES-OFFSET-CALC
 traceabilityTests:
-  - TEST-UNIT-offset-calculation
-  - TEST-UNIT-bmca-basic
-  - TEST-UNIT-bmca-edges
-  - TEST-UNIT-fault-injection-offset
-  - TEST-UNIT-fault-injection-bmca
-  - TEST-UNIT-health-selftest
+ - TEST-UNIT-offset-calculation
+ - TEST-UNIT-bmca-basic
+ - TEST-UNIT-bmca-edges
+ - TEST-UNIT-fault-injection-offset
+ - TEST-UNIT-fault-injection-bmca
+ - TEST-UNIT-health-selftest
 ---
+
+<!-- Title provided via YAML front matter -->
 
 ## 1. Actors and User Segments
 
@@ -112,6 +114,12 @@ Transition frequency normalization: For each state, outgoing transitions sum to 
 | S6 | T7 | 0.95 |
 | S6 | (remain) | 0.05 |
 
+MCUM completeness notes:
+
+- Initialization transitions (T0, T1) are treated as deterministic setup and excluded from steady-state probability mass.
+- Steady-state coverage provided for S2, S3, S4, S6; outgoing probabilities per listed state sum to 1.0.
+- Passive state (S5) is rare in current profile and modeled implicitly via BMCA selections; explicit S5 transitions will be quantified in Phase 06 if usage increases.
+
 ## 6. Coverage Targets
 
 | Coverage Type | Target |
@@ -171,6 +179,7 @@ Versioning: Increment `version` field and archive profile under `docs/reliabilit
 - Add error-severity classification once failure logging extended beyond debug/info.
 - Feed metrics snapshots + health reports into reliability estimation scripts.
 - Derive workload weighting for offset variance trending.
+- Add explicit S5 (Passive) transition probabilities if trace evidence shows >1% residency.
 
 ---
 Generated from `spec-kit-templates/operational-profile.md` template and adapted for PTP core library.
