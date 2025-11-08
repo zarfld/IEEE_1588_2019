@@ -37,6 +37,7 @@ traceability:
 ---
 
 # System Requirements Specification (SyRS)
+
 ## IEEE 1588-2019 PTP Open-Source Implementation
 
 **Document ID**: SYS-REQ-001  
@@ -109,14 +110,14 @@ This document serves as:
 This SyRS is organized as follows:
 
 - **Section 2**: Functional Requirements (REQ-F-###)
-- **Section 3**: Non-Functional Requirements (REQ-NF-<CAT>-###)
+- **Section 3**: Non-Functional Requirements (REQ-NF-[CAT]-###)
 - **Section 4**: System Interfaces
 - **Section 5**: Constraints
 - **Section 6**: Traceability Matrix
 
 Each requirement includes:
 
-- **ID**: Unique identifier (REQ-F-### or REQ-NF-<CAT>-###)
+- **ID**: Unique identifier (REQ-F-### or REQ-NF-[CAT]-###)
 - **Trace to**: Stakeholder requirement(s) from Phase 01
 - **Priority**: P0 (Critical), P1 (High), P2 (Medium), P3 (Low)
 - **Description**: Clear statement of what the system shall do
@@ -196,20 +197,20 @@ Scenario: Serialize Delay_Req message
 
 ---
 
-#### REQ-F-002: Best Master Clock Algorithm (BMCA)
+#### REQ-F-002: Best Master Clock Algorithm (BMCA) and Passive Tie Handling
 
 **Trace to**: STR-STD-003  
 **Priority**: P0 (Critical - MVP Blocker)  
 **Category**: Standards Compliance
 
-**Description**: The system SHALL implement the Best Master Clock Algorithm (BMCA) dataset comparison and state decision algorithms per IEEE 1588-2019 Section 9.3.
+**Description**: The system SHALL implement the Best Master Clock Algorithm (BMCA) dataset comparison and state decision algorithms per IEEE 1588-2019 Section 9.3, INCLUDING passive (RS_PASSIVE) role recommendation when a foreign candidate's priority vector is EXACTLY equal to the local candidate (true tie). Self-comparison (local vs. itself) SHALL NOT constitute a tie.
 
 **Rationale**: BMCA is mandatory for automatic master selection in multi-master networks. Without BMCA, manual configuration is required, limiting usability.
 
 **Functional Behavior**:
 
 1. **Announce Reception**: Receive and validate Announce messages from multiple sources
-2. **Dataset Comparison** (IEEE 1588-2019 Figure 27):
+1. **Dataset Comparison** (IEEE 1588-2019 Figure 27):
    - Priority1 (lowest wins)
    - Clock Class (lowest wins)
    - Clock Accuracy (best wins)
@@ -217,16 +218,19 @@ Scenario: Serialize Delay_Req message
    - Priority2 (lowest wins)
    - Clock Identity (lowest wins, tiebreaker)
    - Steps Removed (lowest wins)
-3. **State Decision** (IEEE 1588-2019 Figure 26):
+1. **State Decision** (IEEE 1588-2019 Figure 26):
+
    - Determine if local clock is MASTER, SLAVE, PASSIVE, or LISTENING
-4. **Announce Timeout**: Detect master loss via announce receipt timeout
+   - Recommend PASSIVE only when at least one foreign Announce-derived priority vector matches the local priority vector field-for-field through all BMCA comparison steps (priority1, clockClass, clockAccuracy, offsetScaledLogVariance, priority2, clockIdentity, stepsRemoved). In that case neither clock exerts master role; local port enters PASSIVE.
+
+1. **Announce Timeout**: Detect master loss via announce receipt timeout
 
 **BMCA State Machine**:
 
-```
+```text
 INITIALIZING → LISTENING → UNCALIBRATED → SLAVE
-                    ↓                ↓
-                 MASTER          PASSIVE
+              ↓                ↓
+            MASTER          PASSIVE
 ```
 
 **Acceptance Criteria**:
@@ -254,12 +258,42 @@ Scenario: Handle master timeout
   And stop adjusting clock frequency (freeze servo)
 
 Scenario: Ignore inferior masters
+
+Scenario: Recommend PASSIVE on true tie
+  Given local priority vector:
+    | priority1 | clockClass | clockAccuracy | variance | priority2 | identity (u64) | stepsRemoved |
+    | 64        | 248        | 0x21          |   5000   | 128       | 0x0011223344556677 | 0 |
+  And a foreign Announce producing identical vector except different port_number
+  When BMCA executes dataset comparison
+  Then local best and foreign best SHALL compare Equal across all ordered fields
+  And BMCA SHALL recommend PASSIVE (RS_PASSIVE)
+  And state transition callback SHALL emit (old_state=LISTENING, new_state=PASSIVE)
+  And metric BMCA_PassiveWins SHALL increment by 1
+
+Scenario: Do NOT recommend PASSIVE on self-only equality
+  Given only the local priority vector present (no foreign masters)
+  When BMCA executes dataset comparison
+  Then best index = local (0)
+  And no foreign candidate equals local (foreign list empty)
+  And BMCA SHALL NOT recommend PASSIVE
+  And BMCA SHALL proceed to MASTER or remain LISTENING per existing rules
+
+Scenario: Foreign better but identical except stepsRemoved
+  Given foreign candidate identical to local except stepsRemoved=1 (lower is better)
+  When BMCA executes dataset comparison
+  Then comparison SHALL determine foreign is better (due to stepsRemoved)
+  And BMCA SHALL recommend SLAVE (RS_SLAVE), NOT PASSIVE
+  And BMCA_PassiveWins SHALL NOT increment
+
+Scenario: Ignore inferior master compared to current
   Given current master with priority1 = 64
-  And new Announce received with priority1 = 128 (inferior)
+  And new foreign Announce received with priority1 = 128 (inferior)
   When BMCA executes dataset comparison
   Then current master remains selected
   And state remains SLAVE
   And no state transition callback emitted
+  And BMCA_ForeignWins SHALL NOT increment
+  And BMCA_PassiveWins SHALL NOT increment
 ```
 
 **Dependencies**:
@@ -269,6 +303,8 @@ Scenario: Ignore inferior masters
 
 **Risks**:
 
+- Tie detection mis-implementation could incorrectly suppress master selection leading to degraded synchronization.
+- Metrics omission (BMCA_PassiveWins) reduces observability of tie scenarios.
 - BMCA state machine has complex edge cases (e.g., simultaneous master loss and new master appearance)
 - Announce timeout must be configurable (2-10 intervals typical)
 
@@ -292,17 +328,19 @@ Scenario: Ignore inferior masters
    - **T3**: Delay_Req egress timestamp at slave (hardware timestamp)
    - **T4**: Delay_Req ingress timestamp at master (from Delay_Resp message)
 
-2. **Calculate Offset**:
-   ```c
+1. **Calculate Offset**:
+
+  ```c
    offset_from_master = ((T2 - T1) - (T4 - T3)) / 2;
    ```
 
-3. **Calculate Path Delay**:
-   ```c
+1. **Calculate Path Delay**:
+
+  ```c
    mean_path_delay = ((T2 - T1) + (T4 - T3)) / 2;
    ```
 
-4. **Outlier Detection**:
+1. **Outlier Detection**:
    - Discard samples with |offset| > 1 second (likely timestamp error)
    - Log warning for path delay changes >10% (network instability)
 
@@ -343,7 +381,7 @@ Scenario: Handle missing Follow_Up
 - REQ-F-001 (message parsing: Sync, Follow_Up, Delay_Req, Delay_Resp)
 - HAL timestamp interface for T2 and T3 capture (hardware timestamping)
 
-**Risks**: 
+**Risks**:
 
 - Hardware timestamp accuracy limits overall synchronization accuracy
 - Software timestamps (if hardware unavailable) add 10-100µs jitter
@@ -520,12 +558,12 @@ Scenario: Mock HAL for unit testing
   And unit test passes on CI/CD server (no physical NIC required)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - Architecture design ADR-001 (Hardware Abstraction Layer)
 - Reference HAL implementations (STR-PORT-002)
 
-**Risks**: 
+**Risks**:
 
 - HAL abstraction adds indirection (function pointer overhead ~2-5 CPU cycles)
 - Complex HALs may leak hardware details (e.g., timestamp buffer management)
@@ -665,13 +703,13 @@ Scenario: Document accuracy limitations on software timestamps
   And do not fail requirement (hardware limitation documented)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - REQ-F-003 (offset calculation)
 - REQ-F-004 (servo convergence)
 - Hardware timestamp support in HAL
 
-**Risks**: 
+**Risks**:
 
 - Accuracy is hardware-dependent (NIC capability, oscillator quality)
 - Network jitter can degrade accuracy (switch latency, congestion)
@@ -734,12 +772,12 @@ Scenario: Servo update determinism
   And no unbounded loops (all loops have fixed iteration count)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - None (fundamental architecture requirement)
 - Static buffer pool design (architecture)
 
-**Risks**: 
+**Risks**:
 
 - Static allocation limits flexibility (fixed buffer sizes)
 - WCET measurement requires hardware cycle counters (platform-dependent)
@@ -787,12 +825,12 @@ Scenario: Flash footprint
   And optional features compilable separately (e.g., Management disabled saves 15 KB)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - Compiler optimization settings
 - Modular architecture for feature toggling
 
-**Risks**: 
+**Risks**:
 
 - Resource targets are platform-dependent (may need adjustment)
 - Feature-rich implementation may exceed targets (require optimization)
@@ -852,7 +890,7 @@ Scenario: Validate PTP version
   And optionally support backward compatibility (configuration flag)
 ```
 
-**Dependencies**: 
+**Dependencies**:
 
 - REQ-F-001 (message parsing must include validation)
 

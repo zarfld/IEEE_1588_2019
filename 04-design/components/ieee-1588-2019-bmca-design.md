@@ -34,6 +34,8 @@ The BMCA Engine implements the Best Master Clock Algorithm per IEEE 1588-2019 Se
 - **Memory Efficiency**: Fixed-size dataset storage, no dynamic allocation
 - **Thread Safety**: Concurrent access from announce message handlers
 - **Specification Compliance**: 100% adherence to IEEE 1588-2019 comparison algorithm
+- **Passive Tie Semantics**: Must detect TRUE tie (foreign priority vector equals local across all ordered fields) and recommend RS_PASSIVE; self-equality is ignored.
+- **Observability**: Increment metrics counters (BMCA_LocalWins, BMCA_ForeignWins, BMCA_PassiveWins) and update health snapshot on each decision cycle for telemetry.
 
 ### **Clock Dataset Structures (DES-D-004)**
 
@@ -138,6 +140,12 @@ public:
      * @design DES-I-003c-StateDecision
      */
     virtual PTPResult<RecommendedState> executeStateDecision() = 0;
+    /**
+     * @brief Determine if a foreign dataset forms a TRUE tie with local dataset (all ordered fields equal)
+     * @return true if tie should result in RS_PASSIVE recommendation
+     * @design DES-I-003f-DetectTie
+     */
+    virtual bool isPassiveTie(const AnnounceDataset& foreign_dataset) const noexcept = 0;
     
     /**
      * @brief Get current best master dataset
@@ -285,6 +293,7 @@ public:
      * @design DES-C-005f-CompareClock
      */
     bool isLocalClockBetter(const AnnounceDataset& foreign_dataset) const noexcept override;
+    bool isPassiveTie(const AnnounceDataset& foreign_dataset) const noexcept override;
 
 private:
     /**
@@ -316,6 +325,16 @@ private:
      * @design DES-C-005k-SelectBestMaster
      */
     const AnnounceDataset* selectBestMaster();
+    /**
+     * @brief Check for passive tie condition against qualified foreign masters
+     * @design DES-C-005l-CheckPassiveTie
+     */
+    bool checkPassiveTie() const noexcept;
+    /**
+     * @brief Record metrics for BMCA decision outcomes
+     * @design DES-C-005m-RecordMetrics
+     */
+    void recordDecisionMetrics(RecommendedState state) noexcept;
 };
 ```
 
@@ -344,6 +363,19 @@ enum class RecommendedState : uint8_t {
     RS_PASSIVE,         ///< Recommend Passive state
     RS_LISTENING        ///< Recommend Listening state
 };
+
+/**
+ * @brief BMCA Metrics (DES-D-009) captured per decision cycle
+ * @design DES-D-009-BMCAMetrics
+ */
+struct BMCAMetricsSnapshot {
+    uint64_t cycle_index;        ///< Sequential BMCA cycle number
+    uint32_t local_wins;         ///< Count of local master recommendations
+    uint32_t foreign_wins;       ///< Count of foreign master selections
+    uint32_t passive_ties;       ///< Count of passive tie recommendations
+    RecommendedState last_state; ///< Last recommended state
+};
+
 ```
 
 ## **Hardware Abstraction Integration (DES-I-004)**

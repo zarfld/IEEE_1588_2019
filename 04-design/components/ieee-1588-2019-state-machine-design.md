@@ -41,6 +41,8 @@ The Port State Machine implements the IEEE 1588-2019 port states and transitions
 - **Hardware Abstraction**: No direct hardware dependencies 
 - **Thread Safety**: Must support concurrent access from message handlers
 - **Memory Efficiency**: Fixed-size state storage, no dynamic allocation
+- **BMCA Passive Tie Handling**: When BMCA recommends RS_PASSIVE due to TRUE tie (foreign priority vector equals local), transition LISTENING→PASSIVE without triggering PRE_MASTER path.
+- **Observability Hooks**: Emit state change callback including previous state, new state, and BMCA decision metrics snapshot (local_wins, foreign_wins, passive_ties) for telemetry.
 
 ### **State Enumeration (DES-D-001)**
 
@@ -80,6 +82,7 @@ enum class StateEvent : uint8_t {
     RS_GRAND_MASTER,          ///< Recommended State: Grand Master
     RS_SLAVE,                  ///< Recommended State: Slave
     RS_PASSIVE,                ///< Recommended State: Passive
+    RS_PASSIVE_TIE,            ///< Recommended State: Passive due to TRUE tie (BMCA equality across ordered fields)
     QUALIFICATION_TIMEOUT_EXPIRES, ///< Qualification timer expired
     SELECTED_ROLE_DISABLED,    ///< Role selection disabled port
     SYNC_RECEIPT_TIMEOUT,      ///< No Sync messages received
@@ -276,6 +279,11 @@ private:
      * @design DES-C-002h-UpdateTimers
      */
     void updateStateData(PortState state, const EventData* event_data);
+    /**
+     * @brief Emit observability telemetry for state changes including BMCA metrics
+     * @design DES-C-002i-EmitTelemetry
+     */
+    void emitTelemetry(PortState old_state, PortState new_state, const BMCAMetricsSnapshot* bmca_metrics = nullptr) noexcept;
 };
 ```
 
@@ -318,6 +326,7 @@ public:
 ## **Test-Driven Design Preparation (DES-T-001)**
 
 ### **Unit Test Interface Design**
+
 ```cpp
 /**
  * @brief Test fixture for state machine validation
@@ -342,6 +351,7 @@ public:
 ```
 
 ### **Performance Test Requirements**
+
 - **State Transition Time**: <1ms per transition (measured)
 - **Memory Usage**: <1KB per port state machine instance
 - **Thread Safety**: Concurrent access from 10+ threads without corruption
@@ -360,6 +370,7 @@ public:
 ## **Implementation Readiness**
 
 ### **Phase 04 Exit Criteria Status**
+
 - ✅ **Component Interface Specified**: IPortStateMachine with all methods defined
 - ✅ **Data Structures Designed**: PortState, StateEvent, StateTransitionMatrix  
 - ✅ **Algorithm Specified**: State transition matrix per IEEE 1588-2019 Table 16
@@ -368,7 +379,9 @@ public:
 - ✅ **Traceability Maintained**: All design elements trace to architecture and requirements
 
 ### **Ready for Phase 05 Implementation**
+
 This detailed design provides sufficient specification for Test-Driven Development implementation with:
+
 - Clear interfaces for unit testing
 - Performance requirements for acceptance testing  
 - Thread safety requirements for integration testing
