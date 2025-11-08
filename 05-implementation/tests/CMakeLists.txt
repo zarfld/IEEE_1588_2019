@@ -188,4 +188,64 @@ target_include_directories(bmca_tie_passive PRIVATE
 target_link_libraries(bmca_tie_passive PRIVATE IEEE1588_2019_interface)
 add_test(NAME bmca_tie_passive COMMAND bmca_tie_passive)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")
+# Test 16: Delay_Resp processing
+add_executable(delay_resp_processing
+    ${CMAKE_CURRENT_LIST_DIR}/test_delay_resp_processing.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(delay_resp_processing PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(delay_resp_processing PRIVATE IEEE1588_2019_interface)
+add_test(NAME delay_resp_processing COMMAND delay_resp_processing)
+
+# Test 17: Timeout detection
+add_executable(timeout_detection
+    ${CMAKE_CURRENT_LIST_DIR}/test_timeout_detection.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(timeout_detection PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(timeout_detection PRIVATE IEEE1588_2019_interface)
+add_test(NAME timeout_detection COMMAND timeout_detection)
+
+# Test 18: Boundary clock routing
+add_executable(boundary_clock_routing
+    ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_routing.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(boundary_clock_routing PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(boundary_clock_routing PRIVATE IEEE1588_2019_interface)
+add_test(NAME boundary_clock_routing COMMAND boundary_clock_routing)
+
+# Test 19: State-specific actions
+add_executable(state_actions
+    ${CMAKE_CURRENT_LIST_DIR}/test_state_actions.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(state_actions PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(state_actions PRIVATE IEEE1588_2019_interface)
+add_test(NAME state_actions COMMAND state_actions)
+
+# Test 20: Foreign master list management
+add_executable(update_foreign_master
+    ${CMAKE_CURRENT_LIST_DIR}/test_update_foreign_master.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(update_foreign_master PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(update_foreign_master PRIVATE IEEE1588_2019_interface)
+add_test(NAME update_foreign_master COMMAND update_foreign_master)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master")
