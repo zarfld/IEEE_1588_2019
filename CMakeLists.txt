@@ -81,6 +81,10 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
     # Phase 05 TDD tests
     add_subdirectory(05-implementation/tests)
+    # Phase 06 Integration tests
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/06-integration/integration-tests/CMakeLists.txt)
+        add_subdirectory(06-integration/integration-tests)
+    endif()
     # Register example smoke test as part of CTest if examples enabled
     if(IEEE1588_2019_BUILD_EXAMPLES)
         # Ensure example targets are created before registering tests
