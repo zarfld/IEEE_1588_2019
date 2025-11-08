@@ -384,3 +384,15 @@ target_include_directories(interoperability_evidence PRIVATE ${CMAKE_SOURCE_DIR}
 target_link_libraries(interoperability_evidence PRIVATE IEEE1588_2019_interface)
 target_compile_definitions(interoperability_evidence PRIVATE SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 add_test(NAME interoperability_evidence COMMAND interoperability_evidence)
+
+# Acceptance-style: Multi-instance BMCA + Sync/Delay evidence (STR-STD-003, STR-PERF-003)
+add_executable(multi_instance_bmca_sync
+    ${CMAKE_CURRENT_LIST_DIR}/test_multi_instance_bmca_sync.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(multi_instance_bmca_sync PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(multi_instance_bmca_sync PRIVATE IEEE1588_2019_interface)
+add_test(NAME multi_instance_bmca_sync COMMAND multi_instance_bmca_sync)
