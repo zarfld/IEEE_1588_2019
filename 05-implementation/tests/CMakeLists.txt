@@ -417,3 +417,17 @@ add_test(NAME timing_determinism COMMAND timing_determinism)
 add_executable(adrs_presence test_adrs_presence.cpp)
 target_compile_definitions(adrs_presence PRIVATE REPO_ROOT="${CMAKE_SOURCE_DIR}")
 add_test(NAME adrs_presence COMMAND adrs_presence)
+
+# OS assumptions scan (@satisfies STR-PORT-003)
+add_executable(os_assumptions test_os_assumptions.cpp)
+add_test(NAME os_assumptions COMMAND os_assumptions)
+
+# Example applications presence (@satisfies STR-USE-003)
+add_executable(example_app_presence test_example_app_presence.cpp)
+target_compile_definitions(example_app_presence PRIVATE REPO_ROOT="${CMAKE_SOURCE_DIR}")
+add_test(NAME example_app_presence COMMAND example_app_presence)
+
+# Porting guide presence (@satisfies STR-USE-004)
+add_executable(porting_guide_presence ${CMAKE_CURRENT_LIST_DIR}/test_porting_guide_presence.cpp)
+target_compile_definitions(porting_guide_presence PRIVATE REPO_ROOT="${CMAKE_SOURCE_DIR}")
+add_test(NAME porting_guide_presence COMMAND porting_guide_presence)
