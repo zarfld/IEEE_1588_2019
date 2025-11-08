@@ -75,6 +75,41 @@ jobs:
         with:
           fetch-depth: 0 # Full history for better analysis
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+
+      - name: Load quality gates (coverage/complexity) from quality-gates.yml
+        shell: bash
+        run: |
+          python - << 'PY'
+          import os, sys
+          try:
+              import yaml  # type: ignore
+          except Exception:
+              import subprocess
+              subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pyyaml'])
+              import yaml  # type: ignore
+
+          gates_path = 'quality-gates.yml'
+          if not os.path.exists(gates_path):
+              print('No quality-gates.yml found; keeping defaults')
+              sys.exit(0)
+
+          with open(gates_path, 'r', encoding='utf-8') as f:
+              data = yaml.safe_load(f) or {}
+
+          cov_min = (data.get('coverage') or {}).get('minimum')
+          cpl_max = (data.get('complexity') or {}).get('maximum')
+
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as envf:
+              if cov_min is not None:
+                  envf.write(f"MIN_TEST_COVERAGE={cov_min}\n")
+              if cpl_max is not None:
+                  envf.write(f"MAX_CYCLOMATIC_COMPLEXITY={cpl_max}\n")
+          PY
+
       - name: Detect Node project
         id: detect_node
         shell: bash
@@ -139,8 +174,9 @@ jobs:
           echo "📊 Analyzing code complexity..."
           COUNT=$(find . -type f \( -name "*.js" -o -name "*.ts" \) | wc -l)
           if [ "$COUNT" -gt 0 ]; then
-            npx eslint . --ext .ts,.js --max-warnings 0 --rule "complexity: ['error', ${{ env.MAX_CYCLOMATIC_COMPLEXITY }}]" || {
-              echo "❌ Cyclomatic complexity exceeds ${{ env.MAX_CYCLOMATIC_COMPLEXITY }}"; exit 1; }
+            : "Using MAX_CYCLOMATIC_COMPLEXITY=${MAX_CYCLOMATIC_COMPLEXITY:-${{ env.MAX_CYCLOMATIC_COMPLEXITY }}}"
+            npx eslint . --ext .ts,.js --max-warnings 0 --rule "complexity: ['error', ${MAX_CYCLOMATIC_COMPLEXITY:-${{ env.MAX_CYCLOMATIC_COMPLEXITY }}}]" || {
+              echo "❌ Cyclomatic complexity exceeds ${MAX_CYCLOMATIC_COMPLEXITY:-${{ env.MAX_CYCLOMATIC_COMPLEXITY }}}"; exit 1; }
           else
             echo "No JS/TS files detected; skipping ESLint complexity check."
           fi
@@ -158,6 +194,38 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.PYTHON_VERSION }}"
+
+      - name: Load quality gates (coverage) from quality-gates.yml
+        if: runner.os == 'Linux' || runner.os == 'Windows' || runner.os == 'macOS'
+        shell: bash
+        run: |
+          python - << 'PY'
+          import os, sys
+          try:
+              import yaml  # type: ignore
+          except Exception:
+              import subprocess
+              subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pyyaml'])
+              import yaml  # type: ignore
+
+          gates_path = 'quality-gates.yml'
+          if not os.path.exists(gates_path):
+              print('No quality-gates.yml found; keeping defaults')
+              sys.exit(0)
+
+          with open(gates_path, 'r', encoding='utf-8') as f:
+              data = yaml.safe_load(f) or {}
+
+          cov_min = (data.get('coverage') or {}).get('minimum')
+          if cov_min is not None:
+              with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as envf:
+                  envf.write(f"MIN_TEST_COVERAGE={cov_min}\n")
+          PY
 
       # Linux setup/build/test with coverage
       - name: Install toolchain (Linux)
@@ -192,9 +260,9 @@ jobs:
           gcovr -r . --branches --txt -o build/coverage.txt --exclude 'tests' || true
           gcovr -r . --html --html-details -o build/coverage.html --exclude 'tests' || true
           gcovr -r . --json -o build/coverage.json --exclude 'tests' || true
-          LINE_PCT=$(gcovr -r . --exclude 'tests' | grep 'TOTAL' | awk '{print $4}' | sed 's/%//')
+          LINE_PCT=$(gcovr -r . --exclude 'tests' | grep 'TOTAL' | awk '{print $4}' | sed 's/%//' || echo 0)
           echo "Line coverage: ${LINE_PCT}%";
-          python -c "import sys; val=float('${LINE_PCT:-0}'); min_cov=float('${MIN_TEST_COVERAGE:-80}'); print(f'Coverage threshold check: {val:.2f}% vs {min_cov:.2f}%'); sys.exit(0 if val>=min_cov else 1)"
+          python -c "import sys, os; val=float(os.environ.get('LINE_PCT','${LINE_PCT:-0}')); min_cov=float(os.environ.get('MIN_TEST_COVERAGE','80')); print(f'Coverage threshold check: {val:.2f}% vs {min_cov:.2f}%'); sys.exit(0 if val>=min_cov else 1)"
       - name: Upload coverage artifacts (Linux)
         if: always() && runner.os == 'Linux'
         uses: actions/upload-artifact@v4

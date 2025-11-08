@@ -1,0 +1,17 @@
+# Quality Gates thresholds for CI enforcement (Phase 05)
+# These values are read by the CI workflow to enforce gates.
+
+coverage:
+  minimum: 80  # minimum total line coverage percentage
+
+complexity:
+  maximum: 10  # maximum allowed cyclomatic complexity per function
+
+code-smells:
+  maximum: 0   # target code smells (advisory unless wired to a tool)
+
+security-hotspots:
+  maximum: 0   # target security hotspots (advisory unless wired to a tool)
+
+duplications:
+  maximum: 3   # maximum percent duplicated code (advisory unless wired)
