@@ -39,6 +39,18 @@ add_executable(rounding_bias_characterization ${CMAKE_CURRENT_LIST_DIR}/test_rou
 target_include_directories(rounding_bias_characterization PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(rounding_bias_characterization PRIVATE IEEE1588_2019)
 add_test(NAME rounding_bias_characterization COMMAND rounding_bias_characterization)
+
+# Offset clamp boundary test (FM-002/FM-013 verification)
+add_executable(offset_clamp_boundary ${CMAKE_CURRENT_LIST_DIR}/test_offset_clamp_boundary.cpp)
+target_include_directories(offset_clamp_boundary PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(offset_clamp_boundary PRIVATE IEEE1588_2019)
+add_test(NAME offset_clamp_boundary COMMAND offset_clamp_boundary)
+
+# Health snapshot test (health API verification)
+add_executable(health_snapshot ${CMAKE_CURRENT_LIST_DIR}/test_health_snapshot.cpp)
+target_include_directories(health_snapshot PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(health_snapshot PRIVATE IEEE1588_2019)
+add_test(NAME health_snapshot COMMAND health_snapshot)
 add_executable(clocks_api_compile ${CMAKE_SOURCE_DIR}/test_clocks_api.cpp)
 target_include_directories(clocks_api_compile PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(clocks_api_compile PRIVATE IEEE1588_2019)

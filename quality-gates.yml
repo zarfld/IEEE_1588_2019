@@ -1,17 +1,19 @@
-# Quality Gates thresholds for CI enforcement (Phase 05)
-# These values are read by the CI workflow to enforce gates.
-
+---
+phase: 05-implementation
+traceability:
+  design: [DES-I-007]
+  requirements: [REQ-NF-REL-003]
+purpose: "Quality gate thresholds for CI enforcement (coverage, complexity, duplication)"
 coverage:
   minimum: 80  # minimum total line coverage percentage
-
 complexity:
-  maximum: 10  # maximum allowed cyclomatic complexity per function
-
-code-smells:
-  maximum: 0   # target code smells (advisory unless wired to a tool)
-
-security-hotspots:
-  maximum: 0   # target security hotspots (advisory unless wired to a tool)
-
+  maximum: 10  # max cyclomatic complexity per function
 duplications:
-  maximum: 3   # maximum percent duplicated code (advisory unless wired)
+  maximum: 3   # max percent duplicated code
+security_hotspots:
+  maximum: 0   # target security hotspots
+code_smells:
+  maximum: 0   # target code smells
+notes:
+  - Rationale: Enforces ISO/IEC/IEEE 12207 Phase 05 exit criteria and XP quality gates.
+  - Modification: Consolidated duplicate keys; converted to single YAML document.
