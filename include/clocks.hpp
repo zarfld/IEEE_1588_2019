@@ -222,6 +222,17 @@ struct SynchronizationData {
         const Types::Timestamp& delay_req_timestamp,
         const Types::Timestamp& delay_resp_timestamp
     ) noexcept {
+        // Ordering assertions (FM-001): T2>=T1 and T4>=T3 must hold
+        if (sync_reception < sync_timestamp) {
+            Common::utils::logging::warn("Timestamps", 0x0204, "Sync RX timestamp earlier than origin (T2 < T1)");
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+            Common::utils::health::emit();
+        }
+        if (delay_resp_timestamp < delay_req_timestamp) {
+            Common::utils::logging::warn("Timestamps", 0x0205, "Delay response RX earlier than request TX (T4 < T3)");
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+            Common::utils::health::emit();
+        }
         // IEEE 1588-2019 E2E algorithm:
         // offset_from_master = ((T2 - T1) - (T4 - T3)) / 2
         const Types::TimeInterval t2_minus_t1 = (sync_reception - sync_timestamp);

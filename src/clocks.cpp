@@ -673,13 +673,25 @@ Types::PTPResult<void> PtpPort::update_foreign_master_list(const AnnounceMessage
         return Types::PTPResult<void>::success();
     }
     
-    // Foreign master list is full - could implement aging policy here
+    // Foreign master list overflow (FM-018): emit telemetry and return failure
+    Common::utils::logging::warn("ForeignMasterList", 0x0301, "Foreign master list full; announce ignored");
+    Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+    Common::utils::health::emit();
     return Types::PTPResult<void>::failure(Types::PTPError::Resource_Unavailable);
 }
 
 Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
     if (!(have_sync_ && have_follow_up_ && have_delay_req_ && have_delay_resp_)) {
         return Types::PTPResult<void>::failure(Types::PTPError::Invalid_Parameter);
+    }
+    // Ordering checks (FM-001): warn/telemetry if violated
+    if (sync_rx_timestamp_ < sync_origin_timestamp_) {
+        Common::utils::logging::warn("Timestamps", 0x0206, "Sync RX earlier than origin in port calc (T2 < T1)");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+    }
+    if (delay_resp_rx_timestamp_ < delay_req_tx_timestamp_) {
+        Common::utils::logging::warn("Timestamps", 0x0207, "DelayResp RX earlier than DelayReq TX in port calc (T4 < T3)");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
     }
     Types::TimeInterval t2_minus_t1 = sync_rx_timestamp_ - sync_origin_timestamp_;
     Types::TimeInterval t4_minus_t3 = delay_resp_rx_timestamp_ - delay_req_tx_timestamp_;
@@ -691,6 +703,10 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
     if (path_ns > 0.0) {
         current_data_set_.offset_from_master = Types::TimeInterval::fromNanoseconds(offset_ns);
         current_data_set_.mean_path_delay = Types::TimeInterval::fromNanoseconds(path_ns);
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1);
+    } else {
+        Common::utils::logging::warn("Offset", 0x0208, "Computed mean path delay non-positive; values not updated");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
     }
     return Types::PTPResult<void>::success();
 }
