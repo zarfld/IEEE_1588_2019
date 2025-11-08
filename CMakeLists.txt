@@ -109,7 +109,7 @@ if(BUILD_TESTING)
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/06-integration/integration-tests/CMakeLists.txt)
         add_subdirectory(06-integration/integration-tests)
     endif()
-    # Phase 07 tools (non-gating scaffolds)
+    # Phase 07 tools (non-gating)
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/07-verification-validation/tools/srg_fit_stub.cpp)
         add_executable(srg_fit_stub 07-verification-validation/tools/srg_fit_stub.cpp)
         set_target_properties(srg_fit_stub PROPERTIES
@@ -118,6 +118,17 @@ if(BUILD_TESTING)
         add_test(NAME srg-fit-stub
             COMMAND $<TARGET_FILE:srg_fit_stub> "${CMAKE_BINARY_DIR}/reliability/srg_export.csv")
         set_tests_properties(srg-fit-stub PROPERTIES
+            LABELS "verification;srg"
+            PASS_REGULAR_EXPRESSION "SRG_FIT:")
+    endif()
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/07-verification-validation/tools/srg_fit.cpp)
+        add_executable(srg_fit 07-verification-validation/tools/srg_fit.cpp)
+        set_target_properties(srg_fit PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/verification"
+        )
+        add_test(NAME srg-fit
+            COMMAND $<TARGET_FILE:srg_fit> "${CMAKE_BINARY_DIR}/reliability/srg_export.csv")
+        set_tests_properties(srg-fit PROPERTIES
             LABELS "verification;srg"
             PASS_REGULAR_EXPRESSION "SRG_FIT:")
     endif()
