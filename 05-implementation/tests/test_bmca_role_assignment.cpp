@@ -1,12 +1,12 @@
 /*
-Test: TEST-UNIT-BMCA-ROLE-ASSIGNMENT (RED phase)
+Test: TEST-UNIT-BMCA-ROLE-ASSIGNMENT (GREEN increment)
 Phase: 05-implementation
 Traceability:
-  Requirement: REQ-F-002 (BMCA state machine integration)
-  Design: DES-C-003 (BMCA Component), DES-C-010 (Time Sync Component)
-  CAP: CAP-20251108-BMCA-001
-Goal: Expose integration gap: run_bmca should select local master when local priority superior.
-Expected RED Failure: Current stub unconditionally drives RS_SLAVE causing state UNCALIBRATED.
+    Requirement: REQ-F-002 (BMCA state machine integration)
+    Design: DES-C-003 (BMCA Component), DES-C-010 (Time Sync Component)
+    CAP: CAP-20251108-BMCA-001
+Goal: Validate run_bmca selects local master when local priority superior and increments role metrics.
+Expected: LISTENING -> PRE_MASTER and BMCA_LocalWins incremented, BMCA_ForeignWins remains zero.
 */
 
 #include "clocks.hpp"
@@ -73,13 +73,25 @@ int main() {
     }
 
     // Assert: Expect LISTENING -> PRE_MASTER (RS_MASTER) when local better than foreign.
-    // RED phase expectation: This WILL FAIL because stub forces RS_SLAVE (Listening->Uncalibrated)
     PortState new_state = clock.get_port().get_state();
     if (new_state != PortState::PreMaster) {
-        std::fprintf(stderr, "TEST-UNIT-BMCA-ROLE-ASSIGNMENT RED FAIL: expected PreMaster (master path) got state=%u\n", static_cast<unsigned>(new_state));
-        return 1; // Non-zero denotes failing RED test
+        std::fprintf(stderr, "BMCA role assignment failed: expected PreMaster got state=%u\n", static_cast<unsigned>(new_state));
+        return 1;
     }
-
-    std::puts("Unexpected PASS: BMCA role assignment already implemented (should be RED)");
+    // Metrics assertions
+    auto selections = Common::utils::metrics::get(Common::utils::metrics::CounterId::BMCA_Selections);
+    auto localWins = Common::utils::metrics::get(Common::utils::metrics::CounterId::BMCA_LocalWins);
+    auto foreignWins = Common::utils::metrics::get(Common::utils::metrics::CounterId::BMCA_ForeignWins);
+    if (selections == 0 || localWins == 0) {
+        std::fprintf(stderr, "BMCA role assignment metrics missing (Selections=%llu LocalWins=%llu)\n",
+            (unsigned long long)selections, (unsigned long long)localWins);
+        return 2;
+    }
+    if (foreignWins != 0) {
+        std::fprintf(stderr, "Unexpected foreignWins counter increment for local master scenario (foreignWins=%llu)\n",
+            (unsigned long long)foreignWins);
+        return 3;
+    }
+    std::puts("bmca_role_assignment_integration: PASS (local master selected)");
     return 0;
 }

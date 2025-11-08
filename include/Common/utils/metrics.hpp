@@ -25,6 +25,8 @@ enum class CounterId : std::uint16_t {
     BMCA_CandidateUpdates = 2,
     ValidationsFailed = 3,
     ValidationsPassed = 4,
+    BMCA_LocalWins = 5,          // Number of times local clock selected as best (master)
+    BMCA_ForeignWins = 6,        // Number of times a foreign master was selected
     // Future: MessagesProcessed_Sync, _Announce, etc.
     COUNT
 };
@@ -35,6 +37,8 @@ struct Snapshot {
     std::uint64_t bmcaCandidateUpdates{0};
     std::uint64_t validationsFailed{0};
     std::uint64_t validationsPassed{0};
+    std::uint64_t bmcaLocalWins{0};
+    std::uint64_t bmcaForeignWins{0};
 };
 
 namespace detail {
@@ -67,6 +71,8 @@ inline Snapshot snapshot() noexcept {
     s.bmcaCandidateUpdates = g[static_cast<std::size_t>(CounterId::BMCA_CandidateUpdates)].load(std::memory_order_relaxed);
     s.validationsFailed    = g[static_cast<std::size_t>(CounterId::ValidationsFailed)].load(std::memory_order_relaxed);
     s.validationsPassed    = g[static_cast<std::size_t>(CounterId::ValidationsPassed)].load(std::memory_order_relaxed);
+    s.bmcaLocalWins        = g[static_cast<std::size_t>(CounterId::BMCA_LocalWins)].load(std::memory_order_relaxed);
+    s.bmcaForeignWins      = g[static_cast<std::size_t>(CounterId::BMCA_ForeignWins)].load(std::memory_order_relaxed);
     return s;
 }
 

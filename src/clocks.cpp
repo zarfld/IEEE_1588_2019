@@ -742,6 +742,8 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
             parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance;
             parent_data_set_.parent_port_identity = port_data_set_.port_identity; // self as parent
             current_data_set_.steps_removed = 0; // root of sync tree
+            // Metrics/health: record BMCA role selection (local win)
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_LocalWins, 1);
             return process_event(StateEvent::RS_MASTER);
         } else {
             // A foreign master is better → drive slave path
@@ -756,6 +758,8 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
             parent_data_set_.parent_port_identity = f.header.sourcePortIdentity;
             // stepsRemoved from announce is network order; current incremental logic stores host order already (simplified)
             current_data_set_.steps_removed = static_cast<std::uint16_t>(f.body.stepsRemoved + 1); // one additional hop to local
+            // Metrics/health: record BMCA role selection (foreign win)
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_ForeignWins, 1);
             return process_event(StateEvent::RS_SLAVE);
         }
     }
