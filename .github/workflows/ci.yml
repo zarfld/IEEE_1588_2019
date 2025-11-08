@@ -42,6 +42,15 @@ jobs:
         with:
           name: reliability-srg-data
           path: build/reliability/srg_failures.csv
+          if-no-files-found: ignore
+
+      - name: Upload reliability coverage CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-coverage-data
+          path: build/reliability/state_transition_coverage.csv
+          if-no-files-found: ignore
 
       - name: Coverage (gcovr JSON)
         run: gcovr -r . build --json-summary -o coverage.json
@@ -90,6 +99,15 @@ jobs:
         with:
           name: reliability-srg-data-windows
           path: build/reliability/srg_failures.csv
+          if-no-files-found: ignore
+
+      - name: Upload reliability coverage CSV (if present)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-coverage-data-windows
+          path: build/reliability/state_transition_coverage.csv
+          if-no-files-found: ignore
 
   quality-summary:
     runs-on: ubuntu-latest

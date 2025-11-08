@@ -142,8 +142,10 @@ int main(int argc, char** argv) {
     using namespace P::Clocks;
     std::size_t iterations = 200;
     std::string csv_path = "srg_failures.csv";
+    int injectCriticalPct = 0; // optional synthetic severity-10 injection percent (0-100)
     if (argc > 1) { iterations = static_cast<std::size_t>(std::strtoull(argv[1], nullptr, 10)); }
     if (argc > 2) { csv_path = argv[2]; }
+    if (argc > 3) { injectCriticalPct = std::max(0, std::min(100, std::atoi(argv[3]))); }
 
     // Prepare output directory (best-effort)
     // Can't rely on platform-specific; just write to given path.
@@ -218,6 +220,18 @@ int main(int argc, char** argv) {
         }
         }
 
+        // Optional synthetic critical failure injection (per Phase 06 gate validation)
+        if (injectCriticalPct > 0) {
+            std::uniform_int_distribution<int> pcent(0, 99);
+            if (pcent(rng) < injectCriticalPct) {
+                auto now = std::chrono::steady_clock::now();
+                double secs = std::chrono::duration_cast<std::chrono::duration<double>>(now - start).count();
+                // Use current port state for state context
+                auto s = port.get_state();
+                failures.push_back(FailureRecord{failures.size()+1, secs, 10, "OP-999", state_name(s), false});
+            }
+        }
+
         // Update coverage metrics after operation (state may have changed via callbacks/state machine)
         P::Types::PortState current_state = port.get_state();
         if (current_state != previous_state) {
@@ -237,6 +251,8 @@ int main(int argc, char** argv) {
 
     double passRate = executed ? (static_cast<double>(passed) / executed) * 100.0 : 0.0;
     double mtbf = failures.empty() ? (executed) : (executed / static_cast<double>(failures.size()));
+    auto end = std::chrono::steady_clock::now();
+    double durationSec = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
 
     // Write CSV (only failures; sufficient for SRG modeling)
     std::ofstream csv(csv_path.c_str(), std::ios::out | std::ios::trunc);
@@ -289,6 +305,39 @@ int main(int argc, char** argv) {
         cov << "Summary,TotalTransitions," << [&]{ std::size_t total=0; for (auto &p: transitions_from) total+=p.second; return total; }() << '\n';
     }
     std::cout << "Coverage CSV: " << coverage_path << "\n";
+
+    // Append run history for trend checks (Phase 07)
+    // Determine history path alongside failures CSV
+    std::string history_path;
+    {
+        auto pos = csv_path.find_last_of("/\\");
+        if (pos == std::string::npos) history_path = "reliability_history.csv";
+        else history_path = csv_path.substr(0, pos + 1) + "reliability_history.csv";
+    }
+    bool writeHeader = false;
+    {
+        std::ifstream check(history_path.c_str(), std::ios::in | std::ios::binary);
+        if (!check.good()) writeHeader = true; // file doesn't exist
+    }
+    std::ofstream hist(history_path.c_str(), std::ios::out | std::ios::app);
+    if (hist.is_open()) {
+        if (writeHeader) {
+            hist << "RunTimestamp,Iterations,Passed,Failures,PassRate,MTBF,CriticalFailures,DurationSec\n";
+        }
+        // ISO-8601-ish timestamp (seconds precision) using system_clock
+        auto now = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+#if defined(_WIN32)
+        struct tm tmBuf; localtime_s(&tmBuf, &t);
+        char ts[32]; std::strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &tmBuf);
+#else
+        char ts[32]; std::strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", std::localtime(&t));
+#endif
+        std::size_t criticalCount = 0; for (auto &f : failures) { if (f.severity == 10) criticalCount++; }
+        hist << ts << ',' << iterations << ',' << passed << ',' << failures.size() << ','
+             << passRate << ',' << mtbf << ',' << criticalCount << ',' << durationSec << '\n';
+    }
+    std::cout << "History CSV: " << history_path << "\n";
 
     // Quality gate: pass rate >=95% and no severity=10 failures
     bool criticalPresent = false;
