@@ -50,6 +50,7 @@ add_test(NAME bmca_selection_list COMMAND bmca_tdd_selection)
 add_executable(msg_header_validation
     ${CMAKE_CURRENT_LIST_DIR}/test_message_header_validation.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(msg_header_validation PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -61,6 +62,7 @@ add_test(NAME ptp_message_header_validation COMMAND msg_header_validation)
 add_executable(msg_bodies_validation
     ${CMAKE_CURRENT_LIST_DIR}/test_message_bodies_validation.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(msg_bodies_validation PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -72,6 +74,7 @@ add_test(NAME ptp_message_bodies_validation COMMAND msg_bodies_validation)
 add_executable(offset_calculation_tests
     ${CMAKE_CURRENT_LIST_DIR}/test_offset_calculation.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(offset_calculation_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -83,6 +86,7 @@ add_test(NAME offset_calculation_robustness COMMAND offset_calculation_tests)
 add_executable(fault_injection_offset
     ${CMAKE_CURRENT_LIST_DIR}/test_fault_injection_offset.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(fault_injection_offset PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -116,6 +120,7 @@ add_test(NAME health_selftest COMMAND health_selftest)
 add_executable(timestamp_ordering_assertions
     ${CMAKE_CURRENT_LIST_DIR}/test_timestamp_ordering_assertions.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(timestamp_ordering_assertions PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -127,6 +132,7 @@ add_test(NAME timestamp_ordering_assertions COMMAND timestamp_ordering_assertion
 add_executable(foreign_master_overflow
     ${CMAKE_CURRENT_LIST_DIR}/test_foreign_master_overflow.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(foreign_master_overflow PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -138,6 +144,7 @@ add_test(NAME foreign_master_overflow_guard COMMAND foreign_master_overflow)
 add_executable(health_heartbeat
     ${CMAKE_CURRENT_LIST_DIR}/test_health_heartbeat.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(health_heartbeat PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -149,11 +156,24 @@ add_test(NAME health_heartbeat_emission COMMAND health_heartbeat)
 add_executable(sync_heuristic_tightening
     ${CMAKE_CURRENT_LIST_DIR}/test_sync_heuristic_tightening.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+    ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
 )
 target_include_directories(sync_heuristic_tightening PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 target_link_libraries(sync_heuristic_tightening PRIVATE IEEE1588_2019_interface)
 add_test(NAME sync_heuristic_tightening COMMAND sync_heuristic_tightening)
+
+# Test 14: BMCA role assignment integration (RED)
+add_executable(bmca_role_assignment
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_role_assignment.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_role_assignment PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_role_assignment PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_role_assignment_integration COMMAND bmca_role_assignment)
 
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")

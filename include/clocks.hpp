@@ -192,18 +192,6 @@ struct ParentDataSet {
     std::uint8_t grandmaster_priority2{128};
 };
 
-/**
- * @brief Priority vectors for Best Master Clock Algorithm (IEEE 1588-2019 Section 9.3)
- */
-struct PriorityVector {
-    Types::ClockIdentity rootSystemIdentity;
-    std::uint16_t stepsRemoved;
-    Types::ClockIdentity sourcePortIdentity;
-    std::uint16_t sourcePortNumber;
-    
-    constexpr PriorityVector() noexcept 
-        : rootSystemIdentity{}, stepsRemoved(0), sourcePortIdentity{}, sourcePortNumber(0) {}
-};
 
 /**
  * @brief Clock synchronization information
@@ -293,26 +281,6 @@ struct SynchronizationData {
     }
 };
 
-/**
- * @brief Compare priority vectors for BMCA (IEEE 1588-2019 Section 9.3.4)
- * @param a First priority vector
- * @param b Second priority vector
- * @return -1 if a < b, 0 if equal, 1 if a > b
- */
-constexpr int comparePriorityVectors(const PriorityVector& a, const PriorityVector& b) noexcept {
-    // Compare root system identity first
-    for (size_t i = 0; i < 8; ++i) {
-        if (a.rootSystemIdentity[i] < b.rootSystemIdentity[i]) return -1;
-        if (a.rootSystemIdentity[i] > b.rootSystemIdentity[i]) return 1;
-    }
-    
-    // If root identities equal, compare steps removed
-    if (a.stepsRemoved < b.stepsRemoved) return -1;
-    if (a.stepsRemoved > b.stepsRemoved) return 1;
-    
-    // Continue with other comparison criteria as needed
-    return 0;
-}
 
 // Compile-time size validation for deterministic data structures
 static_assert(sizeof(PortDataSet) <= 128, 

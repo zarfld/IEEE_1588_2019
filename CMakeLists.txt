@@ -36,6 +36,7 @@ set(IEEE1588_2019_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Source files (will be populated as implementation progresses)
 set(IEEE1588_2019_SOURCES
     src/clocks.cpp
+    05-implementation/src/bmca.cpp
     # src/types.cpp
     # src/messages.cpp
     # src/algorithms.cpp
