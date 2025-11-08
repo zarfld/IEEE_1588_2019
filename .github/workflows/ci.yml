@@ -1,53 +1,73 @@
 name: CI
 
 on:
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-    build-test:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+  build-test-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Install build deps
-              run: sudo apt-get update && sudo apt-get install -y cmake g++ lcov
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ gcovr python3-yaml
 
-            - name: Configure (CMake)
-              run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+      - name: Configure (coverage flags)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="--coverage -O0" \
+            -DCMAKE_CXX_FLAGS="--coverage -O0" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -DBUILD_TESTING=ON
 
-            - name: Build
-              run: cmake --build build --config Debug -- -j$(nproc)
+      - name: Build
+        run: cmake --build build --config Debug -- -j$(nproc)
 
-            - name: Run tests
-              run: |
-                  cd build
-                  ctest --output-on-failure || exit 1
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure -j$(nproc)
 
-            - name: Collect coverage
-              run: |
-                  lcov --capture --directory build --output-file coverage.info
-                  lcov --remove coverage.info '/usr/*' --output-file coverage.info
-                  lcov --list coverage.info
+      - name: Coverage (gcovr JSON)
+        run: gcovr -r . build --json-summary -o coverage.json
 
-            - name: Enforce coverage >=80%
-              run: |
-                  COVER=$(lcov --list coverage.info | awk '/Total:/ {print $2}' | sed 's/%//')
-                  echo "Total coverage: $COVER%"
-                  awk -v c=$COVER 'BEGIN { if (c+0 < 80) { exit 1 } }'
+      - name: Download quality gates
+        run: cat quality-gates.yml
 
-            - name: Upload coverage artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: coverage-report
-                  path: coverage.info
+      - name: Check gates (coverage)
+        run: |
+          python3 scripts/ci/check_quality_gates.py --coverage coverage.json --gates quality-gates.yml
 
-    quality-gate:
-        runs-on: ubuntu-latest
-        needs: build-test
-        steps:
-            - name: Echo gates
-              run: echo "Quality gates passed (build, tests, coverage >=80%)."
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: coverage.json
+
+  build-test-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (MSVC Release)
+        shell: pwsh
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release -- /m
+
+      - name: Run tests
+        shell: pwsh
+        run: ctest --test-dir build -C Release --output-on-failure --parallel 2
+
+  quality-summary:
+    runs-on: ubuntu-latest
+    needs: [ build-test-ubuntu, build-test-windows ]
+    steps:
+      - name: Report summary
+        run: echo "All platforms built & tests passed; coverage gate enforced from quality-gates.yml."
