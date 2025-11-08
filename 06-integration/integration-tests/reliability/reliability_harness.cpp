@@ -102,8 +102,40 @@ TestResult run_health_heartbeat(IEEE::_1588::PTP::_2019::Clocks::PtpPort &port) 
     return {true, 1, "OP-003", state_name(s), "Heartbeat ok"};
 }
 
+// OP-004: Multi-port BoundaryClock routing (basic simulation)
+struct BoundaryRoutingResult {
+    bool passed;
+    int severity;
+    const char* state_port1;
+    const char* state_port2;
+    std::string message;
+};
+
+BoundaryRoutingResult run_boundary_routing(
+    IEEE::_1588::PTP::_2019::Clocks::BoundaryClock &bc) {
+    namespace P = IEEE::_1588::PTP::_2019;
+    using namespace P::Clocks;
+    P::Types::Timestamp ts{};
+    // Simulate a Sync/Follow_Up/Delay cycle entering port 1 (master side)
+    SyncMessage sync{}; FollowUpMessage fu{}; fu.body.preciseOriginTimestamp = P::Types::Timestamp{};
+    DelayReqMessage dreq{}; DelayRespMessage dresp{};
+    auto r1 = bc.process_message(1, static_cast<uint8_t>(P::MessageType::Sync), &sync, sizeof(sync), ts);
+    auto r2 = bc.process_message(1, static_cast<uint8_t>(P::MessageType::Follow_Up), &fu, sizeof(fu), ts);
+    auto r3 = bc.process_message(1, static_cast<uint8_t>(P::MessageType::Delay_Req), &dreq, sizeof(dreq), ts);
+    auto r4 = bc.process_message(1, static_cast<uint8_t>(P::MessageType::Delay_Resp), &dresp, sizeof(dresp), ts);
+    bc.tick(ts);
+    const PtpPort* p1 = bc.get_port(1);
+    const PtpPort* p2 = bc.get_port(2);
+    auto state1 = p1 ? p1->get_state() : P::Types::PortState::Faulty;
+    auto state2 = p2 ? p2->get_state() : P::Types::PortState::Faulty;
+    bool ok = r1.is_success() && r2.is_success() && r3.is_success() && r4.is_success() &&
+              state1 != P::Types::PortState::Faulty && state2 != P::Types::PortState::Faulty;
+    int severity = ok ? 1 : 6; // moderate severity on routing failure
+    return {ok, severity, state_name(state1), state_name(state2), ok ? "Boundary routing ok" : "Boundary routing failure"};
+}
+
 // Weighted operation selection based on RTP example
-struct WeightedOp { double weight; enum Kind { Offset, BMCA, Heartbeat } kind; };
+struct WeightedOp { double weight; enum Kind { Offset, BMCA, Heartbeat, BoundaryRouting } kind; };
 
 int main(int argc, char** argv) {
     namespace P = IEEE::_1588::PTP::_2019;
@@ -129,11 +161,19 @@ int main(int argc, char** argv) {
     std::vector<FailureRecord> failures;
     failures.reserve(16);
 
+    // BoundaryClock configuration for OP-004 (2 ports: 1 master side, 2 slave side simulation)
+    std::array<PortConfiguration, BoundaryClock::MAX_PORTS> bc_cfgs{};
+    bc_cfgs[0].port_number = 1; bc_cfgs[0].version_number = 2; bc_cfgs[0].domain_number = 0;
+    bc_cfgs[1].port_number = 2; bc_cfgs[1].version_number = 2; bc_cfgs[1].domain_number = 0;
+    BoundaryClock boundary_clock(bc_cfgs, 2, callbacks);
+    boundary_clock.initialize();
+    boundary_clock.start();
+
     const std::vector<WeightedOp> ops = {
         {0.50, {WeightedOp::Offset}},
         {0.25, {WeightedOp::BMCA}},
         {0.15, {WeightedOp::Heartbeat}},
-        // Remaining 0.10 omitted for simplicity in this minimal harness
+        {0.10, {WeightedOp::BoundaryRouting}}, // OP-004
     };
 
     auto start = std::chrono::steady_clock::now();
@@ -150,13 +190,32 @@ int main(int argc, char** argv) {
         WeightedOp::Kind kind;
         if (r < 0.50) kind = WeightedOp::Offset;
         else if (r < 0.75) kind = WeightedOp::BMCA;
-        else kind = WeightedOp::Heartbeat;
+        else if (r < 0.90) kind = WeightedOp::Heartbeat;
+        else kind = WeightedOp::BoundaryRouting;
 
         TestResult tr{true,1,"OP-000","Initializing",""};
         switch (kind) {
         case WeightedOp::Offset: tr = run_offset_cycle(port, rng); break;
         case WeightedOp::BMCA: tr = run_bmca_cycle(port); break;
         case WeightedOp::Heartbeat: tr = run_health_heartbeat(port); break;
+        case WeightedOp::BoundaryRouting: {
+            auto br = run_boundary_routing(boundary_clock);
+            if (!br.passed) {
+                auto now = std::chrono::steady_clock::now();
+                double secs = std::chrono::duration_cast<std::chrono::duration<double>>(now - start).count();
+                failures.push_back(FailureRecord{failures.size()+1, secs, br.severity, "OP-004", br.state_port1, false});
+            }
+            // Update coverage with boundary clock port states
+            if (const PtpPort* p1 = boundary_clock.get_port(1)) {
+                auto s1 = p1->get_state(); states_visited.insert(s1); transitions_from[s1]+=0; /* ensure key presence */ }
+            if (const PtpPort* p2 = boundary_clock.get_port(2)) {
+                auto s2 = p2->get_state(); states_visited.insert(s2); transitions_from[s2]+=0; }
+            // No direct port state transition tracking between boundary clock ports for simplicity
+            // Continue loop (do not treat as failure in main counters beyond failure record already added)
+            if (!br.passed) { /* do not increment passed */ } else { passed++; }
+            executed++;
+            continue; // Skip common bookkeeping below (already handled)
+        }
         }
 
         // Update coverage metrics after operation (state may have changed via callbacks/state machine)
