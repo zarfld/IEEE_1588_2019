@@ -524,6 +524,8 @@ private:
     bool have_follow_up_{false};
     bool have_delay_req_{false};
     bool have_delay_resp_{false};
+    // Local heuristic counter: successful offsets computed while in UNCALIBRATED
+    std::uint32_t successful_offsets_in_window_{0};
     
     // BMCA state (limited storage for deterministic operation)
     static constexpr size_t MAX_FOREIGN_MASTERS = 16;

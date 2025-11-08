@@ -287,6 +287,12 @@ Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcep
     PortState old_state = port_data_set_.port_state;
     port_data_set_.port_state = new_state;
     statistics_.state_transitions++;
+    // Reset heuristic counter when entering UNCALIBRATED; clear on others as well
+    if (new_state == PortState::Uncalibrated) {
+        successful_offsets_in_window_ = 0;
+    } else if (new_state != old_state) {
+        successful_offsets_in_window_ = 0;
+    }
     
     // State exit actions
     switch (old_state) {
@@ -409,11 +415,10 @@ Types::PTPResult<void> PtpPort::process_follow_up(const FollowUpMessage& message
     
     // Check if we can transition from UNCALIBRATED to SLAVE
     if (port_data_set_.port_state == PortState::Uncalibrated) {
-        // Tightened sync heuristic (FM-008): require minimum successful offsets and zero validation failures
-        constexpr std::uint64_t MIN_OFFSETS_FOR_SYNC = 3; // assumption: need 3 stable samples
-        auto offsets = Common::utils::metrics::get(Common::utils::metrics::CounterId::OffsetsComputed);
-        auto fails   = Common::utils::metrics::get(Common::utils::metrics::CounterId::ValidationsFailed);
-        if (offsets >= MIN_OFFSETS_FOR_SYNC && fails == 0) {
+        // Tightened sync heuristic (FM-008): require >=3 local successful offsets and zero global validation failures
+        constexpr std::uint32_t MIN_OFFSETS_FOR_SYNC = 3; // need 3 stable samples
+        auto fails = Common::utils::metrics::get(Common::utils::metrics::CounterId::ValidationsFailed);
+        if (successful_offsets_in_window_ >= MIN_OFFSETS_FOR_SYNC && fails == 0) {
             Common::utils::logging::info("Heuristic", 0x0401, "Transition to SLAVE after stable offset samples");
             return transition_to_state(PortState::Slave);
         } else {
@@ -739,9 +744,16 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1);
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::OffsetsComputed, 1); // ensure heuristic sees this sample
         Common::utils::health::record_offset_ns(static_cast<long long>(current_data_set_.offset_from_master.toNanoseconds()));
+        if (port_data_set_.port_state == PortState::Uncalibrated) {
+            ++successful_offsets_in_window_;
+        }
+        // Reset sample flags so next offset requires fresh T1..T4 (prevents double counting per cycle)
+        have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
     } else {
         Common::utils::logging::warn("Offset", 0x0208, "Computed mean path delay non-positive; values not updated");
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        // Reset anyway to force new full sample acquisition
+        have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
     }
     return Types::PTPResult<void>::success();
 }
