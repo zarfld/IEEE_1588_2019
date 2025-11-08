@@ -25,6 +25,9 @@ add_executable(reliability_harness
 target_include_directories(reliability_harness PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(reliability_harness PRIVATE IEEE1588_2019)
 
+# Ensure a stable, CI-friendly output directory for SRG CSV
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/reliability)
+
 add_test(NAME reliability_harness
-    COMMAND reliability_harness 200 ${CMAKE_CURRENT_BINARY_DIR}/srg_failures.csv)
+    COMMAND reliability_harness 200 ${CMAKE_BINARY_DIR}/reliability/srg_failures.csv)
 set_tests_properties(reliability_harness PROPERTIES LABELS "reliability")
