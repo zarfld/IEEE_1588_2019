@@ -91,6 +91,14 @@ set_target_properties(reliability_dashboard PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/reliability"
 )
 
+# Phase 06 reliability tool: SRG exporter (non-gating)
+add_executable(srg_export
+    06-integration/integration-tests/reliability/srg_export.cpp
+)
+set_target_properties(srg_export PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/reliability"
+)
+
 # Testing support
 if(BUILD_TESTING)
     enable_testing()
@@ -100,6 +108,18 @@ if(BUILD_TESTING)
     # Phase 06 Integration tests
     if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/06-integration/integration-tests/CMakeLists.txt)
         add_subdirectory(06-integration/integration-tests)
+    endif()
+    # Phase 07 tools (non-gating scaffolds)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/07-verification-validation/tools/srg_fit_stub.cpp)
+        add_executable(srg_fit_stub 07-verification-validation/tools/srg_fit_stub.cpp)
+        set_target_properties(srg_fit_stub PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/verification"
+        )
+        add_test(NAME srg-fit-stub
+            COMMAND $<TARGET_FILE:srg_fit_stub> "${CMAKE_BINARY_DIR}/reliability/srg_export.csv")
+        set_tests_properties(srg-fit-stub PROPERTIES
+            LABELS "verification;srg"
+            PASS_REGULAR_EXPRESSION "SRG_FIT:")
     endif()
     # Non-failing reliability trend observation test
     add_test(NAME reliability-trend
@@ -112,6 +132,11 @@ if(BUILD_TESTING)
     set_tests_properties(reliability-dashboard PROPERTIES
         LABELS "reliability;dashboard"
         PASS_REGULAR_EXPRESSION "DASHBOARD:")
+    add_test(NAME srg-export
+        COMMAND $<TARGET_FILE:srg_export> "${CMAKE_BINARY_DIR}/reliability/srg_failures.csv" "${CMAKE_BINARY_DIR}/reliability/srg_export.csv")
+    set_tests_properties(srg-export PROPERTIES
+        LABELS "reliability;srg"
+        PASS_REGULAR_EXPRESSION "SRG_EXPORT:")
     # Register example smoke test as part of CTest if examples enabled
     if(IEEE1588_2019_BUILD_EXAMPLES)
         # Ensure example targets are created before registering tests
