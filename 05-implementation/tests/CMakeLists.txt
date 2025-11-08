@@ -4,22 +4,57 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-set(PHASE05_TEST_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_basic.cpp
+# Shared sources used by BMCA tests
+set(BMCA_IMPL_SOURCES
     ${CMAKE_SOURCE_DIR}/05-implementation/src/bmca.cpp
     ${CMAKE_SOURCE_DIR}/src/clocks.cpp
 )
 
-add_executable(bmca_tdd_tests ${PHASE05_TEST_SOURCES})
-
+# Test 1: Basic BMCA selection
+add_executable(bmca_tdd_tests
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_basic.cpp
+    ${BMCA_IMPL_SOURCES}
+)
 target_include_directories(bmca_tdd_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/05-implementation/src
 )
-
-# Link only the interface layer (hardware agnostic)
 target_link_libraries(bmca_tdd_tests PRIVATE IEEE1588_2019_interface)
-
 add_test(NAME bmca_red_green_refactor_basic COMMAND bmca_tdd_tests)
 
-message(STATUS "Phase 05 BMCA TDD tests configured: bmca_tdd_tests")
+# Test 2: Edge comparisons
+add_executable(bmca_tdd_edges
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_edges.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_tdd_edges PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_tdd_edges PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_edge_comparisons COMMAND bmca_tdd_edges)
+
+# Test 3: Selection list behaviors
+add_executable(bmca_tdd_selection
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_selection_list.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_tdd_selection PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_tdd_selection PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_selection_list COMMAND bmca_tdd_selection)
+
+# Test 4: Message header validation branches
+add_executable(msg_header_validation
+    ${CMAKE_CURRENT_LIST_DIR}/test_message_header_validation.cpp
+    ${CMAKE_SOURCE_DIR}/src/clocks.cpp
+)
+target_include_directories(msg_header_validation PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(msg_header_validation PRIVATE IEEE1588_2019_interface)
+add_test(NAME ptp_message_header_validation COMMAND msg_header_validation)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation")
