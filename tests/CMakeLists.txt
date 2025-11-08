@@ -35,6 +35,10 @@ target_link_libraries(ptp_state_machine_heuristic_negative PRIVATE IEEE1588_2019
 add_test(NAME ptp_state_machine_heuristic_negative COMMAND ptp_state_machine_heuristic_negative)
 
 # Additional compilation/API smoke tests
+add_executable(rounding_bias_characterization ${CMAKE_CURRENT_LIST_DIR}/test_rounding_bias.cpp)
+target_include_directories(rounding_bias_characterization PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(rounding_bias_characterization PRIVATE IEEE1588_2019)
+add_test(NAME rounding_bias_characterization COMMAND rounding_bias_characterization)
 add_executable(clocks_api_compile ${CMAKE_SOURCE_DIR}/test_clocks_api.cpp)
 target_include_directories(clocks_api_compile PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(clocks_api_compile PRIVATE IEEE1588_2019)

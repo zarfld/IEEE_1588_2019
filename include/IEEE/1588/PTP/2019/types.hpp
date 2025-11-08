@@ -307,6 +307,27 @@ struct TimeInterval {
     static constexpr TimeInterval fromNanoseconds(double ns) noexcept {
         return {static_cast<Integer64>(ns * 65536.0)};
     }
+
+    /**
+     * @brief Create from nanoseconds with unbiased (banker's) rounding to nearest even for 2^-16 scaling
+     * @param ns Nanoseconds as double
+     * @return TimeInterval with scaled_nanoseconds rounded using nearest-even
+     * @note FM-014 mitigation helper (optional compensation). If fractional part is exactly 0.5 in scaled units, rounds to even.
+     */
+    static constexpr TimeInterval fromNanosecondsUnbiased(double ns) noexcept {
+        // Convert to scaled double
+        double scaled = ns * 65536.0;
+        // Extract integer part
+        Integer64 base = static_cast<Integer64>(scaled);
+        double frac = scaled - static_cast<double>(base);
+        if (frac > 0.5) {
+            return {base + 1};
+        } else if (frac < 0.5) {
+            return {base};
+        }
+        // frac == 0.5 within double precision: round to even
+        return { (base & 1) == 0 ? base : base + 1 };
+    }
 };
 
 //==============================================================================

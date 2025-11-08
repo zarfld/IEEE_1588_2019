@@ -34,6 +34,7 @@ Notes: Public interface for PTP clocks and port state machines; aligns with IEEE
 #include "Common/utils/fault_injection.hpp"
 #include "Common/utils/metrics.hpp"
 #include "Common/utils/health.hpp"
+#include "Common/utils/config.hpp"
 
 namespace IEEE {
 namespace _1588 {
@@ -246,7 +247,26 @@ struct SynchronizationData {
         const Types::TimeInterval t2_minus_t1 = (sync_reception - sync_timestamp);
         const Types::TimeInterval t4_minus_t3 = (delay_resp_timestamp - delay_req_timestamp);
         // Work directly on scaled nanoseconds (2^-16 ns units) to avoid float rounding
-        const Types::Integer64 scaled = (t2_minus_t1.scaled_nanoseconds - t4_minus_t3.scaled_nanoseconds) / 2;
+        const Types::Integer64 diff_scaled = (t2_minus_t1.scaled_nanoseconds - t4_minus_t3.scaled_nanoseconds);
+        Types::Integer64 scaled;
+        // Optional FM-014 mitigation: unbiased half-to-even division by 2 to remove rounding bias when odd values appear in scaled domain.
+        if (Common::utils::config::is_rounding_compensation_enabled()) {
+            // Banker's rounding for division by 2
+            const Types::Integer64 n = diff_scaled / 2;      // trunc towards 0
+            const Types::Integer64 r = diff_scaled % 2;      // remainder, same sign as numerator
+            if (r == 0) {
+                scaled = n;
+            } else {
+                // Tie at .5: round to even result
+                if ((n & 1) != 0) {
+                    scaled = n + (diff_scaled > 0 ? 1 : -1);
+                } else {
+                    scaled = n;
+                }
+            }
+        } else {
+            scaled = diff_scaled / 2;
+        }
         Types::Integer64 adjusted = scaled;
         if (Common::utils::fi::is_offset_jitter_enabled()) {
             adjusted += (Common::utils::fi::get_offset_jitter_ns() << 16); // convert ns to scaled (2^-16 ns)
