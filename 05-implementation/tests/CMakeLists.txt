@@ -296,4 +296,16 @@ target_include_directories(master_delay_response PRIVATE
 target_link_libraries(master_delay_response PRIVATE IEEE1588_2019_interface)
 add_test(NAME master_delay_response COMMAND master_delay_response)
 
-message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, ordinary_clock_dispatcher, configuration_setters, master_delay_response")
+# Test 25: BoundaryClock query helpers (lines 1065-1186, ~120-line coverage)
+add_executable(boundary_clock_queries
+    ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_queries.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(boundary_clock_queries PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(boundary_clock_queries PRIVATE IEEE1588_2019_interface)
+add_test(NAME boundary_clock_queries COMMAND boundary_clock_queries)
+
+message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests, delay_resp_processing, timeout_detection, boundary_clock_routing, state_actions, update_foreign_master, calculate_offset_and_delay, ordinary_clock_dispatcher, configuration_setters, master_delay_response, boundary_clock_queries")
