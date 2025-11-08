@@ -25,6 +25,7 @@
 #include "Common/utils/logger.hpp"
 #include "Common/utils/fault_injection.hpp"
 #include "Common/utils/metrics.hpp"
+#include "Common/utils/health.hpp"
 
 namespace IEEE {
 namespace _1588 {
@@ -234,6 +235,8 @@ struct SynchronizationData {
         offsetFromMaster = Types::TimeInterval{adjusted};
         Common::utils::logging::debug("Offset", 0x0200, "Offset from master calculated");
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::OffsetsComputed, 1);
+        Common::utils::health::record_offset_ns(static_cast<long long>(offsetFromMaster.toNanoseconds()));
+        Common::utils::health::emit();
         return Types::PTPResult<Types::TimeInterval>::success(offsetFromMaster);
     }
 };

@@ -102,4 +102,14 @@ target_include_directories(fault_injection_bmca PRIVATE
 target_link_libraries(fault_injection_bmca PRIVATE IEEE1588_2019_interface)
 add_test(NAME fault_injection_bmca_tie COMMAND fault_injection_bmca)
 
+# Test 9: Health/self-test aggregation
+add_executable(health_selftest
+    ${CMAKE_CURRENT_LIST_DIR}/test_health_selftest.cpp
+)
+target_include_directories(health_selftest PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(health_selftest PRIVATE IEEE1588_2019_interface)
+add_test(NAME health_selftest COMMAND health_selftest)
+
 message(STATUS "Phase 05 tests configured: bmca_tdd_tests, bmca_tdd_edges, bmca_tdd_selection, msg_header_validation, msg_bodies_validation, offset_calculation_tests")

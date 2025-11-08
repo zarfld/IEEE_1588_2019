@@ -75,6 +75,8 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
     }
     Common::utils::logging::info("BMCA", 0x0100, "BMCA selection complete");
     Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_Selections, 1);
+    Common::utils::health::record_bmca_selection(best);
+    Common::utils::health::emit();
     return best;
 }
 
