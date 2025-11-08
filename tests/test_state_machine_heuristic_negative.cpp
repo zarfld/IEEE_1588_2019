@@ -1,6 +1,13 @@
-// TEST: TEST-SYNC-HEURISTIC-NEG-001
-// Related DES: DES-C-021, DES-I-022
-// Purpose: Ensure UNCALIBRATED->SLAVE transition is blocked when a validation failure occurs within the sample window (FM-008)
+/*
+Test: TEST-SYNC-HEURISTIC-NEG-001
+Phase: 05-implementation
+Traceability:
+    Requirements: REQ-F-003, REQ-NF-Reliability-001
+    Design: DES-C-021, DES-I-022
+    SFMEA: FM-008
+Purpose: Ensure UNCALIBRATED->SLAVE transition is blocked when a validation failure occurs within the sample window (FM-008 mitigation verification).
+Notes: Introduces an ordering + path delay validation failure between good samples; verifies heuristic gating (>=3 successful offsets AND zero validation failures) prevents transition.
+*/
 
 #include <cstdio>
 #include <cstdint>
