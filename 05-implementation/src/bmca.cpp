@@ -21,6 +21,7 @@ Notes: Keep IDs current when refactoring; maintain links in tests and design doc
 #include <vector>
 #include <algorithm>
 #include <tuple>
+#include "Common/utils/logger.hpp"
 #include "IEEE/1588/PTP/2019/types.hpp"
 #include "IEEE/1588/PTP/2019/messages.hpp"
 #include "clocks.hpp"
@@ -65,8 +66,10 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
         auto r = comparePriorityVectors(list[i], list[best]);
         if (r == CompareResult::ABetter) {
             best = i;
+            Common::utils::logging::debug("BMCA", 0x0101, "Best master candidate updated");
         }
     }
+    Common::utils::logging::info("BMCA", 0x0100, "BMCA selection complete");
     return best;
 }
 

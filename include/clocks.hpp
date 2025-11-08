@@ -22,6 +22,7 @@
 #include "IEEE/1588/PTP/2019/messages.hpp"
 #include <cstdint>
 #include <array>
+#include "Common/utils/logger.hpp"
 
 namespace IEEE {
 namespace _1588 {
@@ -225,6 +226,7 @@ struct SynchronizationData {
         // Work directly on scaled nanoseconds (2^-16 ns units) to avoid float rounding
         const Types::Integer64 scaled = (t2_minus_t1.scaled_nanoseconds - t4_minus_t3.scaled_nanoseconds) / 2;
         offsetFromMaster = Types::TimeInterval{scaled};
+        Common::utils::logging::debug("Offset", 0x0200, "Offset from master calculated");
         return Types::PTPResult<Types::TimeInterval>::success(offsetFromMaster);
     }
 };
