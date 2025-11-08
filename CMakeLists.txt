@@ -83,6 +83,14 @@ set_target_properties(laplace_trend PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/reliability"
 )
 
+# Phase 06 reliability tool: Dashboard metrics (non-gating)
+add_executable(reliability_dashboard
+    06-integration/integration-tests/reliability/reliability_dashboard.cpp
+)
+set_target_properties(reliability_dashboard PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/reliability"
+)
+
 # Testing support
 if(BUILD_TESTING)
     enable_testing()
@@ -99,6 +107,11 @@ if(BUILD_TESTING)
     set_tests_properties(reliability-trend PROPERTIES
         LABELS "reliability;trend"
         PASS_REGULAR_EXPRESSION "LAPLACE_TREND:")
+    add_test(NAME reliability-dashboard
+        COMMAND $<TARGET_FILE:reliability_dashboard> "${CMAKE_BINARY_DIR}/reliability/reliability_history.csv")
+    set_tests_properties(reliability-dashboard PROPERTIES
+        LABELS "reliability;dashboard"
+        PASS_REGULAR_EXPRESSION "DASHBOARD:")
     # Register example smoke test as part of CTest if examples enabled
     if(IEEE1588_2019_BUILD_EXAMPLES)
         # Ensure example targets are created before registering tests
