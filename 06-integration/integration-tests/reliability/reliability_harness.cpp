@@ -7,6 +7,8 @@
 #include <random>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
+#include <set>
 
 #include "clocks.hpp" // Public header exposes PtpPort and related types
 
@@ -137,6 +139,12 @@ int main(int argc, char** argv) {
     auto start = std::chrono::steady_clock::now();
     std::size_t executed = 0; std::size_t passed = 0;
 
+    // Coverage tracking (Phase 06 exit criteria: states + transitions)
+    std::set<P::Types::PortState> states_visited;
+    std::unordered_map<P::Types::PortState, std::size_t> transitions_from;
+    P::Types::PortState previous_state = port.get_state();
+    states_visited.insert(previous_state);
+
     while (executed < iterations) {
         double r = dist(rng);
         WeightedOp::Kind kind;
@@ -150,6 +158,14 @@ int main(int argc, char** argv) {
         case WeightedOp::BMCA: tr = run_bmca_cycle(port); break;
         case WeightedOp::Heartbeat: tr = run_health_heartbeat(port); break;
         }
+
+        // Update coverage metrics after operation (state may have changed via callbacks/state machine)
+        P::Types::PortState current_state = port.get_state();
+        if (current_state != previous_state) {
+            transitions_from[previous_state]++;
+            previous_state = current_state;
+        }
+        states_visited.insert(current_state);
         executed++;
         if (tr.passed) {
             passed++;
@@ -179,6 +195,41 @@ int main(int argc, char** argv) {
     std::cout << "Failures: " << failures.size() << "\n";
     std::cout << "Approx MTBF (iterations/failures): " << mtbf << "\n";
     std::cout << "CSV: " << csv_path << "\n";
+
+    // Write state/transition coverage CSV sibling to failures CSV
+    // Derive coverage path by replacing filename portion if user passed custom path
+    std::string coverage_path;
+    {
+        auto pos = csv_path.find_last_of("/\\");
+        if (pos == std::string::npos) coverage_path = "state_transition_coverage.csv";
+        else coverage_path = csv_path.substr(0, pos + 1) + "state_transition_coverage.csv";
+    }
+    const std::size_t TOTAL_STATES = 9; // PortState enum known count
+    double stateCoveragePct = (static_cast<double>(states_visited.size()) / TOTAL_STATES) * 100.0;
+    std::ofstream cov(coverage_path.c_str(), std::ios::out | std::ios::trunc);
+    if (cov.is_open()) {
+        cov << "State,Visited,TransitionsFrom\n";
+        // Emit all states for deterministic column completeness
+        const P::Types::PortState allStates[TOTAL_STATES] = {
+            P::Types::PortState::Initializing,
+            P::Types::PortState::Listening,
+            P::Types::PortState::PreMaster,
+            P::Types::PortState::Master,
+            P::Types::PortState::Passive,
+            P::Types::PortState::Uncalibrated,
+            P::Types::PortState::Slave,
+            P::Types::PortState::Faulty,
+            P::Types::PortState::Disabled
+        };
+        for (auto s : allStates) {
+            cov << state_name(s) << ','
+                << (states_visited.count(s) ? 1 : 0) << ','
+                << (transitions_from.count(s) ? transitions_from[s] : 0) << '\n';
+        }
+        cov << "Summary,StatesCoveragePct," << stateCoveragePct << '\n';
+        cov << "Summary,TotalTransitions," << [&]{ std::size_t total=0; for (auto &p: transitions_from) total+=p.second; return total; }() << '\n';
+    }
+    std::cout << "Coverage CSV: " << coverage_path << "\n";
 
     // Quality gate: pass rate >=95% and no severity=10 failures
     bool criticalPresent = false;
