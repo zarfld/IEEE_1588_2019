@@ -62,11 +62,23 @@ CompareResult comparePriorityVectors(const PriorityVector& a, const PriorityVect
 
 // Select best from list (stub: returns first)
 int selectBestIndex(const std::vector<PriorityVector>& list) {
-    if (list.empty()) return -1;
+    if (list.empty()) {
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        Common::utils::logging::warn("BMCA", 0x0103, "Empty priority vector list passed to BMCA");
+        Common::utils::health::record_bmca_selection(-1);
+        Common::utils::health::record_bmca_forced_tie(false);
+        Common::utils::health::emit();
+        return -1;
+    }
     int best = 0;
+    bool forcedTieUsed = false;
     for (int i = 1; i < static_cast<int>(list.size()); ++i) {
-        auto r = Common::utils::fi::consume_bmca_tie_token() ? CompareResult::Equal
-                                                             : comparePriorityVectors(list[i], list[best]);
+        bool forcedTie = Common::utils::fi::consume_bmca_tie_token();
+        auto r = forcedTie ? CompareResult::Equal : comparePriorityVectors(list[i], list[best]);
+        if (forcedTie) {
+            forcedTieUsed = true;
+            Common::utils::logging::info("BMCA", 0x0102, "Forced tie token consumed - telemetry flagged");
+        }
         if (r == CompareResult::ABetter) {
             best = i;
             Common::utils::logging::debug("BMCA", 0x0101, "Best master candidate updated");
@@ -75,7 +87,11 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
     }
     Common::utils::logging::info("BMCA", 0x0100, "BMCA selection complete");
     Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_Selections, 1);
+    if (forcedTieUsed) {
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1); // treat forced path visibility as a validated scenario
+    }
     Common::utils::health::record_bmca_selection(best);
+    Common::utils::health::record_bmca_forced_tie(forcedTieUsed);
     Common::utils::health::emit();
     return best;
 }

@@ -232,6 +232,19 @@ struct SynchronizationData {
         if (Common::utils::fi::is_offset_jitter_enabled()) {
             adjusted += (Common::utils::fi::get_offset_jitter_ns() << 16); // convert ns to scaled (2^-16 ns)
         }
+        // Range validation & clamp (mitigation FM-002/FM-013)
+        constexpr Types::Integer64 MAX_ABS_SCALED = static_cast<Types::Integer64>(1ull << 46); // ~ 2^30 ns after division margin
+        if (adjusted > MAX_ABS_SCALED) {
+            adjusted = MAX_ABS_SCALED;
+            Common::utils::logging::warn("Offset", 0x0202, "Offset clamped positive upper bound");
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        } else if (adjusted < -MAX_ABS_SCALED) {
+            adjusted = -MAX_ABS_SCALED;
+            Common::utils::logging::warn("Offset", 0x0203, "Offset clamped negative lower bound");
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        } else {
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1);
+        }
         offsetFromMaster = Types::TimeInterval{adjusted};
         Common::utils::logging::debug("Offset", 0x0200, "Offset from master calculated");
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::OffsetsComputed, 1);

@@ -13,6 +13,8 @@ Notes: Forces a single BMCA comparison tie so selection does not update.
 #include <cstdint>
 #include "bmca.hpp"
 #include "Common/utils/fault_injection.hpp"
+#include "Common/utils/health.hpp"
+#include "Common/utils/metrics.hpp"
 
 using namespace IEEE::_1588::PTP::_2019::BMCA;
 
@@ -35,11 +37,27 @@ int main() {
         return 1;
     }
 
-    // Without tie, B should win (index 1)
+    // Validate health telemetry for forced tie
+    auto report = Common::utils::health::self_test();
+    if (!report.bmcaTieForcedLast) {
+        std::fprintf(stderr, "Health report did not flag forced tie\n");
+        return 3;
+    }
+    if (Common::utils::metrics::get(Common::utils::metrics::CounterId::ValidationsPassed) == 0) {
+        std::fprintf(stderr, "Expected validationsPassed increment on forced tie path\n");
+        return 4;
+    }
+
+    // Without tie, B should win (index 1) and health flag should clear
     idx = selectBestIndex(list);
     if (idx != 1) {
         std::fprintf(stderr, "Expected index 1 without tie, got %d\n", idx);
         return 2;
+    }
+    auto report2 = Common::utils::health::self_test();
+    if (report2.bmcaTieForcedLast) {
+        std::fprintf(stderr, "Health flag bmcaTieForcedLast should be false after normal selection\n");
+        return 5;
     }
 
     return 0;

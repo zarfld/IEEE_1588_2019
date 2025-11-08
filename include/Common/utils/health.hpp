@@ -33,6 +33,8 @@ struct SelfTestReport {
     bool faultInjectionActive{false};
     // Simple derived health indicators
     bool basicSynchronizedLikely{false};
+    // Fault injection telemetry
+    bool bmcaTieForcedLast{false};
 };
 
 namespace detail {
@@ -44,6 +46,10 @@ namespace detail {
         static std::atomic<long long> v{0};
         return v;
     }
+    inline std::atomic<bool>& bmca_tie_forced() noexcept {
+        static std::atomic<bool> v{false};
+        return v;
+    }
 }
 
 inline void record_bmca_selection(int index) noexcept {
@@ -52,6 +58,10 @@ inline void record_bmca_selection(int index) noexcept {
 
 inline void record_offset_ns(long long ns) noexcept {
     detail::last_offset_ns().store(ns, std::memory_order_relaxed);
+}
+
+inline void record_bmca_forced_tie(bool forced) noexcept {
+    detail::bmca_tie_forced().store(forced, std::memory_order_relaxed);
 }
 
 // Self-test collector
@@ -66,6 +76,7 @@ inline SelfTestReport self_test() noexcept {
     r.lastOffsetNanoseconds = detail::last_offset_ns().load(std::memory_order_relaxed);
     r.lastBMCABestIndex = detail::last_bmca_index().load(std::memory_order_relaxed);
     r.faultInjectionActive = Common::utils::fi::is_offset_jitter_enabled();
+    r.bmcaTieForcedLast = detail::bmca_tie_forced().load(std::memory_order_relaxed);
     // Heuristic: if we have at least one offset computed and validationsFailed == 0 treat as synchronized likely
     r.basicSynchronizedLikely = (r.offsetsComputed > 0) && (r.validationsFailed == 0);
     return r;
