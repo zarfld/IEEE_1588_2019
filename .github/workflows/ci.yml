@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-test-ubuntu:
@@ -67,7 +67,7 @@ jobs:
 
   quality-summary:
     runs-on: ubuntu-latest
-    needs: [ build-test-ubuntu, build-test-windows ]
+    needs: [build-test-ubuntu, build-test-windows]
     steps:
       - name: Report summary
         run: echo "All platforms built & tests passed; coverage gate enforced from quality-gates.yml."
