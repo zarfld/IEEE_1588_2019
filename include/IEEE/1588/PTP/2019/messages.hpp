@@ -579,6 +579,28 @@ using PdelayReqMessage = PTPMessage<PdelayReqBody>;
 using PdelayRespMessage = PTPMessage<PdelayRespBody>;
 using PdelayRespFollowUpMessage = PTPMessage<PdelayRespFollowUpBody>;
 
+//==============================================================================
+// Signaling Message (Section 13.12) - Minimal Stub
+//==============================================================================
+/**
+ * @brief Minimal Signaling message representation
+ *
+ * Clause reference: IEEE 1588-2019 Section 13.12 (Signaling message)
+ * This minimal stub only covers the common header portion required for
+ * early TDD parsing (CAP-20251109-04 / GAP-SIGNAL-001). The full TLV
+ * payload set (unicast negotiation, path trace, alternate timescale,
+ * authentication) will be added incrementally in future CAP closures.
+ */
+struct SignalingStubBody {
+    // Placeholder for future TLV data; kept zero-sized for now to reuse
+    // existing PTPMessage template without impacting layout contracts.
+    // Validation trivially succeeds; future implementation will add
+    // bounded TLV iteration with strict size checks.
+    PTPResult<void> validate() const noexcept { return PTPResult<void>::success(); }
+};
+
+using SignalingMessage = PTPMessage<SignalingStubBody>;
+
 // Compile-time size verification for all message types
 // Wire-size static_asserts removed pending portable serialization layer.
 

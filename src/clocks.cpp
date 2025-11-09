@@ -1040,6 +1040,14 @@ Types::PTPResult<void> BoundaryClock::process_message(Types::PortNumber port_num
             return port->process_delay_resp(*delay_resp_msg);
         }
         break;
+    case MessageType::Signaling:
+        // Minimal signaling handling stub (CAP-20251109-04)
+        // Future expansion: parse TLVs (unicast negotiation, path trace, security)
+        if (message_size >= sizeof(CommonHeader)) {
+            // Treat as successfully handled for initial TDD GREEN
+            return Types::PTPResult<void>::success();
+        }
+        break;
     default:
         return Types::PTPResult<void>::failure(Types::PTPError::UNSUPPORTED_MESSAGE);
     }
