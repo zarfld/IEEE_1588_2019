@@ -13,6 +13,7 @@ set(TEST_SOURCES
 add_executable(ptp_state_machine_tests ${TEST_SOURCES})
 target_include_directories(ptp_state_machine_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(ptp_state_machine_tests PRIVATE IEEE1588_2019)
+target_compile_definitions(ptp_state_machine_tests PRIVATE INTEGRATED_TEST_SUITE)
 
 add_test(NAME ptp_state_machine_basic COMMAND ptp_state_machine_tests)
 
@@ -47,6 +48,12 @@ add_executable(offset_calculation_red ${CMAKE_CURRENT_LIST_DIR}/test_offset_calc
 target_include_directories(offset_calculation_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(offset_calculation_red PRIVATE IEEE1588_2019)
 add_test(NAME offset_calculation_red COMMAND offset_calculation_red)
+
+# GAP-PDELAY-001 RED phase acceptance test for peer delay mechanism
+add_executable(pdelay_mechanism_red ${CMAKE_CURRENT_LIST_DIR}/test_pdelay_mechanism_red.cpp)
+target_include_directories(pdelay_mechanism_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(pdelay_mechanism_red PRIVATE IEEE1588_2019)
+add_test(NAME pdelay_mechanism_red COMMAND pdelay_mechanism_red)
 
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 

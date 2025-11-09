@@ -89,5 +89,7 @@ int p2p_delay_red_main() {
     return 0;
 }
 
-// Also allow standalone execution for local debug
+// Allow standalone execution for local debug (only when not part of test suite)
+#ifndef INTEGRATED_TEST_SUITE
 int main() { return p2p_delay_red_main(); }
+#endif

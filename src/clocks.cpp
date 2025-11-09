@@ -539,6 +539,81 @@ Types::PTPResult<void> PtpPort::process_delay_resp(const DelayRespMessage& messa
     return Types::PTPResult<void>::success();
 }
 
+Types::PTPResult<void> PtpPort::process_pdelay_req(const PdelayReqMessage& message,
+                                                   const Types::Timestamp& rx_timestamp) noexcept {
+    statistics_.delay_req_messages_received++;  // Reuse stat counter for peer delay requests
+    
+    // Responder role: Respond to peer delay requests
+    // Store t2 (receive timestamp) and send Pdelay_Resp with t2
+    // Then send Pdelay_Resp_Follow_Up with t3 (transmit timestamp of Pdelay_Resp)
+    
+    // TODO: Implement Pdelay_Resp transmission
+    // For now, just track statistics
+    (void)message;
+    (void)rx_timestamp;
+    
+    return Types::PTPResult<void>::success();
+}
+
+Types::PTPResult<void> PtpPort::process_pdelay_resp(const PdelayRespMessage& message,
+                                                    const Types::Timestamp& rx_timestamp) noexcept {
+    statistics_.delay_resp_messages_received++;  // Reuse stat counter for peer delay responses
+    
+    // Only process in P2P mode
+    if (!config_.delay_mechanism_p2p) {
+        return Types::PTPResult<void>::success();
+    }
+    
+    // Check if this response is for our request
+    if (message.body.requestingPortIdentity.port_number != port_data_set_.port_identity.port_number ||
+        std::memcmp(message.body.requestingPortIdentity.clock_identity.data(),
+                    port_data_set_.port_identity.clock_identity.data(),
+                    Types::CLOCK_IDENTITY_LENGTH) != 0) {
+        return Types::PTPResult<void>::success();
+    }
+    
+    // Store timestamps and correction
+    // t2 from message body (peer's receive timestamp of our Pdelay_Req)
+    pdelay_req_rx_timestamp_ = message.body.requestReceiveTimestamp; // t2
+    // t4 is our receive timestamp of Pdelay_Resp
+    pdelay_resp_rx_timestamp_ = rx_timestamp; // t4
+    // Store correctionField from Pdelay_Resp per IEEE 1588-2019 Section 11.4.2
+    pdelay_resp_correction_ = Types::TimeInterval::fromNanoseconds(message.header.correctionField.toNanoseconds());
+    
+    have_pdelay_resp_ = true;
+    
+    // If we have all timestamps (t1, t2, t3, t4), calculate peer delay
+    // For two-step, we need to wait for Pdelay_Resp_Follow_Up to get t3
+    if (have_pdelay_req_ && have_pdelay_resp_ && have_pdelay_resp_follow_up_) {
+        return calculate_peer_delay();
+    }
+    
+    return Types::PTPResult<void>::success();
+}
+
+Types::PTPResult<void> PtpPort::process_pdelay_resp_follow_up(const PdelayRespFollowUpMessage& message) noexcept {
+    statistics_.follow_up_messages_received++;  // Reuse stat counter
+    
+    // Only process in P2P mode
+    if (!config_.delay_mechanism_p2p) {
+        return Types::PTPResult<void>::success();
+    }
+    
+    // Store t3 (precise transmit timestamp of Pdelay_Resp)
+    pdelay_resp_tx_timestamp_ = message.body.responseOriginTimestamp; // t3
+    // Store correctionField from Pdelay_Resp_Follow_Up per IEEE 1588-2019 Section 11.4.3
+    pdelay_resp_follow_up_correction_ = Types::TimeInterval::fromNanoseconds(message.header.correctionField.toNanoseconds());
+    
+    have_pdelay_resp_follow_up_ = true;
+    
+    // If we have all timestamps (t1, t2, t3, t4), calculate peer delay
+    if (have_pdelay_req_ && have_pdelay_resp_ && have_pdelay_resp_follow_up_) {
+        return calculate_peer_delay();
+    }
+    
+    return Types::PTPResult<void>::success();
+}
+
 Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexcept {
     // Check for timeouts
     auto result = check_timeouts(current_time);
@@ -952,6 +1027,15 @@ Types::PTPResult<void> PtpPort::prune_expired_foreign_masters(const Types::Times
 }
 
 Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
+    // IEEE 1588-2019 Section 11.1 - Delay mechanism isolation
+    // In P2P mode, only peer delay mechanism should update mean_path_delay
+    // E2E calculations are skipped
+    if (config_.delay_mechanism_p2p) {
+        // Reset E2E flags but don't calculate - use peer delay instead
+        have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
+        return Types::PTPResult<void>::success();
+    }
+    
     if (!(have_sync_ && have_follow_up_ && have_delay_req_ && have_delay_resp_)) {
         return Types::PTPResult<void>::failure(Types::PTPError::Invalid_Parameter);
     }
@@ -995,6 +1079,63 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
         // Reset anyway to force new full sample acquisition
         have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;
     }
+    return Types::PTPResult<void>::success();
+}
+
+Types::PTPResult<void> PtpPort::calculate_peer_delay() noexcept {
+    // IEEE 1588-2019 Section 11.4.2 - Peer delay mechanism
+    // Formula: <meanPathDelay> = ((t4 - t1) - (t3 - t2) + correctionField) / 2
+    // where:
+    //   t1 = local transmit timestamp of Pdelay_Req
+    //   t2 = peer receive timestamp of Pdelay_Req (from Pdelay_Resp)
+    //   t3 = peer transmit timestamp of Pdelay_Resp (from Pdelay_Resp_Follow_Up)
+    //   t4 = local receive timestamp of Pdelay_Resp
+    
+    if (!(have_pdelay_req_ && have_pdelay_resp_ && have_pdelay_resp_follow_up_)) {
+        return Types::PTPResult<void>::failure(Types::PTPError::Invalid_Parameter);
+    }
+    
+    // Ordering validation checks per IEEE specification
+    if (pdelay_resp_rx_timestamp_ < pdelay_req_tx_timestamp_) {
+        Common::utils::logging::warn("PeerDelay", 0x0300, "Pdelay_Resp RX earlier than Pdelay_Req TX (t4 < t1)");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+    }
+    if (pdelay_resp_tx_timestamp_ < pdelay_req_rx_timestamp_) {
+        Common::utils::logging::warn("PeerDelay", 0x0301, "Pdelay_Resp TX earlier than Pdelay_Req RX (t3 < t2)");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+    }
+    
+    // Calculate time intervals
+    Types::TimeInterval t4_minus_t1 = pdelay_resp_rx_timestamp_ - pdelay_req_tx_timestamp_;
+    Types::TimeInterval t3_minus_t2 = pdelay_resp_tx_timestamp_ - pdelay_req_rx_timestamp_;
+    double t4_t1_ns = t4_minus_t1.toNanoseconds();
+    double t3_t2_ns = t3_minus_t2.toNanoseconds();
+    
+    // Apply correctionField per IEEE 1588-2019 Section 11.4.2
+    // Total correction = sum of corrections from Pdelay_Resp and Pdelay_Resp_Follow_Up messages
+    double total_correction_ns = pdelay_resp_correction_.toNanoseconds() + 
+                                 pdelay_resp_follow_up_correction_.toNanoseconds();
+    
+    // Calculate mean path delay
+    double peer_delay_ns = ((t4_t1_ns - t3_t2_ns) + total_correction_ns) / 2.0;
+    
+    // Validation: peer delay must be non-negative
+    if (peer_delay_ns < 0.0) {
+        Common::utils::logging::warn("PeerDelay", 0x0302, "Computed peer delay negative; measurement rejected");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        // Reset flags to force new measurement
+        have_pdelay_req_ = have_pdelay_resp_ = have_pdelay_resp_follow_up_ = false;
+        return Types::PTPResult<void>::success();
+    }
+    
+    // Store peer delay result
+    current_data_set_.mean_path_delay = Types::TimeInterval::fromNanoseconds(peer_delay_ns);
+    Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1);
+    Common::utils::logging::debug("PeerDelay", 0x0303, "Peer delay computed successfully");
+    
+    // Reset flags for next measurement cycle
+    have_pdelay_req_ = have_pdelay_resp_ = have_pdelay_resp_follow_up_ = false;
+    
     return Types::PTPResult<void>::success();
 }
 

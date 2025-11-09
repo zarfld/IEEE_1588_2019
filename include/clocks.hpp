@@ -424,6 +424,34 @@ public:
      */
     Types::PTPResult<void> process_delay_resp(const DelayRespMessage& message) noexcept;
     
+    /**
+     * @brief Process received Pdelay_Req message (peer delay request)
+     * @param message Validated Pdelay_Req message
+     * @param rx_timestamp Receive timestamp from hardware (t2)
+     * @return Success/failure result
+     * @note IEEE 1588-2019 Section 11.4 - Peer delay mechanism
+     */
+    Types::PTPResult<void> process_pdelay_req(const PdelayReqMessage& message,
+                                              const Types::Timestamp& rx_timestamp) noexcept;
+    
+    /**
+     * @brief Process received Pdelay_Resp message (peer delay response)
+     * @param message Validated Pdelay_Resp message (contains t2)
+     * @param rx_timestamp Receive timestamp from hardware (t4)
+     * @return Success/failure result
+     * @note IEEE 1588-2019 Section 11.4 - Peer delay mechanism
+     */
+    Types::PTPResult<void> process_pdelay_resp(const PdelayRespMessage& message,
+                                               const Types::Timestamp& rx_timestamp) noexcept;
+    
+    /**
+     * @brief Process received Pdelay_Resp_Follow_Up message (precise t3 timestamp)
+     * @param message Validated Pdelay_Resp_Follow_Up message (contains t3)
+     * @return Success/failure result
+     * @note IEEE 1588-2019 Section 11.4.3 - Two-step peer delay
+     */
+    Types::PTPResult<void> process_pdelay_resp_follow_up(const PdelayRespFollowUpMessage& message) noexcept;
+    
     // Periodic processing (deterministic timing)
     
     /**
@@ -535,6 +563,21 @@ private:
     // Local heuristic counter: successful offsets computed while in UNCALIBRATED
     std::uint32_t successful_offsets_in_window_{0};
     
+    // Peer delay mechanism timestamps (per IEEE 1588-2019 Section 11.4)
+    Types::Timestamp pdelay_req_tx_timestamp_{};       // t1 local transmit timestamp of Pdelay_Req
+    Types::Timestamp pdelay_req_rx_timestamp_{};       // t2 peer receive timestamp of Pdelay_Req (from Pdelay_Resp)
+    Types::Timestamp pdelay_resp_tx_timestamp_{};      // t3 peer transmit timestamp of Pdelay_Resp (from Follow_Up)
+    Types::Timestamp pdelay_resp_rx_timestamp_{};      // t4 local receive timestamp of Pdelay_Resp
+    
+    // Peer delay correctionField accumulation per IEEE 1588-2019 Section 11.4.2
+    Types::TimeInterval pdelay_resp_correction_{};     // Correction from Pdelay_Resp message
+    Types::TimeInterval pdelay_resp_follow_up_correction_{}; // Correction from Pdelay_Resp_Follow_Up message
+    
+    bool have_pdelay_req_{false};                      // Sent Pdelay_Req, waiting for response
+    bool have_pdelay_resp_{false};                     // Received Pdelay_Resp (has t2, t4)
+    bool have_pdelay_resp_follow_up_{false};           // Received Pdelay_Resp_Follow_Up (has t3)
+    std::uint16_t pdelay_req_sequence_id_{0};          // Sequence ID for Pdelay_Req messages
+    
     // BMCA state (limited storage for deterministic operation)
     static constexpr size_t MAX_FOREIGN_MASTERS = 16;
     std::array<AnnounceMessage, MAX_FOREIGN_MASTERS> foreign_masters_;
@@ -554,6 +597,7 @@ private:
     Types::PTPResult<void> update_foreign_master_list(const AnnounceMessage& message) noexcept;
     Types::PTPResult<void> prune_expired_foreign_masters(const Types::Timestamp& current_time) noexcept;
     Types::PTPResult<void> calculate_offset_and_delay() noexcept;
+    Types::PTPResult<void> calculate_peer_delay() noexcept;
     
     // Time interval calculations (bounded execution time)
     constexpr Types::TimeInterval time_interval_for_log_interval(std::uint8_t log_interval,

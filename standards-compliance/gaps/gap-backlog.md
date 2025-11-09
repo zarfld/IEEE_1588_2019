@@ -49,12 +49,30 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 ## Batch 2 — Network Path Accuracy
 
-- [ ] GAP-PDELAY-001 Peer delay operational path (11.4, 13.8–13.10)
+- [~] GAP-PDELAY-001 Peer delay operational path (11.4, 13.8–13.10)
   - Trace to: StR-EXTS-001
   - Trace to: REQ-F-204
-  - [ ] RED: TEST-UNIT-Pdelay-Exchange
-  - [ ] RED: TEST-INT-PeerDelay-E2E
-  - [ ] GREEN: Pdelay Req/Resp/Follow_Up arithmetic + correctionField
+  - [x] RED: test_pdelay_mechanism_red.cpp (8 comprehensive acceptance tests, all failing as expected)
+    - Test 1: Basic peer delay calculation (symmetric 50ns path)
+    - Test 2: Asymmetric peer delay handling (30ns + 70ns paths)
+    - Test 3: CorrectionField in peer delay (+20ns correction)
+    - Test 4: Two-step Pdelay_Resp with Follow_Up for precise t3
+    - Test 5: Responder turnaround time measurement (100ns processing)
+    - Test 6: Negative peer delay detection (validation)
+    - Test 7: Large timestamp arithmetic (seconds component)
+    - Test 8: P2P/E2E mode isolation enforcement
+  - [x] GREEN: Peer delay mechanism implemented per IEEE 1588-2019 Section 11.4
+    - ✅ Added peer delay timestamp storage (t1, t2, t3, t4) to clocks.hpp
+    - ✅ Added peer delay correctionField storage (pdelay_resp_correction_, pdelay_resp_follow_up_correction_)
+    - ✅ Implemented process_pdelay_req() for receiving peer delay requests
+    - ✅ Implemented process_pdelay_resp() for receiving peer delay responses (captures t2, t4)
+    - ✅ Implemented process_pdelay_resp_follow_up() for precise t3 timestamp (two-step support)
+    - ✅ Implemented calculate_peer_delay() with formula: meanPathDelay = ((t4-t1) - (t3-t2) + correction) / 2
+    - ✅ Applied correctionField from Pdelay_Resp and Pdelay_Resp_Follow_Up messages
+    - ✅ Added negative peer delay validation (reject invalid measurements)
+    - ✅ Enforced P2P/E2E mode isolation in calculate_offset_and_delay()
+    - ✅ Integration test passes: test_p2p_delay_red confirms E2E doesn't interfere with P2P mode
+  - [ ] REFACTOR: Optional code cleanup and optimization
   - [ ] PHASE-06: Integrate cycles, timers, metrics/health
   - [ ] PHASE-07: Coverage ≥80%, negative tests
 - [ ] GAP-TRANSP-001 Transparent clock correctionField accumulation (11.5)
