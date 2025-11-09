@@ -222,6 +222,41 @@ target_include_directories(datasets_accessors_red PRIVATE
 target_link_libraries(datasets_accessors_red PRIVATE IEEE1588_2019_interface)
 add_test(NAME datasets_accessors_red COMMAND datasets_accessors_red)
 
+# Test 28: GAP-BMCA-001 - Priority vector ordering (RED for full BMCA compliance)
+add_executable(bmca_priority_order_red
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_priority_order_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_priority_order_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_priority_order_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_priority_order_red COMMAND bmca_priority_order_red)
+
+# Test 29: GAP-BMCA-001 - Role selection integration (RED for multi-master scenarios)
+add_executable(bmca_role_selection_red
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_role_selection_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_role_selection_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_role_selection_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_role_selection_red COMMAND bmca_role_selection_red)
+
+# Test 30: BMCA diagnostic helper (debug multi-master selection)
+add_executable(bmca_diagnostic
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_diagnostic.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_diagnostic PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_diagnostic PRIVATE IEEE1588_2019_interface)
+
 # Test 16: Delay_Resp processing
 add_executable(delay_resp_processing
     ${CMAKE_CURRENT_LIST_DIR}/test_delay_resp_processing.cpp

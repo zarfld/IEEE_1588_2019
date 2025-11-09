@@ -86,7 +86,13 @@ PtpPort::PtpPort(const PortConfiguration& config,
     parent_data_set_.parent_stats = false;
     parent_data_set_.observed_parent_offset_scaled_log_variance = 0xFFFF;
     parent_data_set_.observed_parent_clock_phase_change_rate = 0x7FFFFFFF;
-    parent_data_set_.grandmaster_identity.fill(0);
+    // CRITICAL (GAP-BMCA-001): Initialize grandmaster_identity to local clock identity
+    // per IEEE 1588-2019 Section 8.2.3. When a clock has never synchronized to a foreign
+    // master, it considers itself as the grandmaster. Setting this to zeros would make
+    // the unsynchronized clock appear to have the "best" possible grandmaster identity
+    // (0x00..00) in BMCA comparison, incorrectly causing it to be selected over legitimate
+    // foreign masters with non-zero identities.
+    parent_data_set_.grandmaster_identity = port_data_set_.port_identity.clock_identity;
     parent_data_set_.grandmaster_clock_quality.clock_class = 248;
     parent_data_set_.grandmaster_clock_quality.clock_accuracy = 0xFE;
     parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = 0xFFFF;
@@ -711,6 +717,7 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     local.priority2 = parent_data_set_.grandmaster_priority2;
     // Collapse 8-byte ClockIdentity into u64 for comparator (implementation detail)
     // Note: This is a simplified monotonic mapping for increment 1; full comparator uses byte-wise ordering.
+    // grandmaster_identity is now properly initialized to local clock_identity in constructor (GAP-BMCA-001 fix).
     std::uint64_t local_gid = 0;
     for (int i = 0; i < 8; ++i) {
         local_gid = (local_gid << 8) | parent_data_set_.grandmaster_identity[i];
