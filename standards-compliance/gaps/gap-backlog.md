@@ -10,6 +10,7 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 - [ ] GAP-BMCA-001 Best Master Clock Algorithm (9.3)
   - Trace to: StR-EXTS-003
+  - Trace to: REQ-F-202
   - [ ] RED: TEST-UNIT-BMCA-PriorityOrder
   - [ ] RED: TEST-INT-BMCA-RoleSelection
   - [ ] GREEN: Implement full priority vector ordering and role assignment
@@ -33,6 +34,7 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 - [ ] GAP-PDELAY-001 Peer delay operational path (11.4, 13.8–13.10)
   - Trace to: StR-EXTS-001
+  - Trace to: REQ-F-204
   - [ ] RED: TEST-UNIT-Pdelay-Exchange
   - [ ] RED: TEST-INT-PeerDelay-E2E
   - [ ] GREEN: Pdelay Req/Resp/Follow_Up arithmetic + correctionField
@@ -54,12 +56,14 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 - [ ] GAP-DATASETS-001 timePropertiesDS/full dataset coherence (8.2–8.6)
   - Trace to: StR-EXTS-009
+  - Trace to: REQ-F-205
   - [ ] RED: TEST-UNIT-TimeProps-Update
   - [ ] RED: TEST-INT-Dataset-Coherence
   - [ ] GREEN: Flags and bounds; atomic updates; health publish
   - [ ] PHASE-06 + 07
 - [ ] GAP-MGMT-001 Management messages (15, TLVs 14)
   - Trace to: StR-EXTS-009
+  - Trace to: REQ-F-205
   - [ ] RED: TEST-UNIT-Mgmt-TLV-Parse
   - [ ] RED: TEST-UNIT-Mgmt-Get (at least one dataset GET)
   - [ ] GREEN: Minimal GET path; robust TLV parse
@@ -74,6 +78,7 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 - [ ] GAP-PROFILE-001 Profile differentiation (Annex I)
   - Trace to: StR-EXTS-022
+  - Trace to: REQ-F-201
   - [ ] RED: TEST-UNIT-Profile-Params
   - [ ] RED: TEST-INT-Profile-Default
   - [ ] GREEN: Profile struct + defaults; toggle in tests

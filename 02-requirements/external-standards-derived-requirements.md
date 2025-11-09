@@ -1,7 +1,7 @@
 ---
 title: "External Standards Derived System Requirements (Top-5)"
 specType: requirements
-standard: ISO/IEC/IEEE 29148:2018
+standard: 29148
 phase: 02-requirements
 version: 1.0.0
 author: "standards-integration-workstream"
