@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <new>
+#include <cstdlib>
 #include <type_traits>
 #include "clocks.hpp"
 
@@ -18,6 +19,8 @@ void* operator new(std::size_t sz) {
     return std::malloc(sz);
 }
 void operator delete(void* p) noexcept { std::free(p); }
+// Provide sized delete to match C++17 deallocation signatures (silences -Wsized-deallocation)
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 
 int main() {
     // Compile-time size constraints (informational) - not hard failing if exceeded but we record.
