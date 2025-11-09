@@ -70,6 +70,16 @@ target_include_directories(msg_bodies_validation PRIVATE
 target_link_libraries(msg_bodies_validation PRIVATE IEEE1588_2019_interface)
 add_test(NAME ptp_message_bodies_validation COMMAND msg_bodies_validation)
 
+# Test: Signaling message handling (TDD RED for CAP-20251109-04)
+add_executable(signaling_message
+    ${CMAKE_CURRENT_LIST_DIR}/test_signaling_message.cpp
+)
+target_include_directories(signaling_message PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(signaling_message PRIVATE IEEE1588_2019_interface)
+add_test(NAME ptp_signaling_message_handling COMMAND signaling_message)
+
 # Test 6: Offset calculation robustness
 add_executable(offset_calculation_tests
     ${CMAKE_CURRENT_LIST_DIR}/test_offset_calculation.cpp
