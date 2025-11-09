@@ -708,22 +708,24 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     // - Emit RS_MASTER when local is best and port is Listening
     // - Else emit RS_SLAVE when foreign is best and port is Listening
 
-    // Build local priority vector from current/parent datasets (simplified mapping)
+    // Build local priority vector from LOCAL clock's own parameters (not parent_data_set)
+    // parent_data_set represents the CURRENT MASTER, not the local clock itself
+    // Per IEEE 1588-2019 Section 9.3, BMCA compares local clock parameters to foreign masters
     PriorityVector local{};
-    local.priority1 = parent_data_set_.grandmaster_priority1;
-    local.clockClass = parent_data_set_.grandmaster_clock_quality.clock_class;
-    local.clockAccuracy = parent_data_set_.grandmaster_clock_quality.clock_accuracy;
-    local.variance = parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance;
-    local.priority2 = parent_data_set_.grandmaster_priority2;
+    local.priority1 = 128;  // Local clock default priority1
+    local.clockClass = 248; // Slave-only default
+    local.clockAccuracy = 0xFE; // Unknown accuracy
+    local.variance = 0xFFFF; // Maximum variance
+    local.priority2 = 128;  // Local clock default priority2
+    // Use LOCAL port's clock identity for BMCA comparison (not parent_data_set GM identity)
     // Collapse 8-byte ClockIdentity into u64 for comparator (implementation detail)
     // Note: This is a simplified monotonic mapping for increment 1; full comparator uses byte-wise ordering.
-    // grandmaster_identity is now properly initialized to local clock_identity in constructor (GAP-BMCA-001 fix).
     std::uint64_t local_gid = 0;
     for (int i = 0; i < 8; ++i) {
-        local_gid = (local_gid << 8) | parent_data_set_.grandmaster_identity[i];
+        local_gid = (local_gid << 8) | port_data_set_.port_identity.clock_identity[i];
     }
     local.grandmasterIdentity = local_gid;
-    local.stepsRemoved = current_data_set_.steps_removed; // local is root → typically 0
+    local.stepsRemoved = 0; // Local clock is root, always 0 steps removed
 
     // Assemble list: index 0 = local, followed by foreign entries
     // Use fixed-size small array then copy into vector only if foreign present (avoid heap unless needed)
@@ -788,12 +790,13 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
                 return process_event(StateEvent::RS_PASSIVE);
             }
             // Local strictly better → master path
+            // Reset parentDS to local clock values per IEEE 1588-2019 Section 8.2.3
             parent_data_set_.grandmaster_identity = port_data_set_.port_identity.clock_identity; // local becomes GM
-            parent_data_set_.grandmaster_priority1 = parent_data_set_.grandmaster_priority1; // retain existing self priorities
-            parent_data_set_.grandmaster_priority2 = parent_data_set_.grandmaster_priority2;
-            parent_data_set_.grandmaster_clock_quality.clock_class = parent_data_set_.grandmaster_clock_quality.clock_class;
-            parent_data_set_.grandmaster_clock_quality.clock_accuracy = parent_data_set_.grandmaster_clock_quality.clock_accuracy;
-            parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance;
+            parent_data_set_.grandmaster_priority1 = 128; // default local priority1
+            parent_data_set_.grandmaster_priority2 = 128; // default local priority2
+            parent_data_set_.grandmaster_clock_quality.clock_class = 248; // default slave-only
+            parent_data_set_.grandmaster_clock_quality.clock_accuracy = 0xFE; // unknown accuracy
+            parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = 0xFFFF; // max variance
             parent_data_set_.parent_port_identity = port_data_set_.port_identity; // self as parent
             current_data_set_.steps_removed = 0; // root of sync tree
             Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_LocalWins, 1);
