@@ -55,6 +55,12 @@ target_include_directories(pdelay_mechanism_red PRIVATE ${CMAKE_SOURCE_DIR}/incl
 target_link_libraries(pdelay_mechanism_red PRIVATE IEEE1588_2019)
 add_test(NAME pdelay_mechanism_red COMMAND pdelay_mechanism_red)
 
+# GAP-TRANSP-001 Simple verification test for transparent clock
+add_executable(transparent_clock_simple ${CMAKE_CURRENT_LIST_DIR}/test_transparent_clock_simple.cpp)
+target_include_directories(transparent_clock_simple PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(transparent_clock_simple PRIVATE IEEE1588_2019)
+add_test(NAME transparent_clock_simple COMMAND transparent_clock_simple)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests

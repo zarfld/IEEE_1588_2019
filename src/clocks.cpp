@@ -1474,9 +1474,10 @@ Types::PTPResult<void> TransparentClock::update_correction_field(void* message_d
     // Cast to common header to access correction field
     auto* header = static_cast<CommonHeader*>(message_data);
     
-    // Add residence time to correction field (scaled by 2^16 per IEEE 1588-2019)
-    Types::CorrectionField scaled_residence_time = static_cast<Types::CorrectionField>(residence_time) << 16;
-    header->correctionField += scaled_residence_time;
+    // Add residence time to correction field per IEEE 1588-2019 Section 11.5.2.2
+    // TimeInterval is already in scaled nanoseconds (2^-16 units), so direct conversion
+    Types::CorrectionField residence_correction(residence_time);
+    header->correctionField += residence_correction;
     
     return Types::PTPResult<void>::success();
 }
