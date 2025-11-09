@@ -765,7 +765,12 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
         return process_event(StateEvent::RS_PASSIVE);
     }
 
-    if (port_data_set_.port_state == PortState::Listening) {
+    // BMCA can make state recommendations in Listening, PreMaster, Master, Passive states
+    // per IEEE 1588-2019 Section 9.2 - state machine allows transitions based on BMCA results
+    if (port_data_set_.port_state == PortState::Listening ||
+        port_data_set_.port_state == PortState::PreMaster ||
+        port_data_set_.port_state == PortState::Master ||
+        port_data_set_.port_state == PortState::Passive) {
         // Tie handling logic:
         // A true tie occurs only if at least one FOREIGN candidate has identical priority vector
         // to the LOCAL candidate. Prior code incorrectly treated self-comparison (best==0) as tie.

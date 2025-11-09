@@ -107,12 +107,16 @@ int main() {
     std::printf("Foreign Master C: priority1=200, class=240\n\n");
     
     // Process announces
+    std::printf("Processing Foreign Master A (priority1=150, class=200)...\n");
     clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                          &foreign_a, sizeof(AnnounceMessage), Types::Timestamp{});
+    std::printf("Processing Foreign Master B (priority1=100, class=128)...\n");
     clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                          &foreign_b, sizeof(AnnounceMessage), Types::Timestamp{});
+    std::printf("Processing Foreign Master C (priority1=200, class=240)...\n");
     clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                          &foreign_c, sizeof(AnnounceMessage), Types::Timestamp{});
+    std::printf("\n");
     
     PortState final_state = clock.get_port().get_state();
     std::printf("Final State: %u ", static_cast<unsigned>(final_state));
