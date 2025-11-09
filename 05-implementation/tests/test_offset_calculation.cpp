@@ -6,6 +6,8 @@ Traceability:
   Requirements: REQ-F-003  # Offset calculation (E2E)
   Code: include/IEEE/1588/PTP/2019/types.hpp, include/clocks.hpp
 Notes: Validates E2E offset calculation formula and edge cases (negative, large seconds).
+
+@req REQ-F-204 Peer-to-Peer Delay Mechanism (indirect; offset logic also applies to P2P path delay computation)
 */
 
 #include <cstdio>

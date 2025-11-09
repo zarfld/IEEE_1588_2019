@@ -11,6 +11,8 @@
  * - IEEE 802.1AS-2020 (Clauses 8,10,11,14,15)
  * - IEC/IEEE 60802 (industrial profile tables)
  * - AES67-2018 (PTP profile over UDP/IPv4)
+ *
+ * @req REQ-F-201 Profile Strategy Selection (gPTP, Industrial, AES67)
  */
 
 #ifndef IEEE_1588_PTP_2019_PROFILE_HPP

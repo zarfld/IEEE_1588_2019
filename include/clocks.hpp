@@ -6,6 +6,9 @@ Traceability:
     Requirements: REQ-F-003 (E2E offset), REQ-NF-REL-003 (observability)
     Tests: TEST-UNIT-SyncHeuristic, TEST-UNIT-HealthHeartbeat, TEST-UNIT-ForeignMasterOverflow, TEST-UNIT-TimestampOrdering
 Notes: Public interface for PTP clocks and port state machines; aligns with IEEE 1588-2019 Sections 6, 8, 9, 11.
+
+@req REQ-F-202 Deterministic BMCA per gPTP constraints (run_bmca, compare_announce_messages)
+@req REQ-F-205 Dataset/MIB-Based Management (get_port_data_set, get_current_data_set, get_parent_data_set)
 */
 
 /**

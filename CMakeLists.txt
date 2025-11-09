@@ -164,6 +164,14 @@ if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+# Custom target: Generate traceability matrix (non-gating, observational)
+add_custom_target(traceability_matrix
+    COMMAND powershell -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/scripts/generate-traceability-matrix.ps1"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Generating requirements <-> tests <-> implementation traceability matrix"
+    VERBATIM
+)
+
 # Installation
 install(
     DIRECTORY ${IEEE1588_2019_INCLUDE_DIR}/
