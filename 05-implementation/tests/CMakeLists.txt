@@ -210,6 +210,18 @@ target_include_directories(bmca_forced_tie_passive PRIVATE
 target_link_libraries(bmca_forced_tie_passive PRIVATE IEEE1588_2019_interface)
 add_test(NAME bmca_forced_tie_passive COMMAND bmca_forced_tie_passive)
 
+# Test 27: Dataset accessors coherence (RED for REQ-F-205)
+add_executable(datasets_accessors_red
+    ${CMAKE_CURRENT_LIST_DIR}/test_datasets_accessors_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(datasets_accessors_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(datasets_accessors_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME datasets_accessors_red COMMAND datasets_accessors_red)
+
 # Test 16: Delay_Resp processing
 add_executable(delay_resp_processing
     ${CMAKE_CURRENT_LIST_DIR}/test_delay_resp_processing.cpp
