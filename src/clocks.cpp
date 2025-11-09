@@ -55,6 +55,15 @@ PtpPort::PtpPort(const PortConfiguration& config,
     
     // Initialize port data set per IEEE 1588-2019 Section 8.2.5
     port_data_set_.port_identity.port_number = config.port_number;
+    // Deterministic non-zero clock identity initialization (REQ-F-205 dataset coherence)
+    // For now generate a simple pattern derived from port number to avoid all-zero identity.
+    bool all_zero = true;
+    for (auto b : port_data_set_.port_identity.clock_identity) { if (b != 0) { all_zero = false; break; } }
+    if (all_zero) {
+        for (size_t i = 0; i < port_data_set_.port_identity.clock_identity.size(); ++i) {
+            port_data_set_.port_identity.clock_identity[i] = static_cast<std::uint8_t>((config.port_number + (i * 13)) & 0xFF);
+        }
+    }
     // Clock identity will be set by parent clock
     port_data_set_.port_state = PortState::Initializing;
     port_data_set_.log_min_delay_req_interval = config.delay_req_interval;
@@ -724,6 +733,11 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
         v.priority2 = f.body.grandmasterPriority2;
         std::uint64_t gid = 0;
         for (int b = 0; b < 8; ++b) { gid = (gid << 8) | f.body.grandmasterIdentity[b]; }
+        if (gid == 0) {
+            // Fallback: if GM identity not provided, derive from source port clock identity
+            gid = 0;
+            for (int b = 0; b < 8; ++b) { gid = (gid << 8) | f.header.sourcePortIdentity.clock_identity[b]; }
+        }
         v.grandmasterIdentity = gid;
         // stepsRemoved is network-order in message body; stored as host in our struct? Convert conservatively.
         v.stepsRemoved = static_cast<std::uint16_t>(f.body.stepsRemoved);
@@ -779,7 +793,10 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
                 return process_event(StateEvent::RS_PASSIVE);
             }
             const auto &f = foreign_masters_[static_cast<size_t>(best - 1)];
-            parent_data_set_.grandmaster_identity = f.body.grandmasterIdentity;
+            // Assign GM identity; if empty in message, fallback to source port identity
+            bool gm_zero = true; for (auto b : f.body.grandmasterIdentity) { if (b != 0) { gm_zero = false; break; } }
+            parent_data_set_.grandmaster_identity = gm_zero ? f.header.sourcePortIdentity.clock_identity
+                                                            : f.body.grandmasterIdentity;
             parent_data_set_.grandmaster_priority1 = f.body.grandmasterPriority1;
             parent_data_set_.grandmaster_priority2 = f.body.grandmasterPriority2;
             parent_data_set_.grandmaster_clock_quality.clock_class = f.body.grandmasterClockClass;

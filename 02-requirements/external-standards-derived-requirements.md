@@ -159,13 +159,13 @@ Acceptance Criteria:
 Scenario: Single-hop P2P delay calculation
   Given two time-aware systems on a full-duplex point-to-point link with profile = gPTP
   When they exchange Pdelay messages per interval
-  Then each peer’s mean path delay SHALL converge within a bounded tolerance
+  Then each peer’s mean path delay SHALL converge within a bounded tolerance (P2P_TOLERANCE_NS = 100ns)
   And the correction field contributions SHALL be updated consistently
 
 Scenario: Multi-hop accumulation does not exceed bounds
   Given a three-hop chain of P2P links
   When Pdelay exchanges are stable
-  Then the effective path delay seen by a slave SHALL equal the sum of peer delays within tolerance
+  Then the effective path delay seen by a slave SHALL equal the sum of peer delays within tolerance (±100ns per hop accumulated)
 ```
 
 Dependencies:
@@ -176,7 +176,7 @@ Constraints:
 
 Test Strategy:
 - Unit: arithmetic for peer mean path delay and correction field scaling
-- Integration: simulated links with deterministic timestamps; multi-hop chain
+- Integration: simulated links with deterministic timestamps; multi-hop chain measuring deviation ≤ 100ns per hop
 
 ---
 
@@ -241,4 +241,4 @@ Test Strategy:
 
 1. Do we expose profile selection at runtime per instance, or lock at build/config time for deterministic embedded targets?
 2. Minimal dataset write operations allowed under gPTP (which fields are safely mutable without violating profile rules)?
-3. Tolerance thresholds for P2P arithmetic in simulations (define a numeric target per performance tier).
+3. (Resolved) Tolerance thresholds: P2P_TOLERANCE_NS fixed at 100ns per hop for initial tier; future performance tier may require tightening (<50ns).
