@@ -62,14 +62,15 @@ int main() {
     if (!port.start().is_success()) return 2;
     if (port.get_state() != PortState::Listening) return 3;
 
-    // Build a foreign Announce different from local (so true equality is false)
+    // Build a foreign Announce different from local (so true equality is false).
+    // Use worse priority so that without forced tie, local would become MASTER; with forced tie we expect PASSIVE.
     AnnounceMessage foreign{};
     foreign.initialize(MessageType::Announce, cfg.domain_number, make_foreign_id(0x10));
-    foreign.body.grandmasterPriority1 = 127; // better than default 128
-    foreign.body.grandmasterClockClass = 128; // arbitrary
-    foreign.body.grandmasterClockAccuracy = 0x22; // arbitrary
-    foreign.body.grandmasterClockVariance = 0x0100; // arbitrary
-    foreign.body.grandmasterPriority2 = 127; // better than default 128
+    foreign.body.grandmasterPriority1 = 129; // worse than default 128
+    foreign.body.grandmasterClockClass = 248; // same baseline
+    foreign.body.grandmasterClockAccuracy = 0xFE;
+    foreign.body.grandmasterClockVariance = 0xFFFF;
+    foreign.body.grandmasterPriority2 = 129; // worse than default 128
     foreign.body.stepsRemoved = 0; // equal steps baseline
     if (!port.process_announce(foreign).is_success()) return 4;
 
@@ -83,9 +84,9 @@ int main() {
 
     // Assert: Expected PASSIVE under forced tie signal
     if (port.get_state() != PortState::Passive) {
-        std::fprintf(stderr, "[RED-BMCA] Expected PASSIVE under forced tie, got different state.\n");
-        return 100; // RED: should fail with current implementation
+        std::fprintf(stderr, "[BMCA-ForcedTie] FAIL: Expected PASSIVE under forced tie, got different state.\n");
+        return 100;
     }
-    std::puts("[RED-BMCA] PASS (unexpected): implementation already treats forced ties as passive");
+    std::puts("[BMCA-ForcedTie] PASS: Forced tie produced PASSIVE state as required (REQ-F-202)");
     return 0;
 }

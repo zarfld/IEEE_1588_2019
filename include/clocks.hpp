@@ -452,6 +452,9 @@ public:
     
     /** Get parent data set */
     constexpr const ParentDataSet& get_parent_data_set() const noexcept { return parent_data_set_; }
+
+    /** Get port data set (for dataset/read observability tests) */
+    constexpr const PortDataSet& get_port_data_set() const noexcept { return port_data_set_; }
     
     /** Check if port is in master role */
     constexpr bool is_master() const noexcept { 

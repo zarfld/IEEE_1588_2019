@@ -198,6 +198,18 @@ target_include_directories(bmca_tie_passive PRIVATE
 target_link_libraries(bmca_tie_passive PRIVATE IEEE1588_2019_interface)
 add_test(NAME bmca_tie_passive COMMAND bmca_tie_passive)
 
+# Test 26: Forced tie passive scenario (REQ-F-202) - originally RED, now expected GREEN
+add_executable(bmca_forced_tie_passive
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_forced_tie_passive_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(bmca_forced_tie_passive PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(bmca_forced_tie_passive PRIVATE IEEE1588_2019_interface)
+add_test(NAME bmca_forced_tie_passive COMMAND bmca_forced_tie_passive)
+
 # Test 16: Delay_Resp processing
 add_executable(delay_resp_processing
     ${CMAKE_CURRENT_LIST_DIR}/test_delay_resp_processing.cpp

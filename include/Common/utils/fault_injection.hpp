@@ -31,6 +31,11 @@ namespace detail {
         static std::atomic<int> v{0};
         return v;
     }
+    // Flag indicating that a BMCA comparison used a forced tie since last check
+    inline std::atomic<bool>& bmca_tie_forced_observed() noexcept {
+        static std::atomic<bool> v{false};
+        return v;
+    }
 }
 
 // Global reset (tests)
@@ -38,6 +43,7 @@ inline void reset() noexcept {
     detail::offset_jitter_enabled().store(false, std::memory_order_relaxed);
     detail::offset_jitter_ns().store(0, std::memory_order_relaxed);
     detail::bmca_tie_tokens().store(0, std::memory_order_relaxed);
+    detail::bmca_tie_forced_observed().store(false, std::memory_order_relaxed);
 }
 
 // Offset jitter controls (nanoseconds)
@@ -66,6 +72,23 @@ inline bool consume_bmca_tie_token() noexcept {
             return true;
         }
         // cur reloaded by CAS failure
+    }
+    return false;
+}
+
+// Mark that a forced tie was observed (used by BMCA comparator implementation)
+inline void mark_bmca_tie_forced_observed(bool used) noexcept {
+    if (used) {
+        detail::bmca_tie_forced_observed().store(true, std::memory_order_relaxed);
+    }
+}
+
+// Query and clear the forced tie observed flag (one-shot)
+inline bool was_bmca_tie_forced_and_clear() noexcept {
+    bool expected = true;
+    // If it was true, reset to false and return true; otherwise return false
+    if (detail::bmca_tie_forced_observed().compare_exchange_strong(expected, false, std::memory_order_relaxed)) {
+        return true;
     }
     return false;
 }

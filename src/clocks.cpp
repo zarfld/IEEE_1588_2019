@@ -532,6 +532,11 @@ Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexc
     if (have_sync_ && have_follow_up_ && have_delay_req_ && have_delay_resp_) {
         calculate_offset_and_delay();
     }
+    // Allow BMCA reevaluation on tick in key states to handle external triggers (e.g., forced tie tests)
+    if (port_data_set_.port_state == PortState::Listening ||
+        port_data_set_.port_state == PortState::PreMaster) {
+        run_bmca();
+    }
     // Health heartbeat emission (FM-007): throttle to 1 second
     const auto one_second = time_interval_for_log_interval(0, 1);
     if (is_timeout_expired(last_health_emit_time_, current_time, one_second)) {
@@ -728,6 +733,15 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     const int best = selectBestIndex(list);
     if (best < 0) {
         return Types::PTPResult<void>::success();
+    }
+
+    // Forced tie passive logic (REQ-F-202): if a forced tie was observed this cycle
+    // recommend PASSIVE regardless of current state to ensure deterministic passive outcome.
+    bool forced_tie_cycle = Common::utils::fi::was_bmca_tie_forced_and_clear();
+    if (forced_tie_cycle) {
+        Common::utils::logging::info("BMCA", 0x0110, "Forced tie detected in run_bmca - issuing PASSIVE recommendation");
+        Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_PassiveWins, 1);
+        return process_event(StateEvent::RS_PASSIVE);
     }
 
     if (port_data_set_.port_state == PortState::Listening) {

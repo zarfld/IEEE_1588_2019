@@ -94,6 +94,8 @@ int selectBestIndex(const std::vector<PriorityVector>& list) {
     Common::utils::metrics::increment(Common::utils::metrics::CounterId::BMCA_Selections, 1);
     if (forcedTieUsed) {
         Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsPassed, 1); // treat forced path visibility as a validated scenario
+        // Mark for outer state machine to detect and enforce PASSIVE per REQ-F-202
+        Common::utils::fi::mark_bmca_tie_forced_observed(true);
     }
     // If tieDetected and best remained 0, surface tie intent with sentinel index -2 for passive recommendation layer
     Common::utils::health::record_bmca_selection(tieDetected ? -2 : best);
