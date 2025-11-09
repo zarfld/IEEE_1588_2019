@@ -30,6 +30,12 @@ target_include_directories(ptp_offset_calc_red PRIVATE ${CMAKE_SOURCE_DIR}/inclu
 target_link_libraries(ptp_offset_calc_red PRIVATE IEEE1588_2019)
 add_test(NAME ptp_offset_calc_red COMMAND ptp_offset_calc_red)
 
+# GAP-FOREIGN-001 RED phase test for foreign master list management
+add_executable(foreign_master_list_red ${CMAKE_CURRENT_LIST_DIR}/test_foreign_master_list_red.cpp)
+target_include_directories(foreign_master_list_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(foreign_master_list_red PRIVATE IEEE1588_2019)
+add_test(NAME foreign_master_list_red COMMAND foreign_master_list_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests

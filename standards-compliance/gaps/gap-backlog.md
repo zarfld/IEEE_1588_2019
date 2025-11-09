@@ -46,11 +46,19 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
   - [ ] RED: TEST-INT-Transparent-Forward
   - [ ] GREEN: Residence/peer delay accumulation, saturation
   - [ ] PHASE-06 + 07
-- [ ] GAP-FOREIGN-001 Foreign master list pruning/selection (9.3)
+- [~] GAP-FOREIGN-001 Foreign master list pruning/selection (9.3)
   - Trace to: StR-EXTS-008
-  - [ ] RED: TEST-UNIT-ForeignList-Prune
-  - [ ] RED: TEST-INT-ForeignList-Selection
-  - [ ] GREEN: Bounded list; prune stale/low-priority; deterministic selection
+  - [x] RED: test_foreign_master_list_red.cpp (5 tests, all failing as expected)
+    - Test 1: Foreign master list basic management
+    - Test 2: Multiple foreign masters tracking
+    - Test 3: Foreign master timeout detection (announceReceiptTimeout)
+    - Test 4: Stale foreign master pruning before BMCA
+    - Test 5: Foreign master list size limit (MAX_FOREIGN_MASTERS=16)
+  - [ ] GREEN: Implement timeout/aging/pruning logic in clocks.cpp
+    - Add timestamp-based expiration checking
+    - Implement prune_expired_foreign_masters() function
+    - Integrate pruning with BMCA execution
+    - Handle announceReceiptTimeout × 2^logMessageInterval formula
   - [ ] PHASE-06 + 07
 
 ## Batch 3 — Dataset + Management Expansion
