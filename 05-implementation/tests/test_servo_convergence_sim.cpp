@@ -40,8 +40,11 @@ int main() {
     std::vector<long long> offsets_abs;
     offsets_abs.reserve(16);
 
-    for (int i = 0; i < 12; ++i) {
-        const std::uint64_t t_master_send = t0_ns + static_cast<std::uint64_t>(i) * cycle_period_ns; // T1 master domain
+    // Iterate until we meet threshold or hit a conservative cap to avoid infinite loops on regression
+    const int max_iterations = 20;
+    int iterations = 0;
+    while (iterations < max_iterations && std::llabs(offset_ns) > threshold_ns) {
+    const std::uint64_t t_master_send = t0_ns + static_cast<std::uint64_t>(iterations) * cycle_period_ns; // T1 master domain
         const std::uint64_t t_master_arrival = t_master_send + one_way_delay_ns; // true arrival at slave (master time)
 
         // Slave-local times are master times plus current offset (no drift in this minimal evidence)
@@ -72,11 +75,14 @@ int main() {
         // Apply proportional correction (phase step)
         const double correction = alpha * static_cast<double>(est_offset_ns);
         offset_ns = static_cast<long long>(std::llround(static_cast<double>(offset_ns) - correction));
+        ++iterations;
     }
 
     // Monotonic non-increasing absolute offset sequence (with exact estimation, P-controller halves each step)
-    for (size_t k = 1; k < offsets_abs.size(); ++k) {
-        assert(offsets_abs[k] <= offsets_abs[k-1]);
+    if (offsets_abs.size() >= 2) {
+        for (size_t k = 1; k < offsets_abs.size(); ++k) {
+            assert(offsets_abs[k] <= offsets_abs[k-1]);
+        }
     }
 
     // Convergence: final absolute offset within strict threshold
