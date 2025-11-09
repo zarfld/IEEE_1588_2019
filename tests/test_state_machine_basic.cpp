@@ -43,12 +43,16 @@ static Timestamp make_ns(uint64_t ns_total) {
     return t;
 }
 
+// Forward declare p2p red case dispatcher implemented in its own TU
+int p2p_delay_red_main();
+
 int main(int argc, char** argv) {
     // Dispatch to focused tests when requested by CTest
     if (argc > 2 && std::string(argv[1]) == "--case") {
         std::string which = argv[2];
-        if (which == "messages") return messages_main();
-        if (which == "timestamp") return timestamp_main();
+    if (which == "messages") return messages_main();
+    if (which == "timestamp") return timestamp_main();
+    if (which == "p2p-delay-red") return p2p_delay_red_main();
     }
     // Arrange: minimal port configuration and callbacks
     PortConfiguration cfg{};

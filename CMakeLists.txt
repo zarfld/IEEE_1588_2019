@@ -51,6 +51,8 @@ set(IEEE1588_2019_HEADERS
     include/IEEE/1588/PTP/2019/namespace.hpp
     include/IEEE/1588/PTP/2019/types.hpp
     include/IEEE/1588/PTP/2019/messages.hpp
+    include/IEEE/1588/PTP/2019/profile.hpp
+    include/IEEE/1588/PTP/2019/profile_adapter.hpp
     include/clocks.hpp
     # include/IEEE/1588/PTP/2019/clock.hpp
     # include/IEEE/1588/PTP/2019/algorithms.hpp

@@ -7,6 +7,7 @@ set(TEST_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/test_state_machine_basic.cpp
 	${CMAKE_CURRENT_LIST_DIR}/test_messages_validate.cpp
 	${CMAKE_CURRENT_LIST_DIR}/test_types_timestamp.cpp
+	${CMAKE_CURRENT_LIST_DIR}/test_p2p_delay_red.cpp
 )
 
 add_executable(ptp_state_machine_tests ${TEST_SOURCES})
@@ -18,6 +19,9 @@ add_test(NAME ptp_state_machine_basic COMMAND ptp_state_machine_tests)
 # Register additional focused tests as separate CTest entries invoking the same binary
 add_test(NAME ptp_messages_validate COMMAND ptp_state_machine_tests --case messages)
 add_test(NAME ptp_types_timestamp COMMAND ptp_state_machine_tests --case timestamp)
+
+# RED test for P2P delay mechanism (REQ-F-204)
+add_test(NAME ptp_p2p_delay_red COMMAND ptp_state_machine_tests --case p2p-delay-red)
 
 # New RED phase test for REQ-F-003 (Offset Calculation). Separate executable for isolation.
 # Separate executable for RED phase offset calculation test (isolated main)
