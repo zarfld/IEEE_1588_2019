@@ -25,7 +25,7 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
   - [ ] REFACTOR: Optional code cleanup
   - [ ] PHASE-06: Wire to BMCA callbacks; metrics/health
   - [ ] PHASE-07: Re-verify; matrix + docs
-- [~] GAP-OFFSET-TEST-001 Numeric GREEN acceptance test (11.3)
+- [x] GAP-OFFSET-TEST-001 Numeric GREEN acceptance test (11.3)
   - Trace to: StR-EXTS-017
   - [x] RED: test_offset_calculation_red.cpp (7 comprehensive acceptance tests, all failing as expected)
     - Test 1: Basic symmetric path delay offset calculation
@@ -35,7 +35,14 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
     - Test 5: Nanosecond boundary and rounding
     - Test 6: Negative offset (slave clock ahead)
     - Test 7: Zero offset (perfect synchronization)
-  - [ ] GREEN: Implement calculate_offset_from_master() with T1-T4 arithmetic and correctionField
+  - [x] GREEN: CorrectionField support implemented in offset calculation per IEEE 1588-2019 Section 11.3.2
+    - ✅ Added correctionField storage fields (sync_correction_, follow_up_correction_, delay_resp_correction_) to clocks.hpp
+    - ✅ Updated process_sync() to capture Sync message correctionField
+    - ✅ Updated process_follow_up() to capture Follow_Up message correctionField
+    - ✅ Updated process_delay_resp() to capture Delay_Resp message correctionField
+    - ✅ Modified calculate_offset_and_delay() to apply total correction: offset = (t2-t1)-(t4-t3))/2 + total_correction
+    - ✅ CorrectionField properly converted from scaled nanoseconds (2^-16 ns units) using toNanoseconds()
+    - ✅ Verification test passes: ptp_offset_calc_red.exe confirms offset and path delay computation
   - [ ] REFACTOR: Optional cleanup if needed
   - [ ] PHASE-06: Wire to telemetry and monitoring
   - [ ] PHASE-07: Acceptance evidence, matrix row
