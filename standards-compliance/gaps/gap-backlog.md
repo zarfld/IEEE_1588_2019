@@ -25,10 +25,19 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
   - [ ] REFACTOR: Optional code cleanup
   - [ ] PHASE-06: Wire to BMCA callbacks; metrics/health
   - [ ] PHASE-07: Re-verify; matrix + docs
-- [ ] GAP-OFFSET-TEST-001 Numeric GREEN acceptance test (11.3)
+- [~] GAP-OFFSET-TEST-001 Numeric GREEN acceptance test (11.3)
   - Trace to: StR-EXTS-017
-  - [ ] RED: TEST-ACC-Offset-Formula-Green (T1–T4, correctionField, rounding, clamp)
-  - [ ] GREEN: Minimal fixes if needed
+  - [x] RED: test_offset_calculation_red.cpp (7 comprehensive acceptance tests, all failing as expected)
+    - Test 1: Basic symmetric path delay offset calculation
+    - Test 2: Asymmetric path delay handling  
+    - Test 3: CorrectionField arithmetic
+    - Test 4: Large timestamp arithmetic (seconds component)
+    - Test 5: Nanosecond boundary and rounding
+    - Test 6: Negative offset (slave clock ahead)
+    - Test 7: Zero offset (perfect synchronization)
+  - [ ] GREEN: Implement calculate_offset_from_master() with T1-T4 arithmetic and correctionField
+  - [ ] REFACTOR: Optional cleanup if needed
+  - [ ] PHASE-06: Wire to telemetry and monitoring
   - [ ] PHASE-07: Acceptance evidence, matrix row
 
 ## Batch 2 — Network Path Accuracy

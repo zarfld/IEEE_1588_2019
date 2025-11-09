@@ -42,6 +42,12 @@ target_include_directories(foreign_master_pruning_verify PRIVATE ${CMAKE_SOURCE_
 target_link_libraries(foreign_master_pruning_verify PRIVATE IEEE1588_2019)
 add_test(NAME foreign_master_pruning_verify COMMAND foreign_master_pruning_verify)
 
+# GAP-OFFSET-TEST-001 RED phase acceptance test for offset calculation
+add_executable(offset_calculation_red ${CMAKE_CURRENT_LIST_DIR}/test_offset_calculation_red.cpp)
+target_include_directories(offset_calculation_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(offset_calculation_red PRIVATE IEEE1588_2019)
+add_test(NAME offset_calculation_red COMMAND offset_calculation_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
