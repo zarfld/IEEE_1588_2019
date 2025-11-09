@@ -522,6 +522,12 @@ private:
     Types::Timestamp sync_rx_timestamp_{};          // T2 local receive timestamp of Sync
     Types::Timestamp delay_req_tx_timestamp_{};     // T3 local transmit timestamp of Delay_Req
     Types::Timestamp delay_resp_rx_timestamp_{};    // T4 master receive timestamp of Delay_Req (from Delay_Resp)
+    
+    // CorrectionField accumulation per IEEE 1588-2019 Section 11.3.2
+    Types::TimeInterval sync_correction_{};         // Correction from Sync message
+    Types::TimeInterval follow_up_correction_{};    // Correction from Follow_Up message
+    Types::TimeInterval delay_resp_correction_{};   // Correction from Delay_Resp message
+    
     bool have_sync_{false};
     bool have_follow_up_{false};
     bool have_delay_req_{false};

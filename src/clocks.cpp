@@ -415,8 +415,10 @@ Types::PTPResult<void> PtpPort::process_sync(const SyncMessage& message,
         return Types::PTPResult<void>{};
     }
     
-    (void)message; // not used yet
     sync_rx_timestamp_ = rx_timestamp; // T2
+    // Store correctionField from Sync message per IEEE 1588-2019 Section 11.3.2
+    // CorrectionField is in units of 2^-16 nanoseconds (scaled nanoseconds)
+    sync_correction_ = Types::TimeInterval::fromNanoseconds(message.header.correctionField.toNanoseconds());
     have_sync_ = true;
     return Types::PTPResult<void>::success();
 }
@@ -431,6 +433,9 @@ Types::PTPResult<void> PtpPort::process_follow_up(const FollowUpMessage& message
     }
     
     sync_origin_timestamp_ = message.body.preciseOriginTimestamp; // T1
+    // Store correctionField from Follow_Up message per IEEE 1588-2019 Section 11.3.2
+    // CorrectionField is in units of 2^-16 nanoseconds (scaled nanoseconds)
+    follow_up_correction_ = Types::TimeInterval::fromNanoseconds(message.header.correctionField.toNanoseconds());
     have_follow_up_ = true;
     if (have_sync_ && have_delay_req_ && have_delay_resp_) {
         auto result = calculate_offset_and_delay();
@@ -524,6 +529,9 @@ Types::PTPResult<void> PtpPort::process_delay_resp(const DelayRespMessage& messa
     }
     
     delay_resp_rx_timestamp_ = message.body.receiveTimestamp; // T4
+    // Store correctionField from Delay_Resp message per IEEE 1588-2019 Section 11.3.2
+    // CorrectionField is in units of 2^-16 nanoseconds (scaled nanoseconds)
+    delay_resp_correction_ = Types::TimeInterval::fromNanoseconds(message.header.correctionField.toNanoseconds());
     have_delay_resp_ = true;
     if (have_sync_ && have_follow_up_ && have_delay_req_) {
         return calculate_offset_and_delay();
@@ -960,7 +968,14 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
     Types::TimeInterval t4_minus_t3 = delay_resp_rx_timestamp_ - delay_req_tx_timestamp_;
     double t2_t1_ns = t2_minus_t1.toNanoseconds();
     double t4_t3_ns = t4_minus_t3.toNanoseconds();
-    double offset_ns = (t2_t1_ns - t4_t3_ns) / 2.0;
+    
+    // Apply correctionField per IEEE 1588-2019 Section 11.3.2
+    // Total correction = sum of corrections from Sync, Follow_Up, and Delay_Resp messages
+    double total_correction_ns = sync_correction_.toNanoseconds() + 
+                                 follow_up_correction_.toNanoseconds() + 
+                                 delay_resp_correction_.toNanoseconds();
+    
+    double offset_ns = (t2_t1_ns - t4_t3_ns) / 2.0 + total_correction_ns;
     double path_ns = (t2_t1_ns + t4_t3_ns) / 2.0;
     // Store only if computed path delay positive (basic validation)
     if (path_ns > 0.0) {
