@@ -707,6 +707,14 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     // - Select best via canonical comparator
     // - Emit RS_MASTER when local is best and port is Listening
     // - Else emit RS_SLAVE when foreign is best and port is Listening
+    
+    // Prune expired foreign masters before BMCA execution per IEEE 1588-2019 Section 9.3.2.5
+    // This ensures only valid foreign masters participate in Best Master Clock Algorithm
+    Types::Timestamp current_time = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
+    auto prune_result = prune_expired_foreign_masters(current_time);
+    if (!prune_result.is_success()) {
+        Common::utils::logging::warn("BMCA", 0x0111, "Failed to prune expired foreign masters");
+    }
 
     // Build local priority vector from LOCAL clock's own parameters (not parent_data_set)
     // parent_data_set represents the CURRENT MASTER, not the local clock itself
@@ -767,12 +775,15 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
         return process_event(StateEvent::RS_PASSIVE);
     }
 
-    // BMCA can make state recommendations in Listening, PreMaster, Master, Passive states
+    // BMCA can make state recommendations and update parent_data_set in multiple states
     // per IEEE 1588-2019 Section 9.2 - state machine allows transitions based on BMCA results
+    // Include SLAVE and UNCALIBRATED to allow parent_data_set updates when foreign master changes
     if (port_data_set_.port_state == PortState::Listening ||
         port_data_set_.port_state == PortState::PreMaster ||
         port_data_set_.port_state == PortState::Master ||
-        port_data_set_.port_state == PortState::Passive) {
+        port_data_set_.port_state == PortState::Passive ||
+        port_data_set_.port_state == PortState::Uncalibrated ||
+        port_data_set_.port_state == PortState::Slave) {
         // Tie handling logic:
         // A true tie occurs only if at least one FOREIGN candidate has identical priority vector
         // to the LOCAL candidate. Prior code incorrectly treated self-comparison (best==0) as tie.
@@ -856,6 +867,80 @@ Types::PTPResult<void> PtpPort::update_foreign_master_list(const AnnounceMessage
     Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
     Common::utils::health::emit();
     return Types::PTPResult<void>::failure(Types::PTPError::Resource_Unavailable);
+}
+
+/**
+ * @brief Prune expired foreign masters from the list
+ * @details Removes foreign masters that have not sent Announce messages within
+ *          announceReceiptTimeout × 2^logMessageInterval per IEEE 1588-2019 Section 9.5.17
+ * 
+ * Timeout calculation follows IEEE 1588-2019 Section 8.2.15.4:
+ * - announceReceiptTimeout is typically 3
+ * - logMessageInterval from Announce message (typically 1, meaning 2 seconds)
+ * - Formula: timeout_seconds = announceReceiptTimeout × 2^logMessageInterval
+ * - Example: 3 × 2^1 = 6 seconds
+ * 
+ * This function is called before BMCA execution per Section 9.3.2.5 to ensure
+ * only valid foreign masters participate in Best Master Clock Algorithm.
+ * 
+ * @param current_time Current timestamp for age comparison
+ * @return Success or failure result
+ * 
+ * @note Implementation uses compact removal (shift down) to maintain deterministic behavior
+ */
+Types::PTPResult<void> PtpPort::prune_expired_foreign_masters(const Types::Timestamp& current_time) noexcept {
+    std::uint8_t write_index = 0;
+    std::uint8_t removed_count = 0;
+    
+    // Iterate through all foreign masters, keeping only non-expired ones
+    for (std::uint8_t read_index = 0; read_index < foreign_master_count_; ++read_index) {
+        const auto& foreign_msg = foreign_masters_[read_index];
+        const auto& foreign_timestamp = foreign_master_timestamps_[read_index];
+        
+        // Calculate timeout interval for this foreign master
+        // Per IEEE 1588-2019 Section 8.2.15.4: timeout = announceReceiptTimeout × 2^logMessageInterval
+        // Use logMessageInterval from the Announce message itself
+        std::uint8_t log_interval = foreign_msg.header.logMessageInterval;
+        Types::TimeInterval timeout_interval = time_interval_for_log_interval(
+            log_interval, 
+            config_.announce_receipt_timeout
+        );
+        
+        // Check if this foreign master has expired
+        bool expired = is_timeout_expired(foreign_timestamp, current_time, timeout_interval);
+        
+        if (expired) {
+            // Foreign master expired - skip it (don't copy to write position)
+            removed_count++;
+            
+            // Log expiration for debugging
+            std::uint64_t clock_id = 0;
+            for (int i = 0; i < 8; ++i) {
+                clock_id = (clock_id << 8) | foreign_msg.header.sourcePortIdentity.clock_identity[i];
+            }
+            Common::utils::logging::info("ForeignMasterList", 0x0302, 
+                "Pruned expired foreign master (timeout exceeded)");
+            Common::utils::metrics::increment(Common::utils::metrics::CounterId::ValidationsFailed, 1);
+        } else {
+            // Foreign master still valid - keep it
+            if (write_index != read_index) {
+                // Compact: move to earlier position
+                foreign_masters_[write_index] = foreign_masters_[read_index];
+                foreign_master_timestamps_[write_index] = foreign_master_timestamps_[read_index];
+            }
+            write_index++;
+        }
+    }
+    
+    // Update count to reflect removed entries
+    foreign_master_count_ = write_index;
+    
+    // Emit health status if any foreign masters were pruned
+    if (removed_count > 0) {
+        Common::utils::health::emit();
+    }
+    
+    return Types::PTPResult<void>::success();
 }
 
 Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {

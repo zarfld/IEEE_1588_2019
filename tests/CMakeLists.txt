@@ -36,6 +36,12 @@ target_include_directories(foreign_master_list_red PRIVATE ${CMAKE_SOURCE_DIR}/i
 target_link_libraries(foreign_master_list_red PRIVATE IEEE1588_2019)
 add_test(NAME foreign_master_list_red COMMAND foreign_master_list_red)
 
+# GAP-FOREIGN-001 GREEN verification test for pruning implementation
+add_executable(foreign_master_pruning_verify ${CMAKE_CURRENT_LIST_DIR}/test_foreign_master_pruning_verify.cpp)
+target_include_directories(foreign_master_pruning_verify PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(foreign_master_pruning_verify PRIVATE IEEE1588_2019)
+add_test(NAME foreign_master_pruning_verify COMMAND foreign_master_pruning_verify)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests

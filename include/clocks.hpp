@@ -546,6 +546,7 @@ private:
     BMCADecision compare_announce_messages(const AnnounceMessage& local,
                                          const AnnounceMessage& foreign) const noexcept;
     Types::PTPResult<void> update_foreign_master_list(const AnnounceMessage& message) noexcept;
+    Types::PTPResult<void> prune_expired_foreign_masters(const Types::Timestamp& current_time) noexcept;
     Types::PTPResult<void> calculate_offset_and_delay() noexcept;
     
     // Time interval calculations (bounded execution time)
