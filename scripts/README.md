@@ -1,4 +1,20 @@
-# Scripts Directory
+# Scripts
+
+generate-traceability-matrix.ps1
+  - Scans `02-requirements/` for requirement IDs (REQ-F-###)
+  - Scans `05-implementation/tests/` and implementation dirs for references
+  - Writes `07-verification-validation/traceability/requirements-test-matrix.md`
+
+Usage (PowerShell):
+
+```
+# From repo root
+powershell -ExecutionPolicy Bypass -File scripts/generate-traceability-matrix.ps1
+```
+
+Notes:
+- No external dependencies. Uses simple substring scans. Add `// Trace to: REQ-F-###` in tests and `// REQ trace: REQ-F-###` in code to improve detection.
+- For CI, run this script before publishing verification artifacts.# Scripts Directory
 
 This directory contains automation scripts for specification validation, creation, and management.
 
@@ -8,72 +24,72 @@ This directory contains automation scripts for specification validation, creatio
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `create-spec.py` | Interactive spec creation wizard | `python scripts/create-spec.py requirements --interactive` |
-| `validate-spec-structure.py` | Validate YAML front matter against schemas | `python scripts/validate-spec-structure.py` |
-| `check-spec-numbering.py` | Check for ID duplicates and gaps | `python scripts/check-spec-numbering.py` |
-| `spec-cli.py` | Unified CLI for all spec operations | `python scripts/spec-cli.py validate` |
+| `create-spec.py` | Interactive spec creation wizard | `py -3 scripts/create-spec.py requirements --interactive` |
+| `validate-spec-structure.py` | Validate YAML front matter against schemas | `py -3 scripts/validate-spec-structure.py` |
+| `check-spec-numbering.py` | Check for ID duplicates and gaps | `py -3 scripts/check-spec-numbering.py` |
+| `spec-cli.py` | Unified CLI for all spec operations | `py -3 scripts/spec-cli.py validate` |
 | `pre-commit-hook.py` | Git pre-commit validation hook | Setup: `pre-commit install` |
 
 ### Traceability & Analysis
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `generate-traceability-matrix.py` | Generate traceability matrix | `python scripts/generate-traceability-matrix.py` |
-| `generators/spec_parser.py` | Parse specs to JSON index | `python scripts/generators/spec_parser.py` |
-| `generators/build_trace_json.py` | Build traceability JSON | `python scripts/generators/build_trace_json.py` |
-| `generators/gen_tests.py` | Generate test skeletons | `python scripts/generators/gen_tests.py` |
+| `generate-traceability-matrix.py` | Generate traceability matrix | `py -3 scripts/generate_traceability_matrix.py` |
+| `generators/spec_parser.py` | Parse specs to JSON index | `py -3 scripts/generators/spec_parser.py` |
+| `generators/build_trace_json.py` | Build traceability JSON | `py -3 scripts/generators/build_trace_json.py` |
+| `generators/gen_tests.py` | Generate test skeletons | `py -3 scripts/generators/gen_tests.py` |
 
 ## 📦 Dependencies
 
-```bash
-pip install pyyaml jsonschema
+```powershell
+py -3 -m pip install pyyaml jsonschema
 ```
 
 ## 🚀 Quick Start
 
 ### Create a new specification
 
-```bash
+```powershell
 # Interactive mode with all prompts
-python scripts/create-spec.py requirements --interactive
+py -3 scripts/create-spec.py requirements --interactive
 
 # Quick create
-python scripts/create-spec.py architecture
+py -3 scripts/create-spec.py architecture
 ```
 
 ### Validate specifications
 
-```bash
+```powershell
 # Validate all specs
-python scripts/spec-cli.py validate
+py -3 scripts/spec-cli.py validate
 
 # Validate specific file
-python scripts/validate-spec-structure.py 02-requirements/functional/auth.md
+py -3 scripts/validate-spec-structure.py 02-requirements/functional/auth.md
 
 # Check ID numbering
-python scripts/check-spec-numbering.py
+py -3 scripts/check-spec-numbering.py
 ```
 
 ### Setup pre-commit hooks
 
-```bash
+```powershell
 # Using pre-commit framework (recommended)
-pip install pre-commit
+py -3 -m pip install pre-commit
 pre-commit install
 
-# Manual installation
+# Manual installation (Git Bash)
 cp scripts/pre-commit-hook.py .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
 ### Generate compliance report
 
-```bash
+```powershell
 # Text format
-python scripts/spec-cli.py report
+py -3 scripts/spec-cli.py report
 
 # Markdown format
-python scripts/spec-cli.py report --format markdown > compliance-report.md
+py -3 scripts/spec-cli.py report --format markdown > compliance-report.md
 ```
 
 ## 📋 Spec Creation Workflow
@@ -97,8 +113,8 @@ See [docs/spec-creation-workflow.md](../docs/spec-creation-workflow.md) for deta
 - Interactive prompts for all required fields
 
 **Example**:
-```bash
-python scripts/create-spec.py requirements --interactive
+```powershell
+py -3 scripts/create-spec.py requirements --interactive
 ```
 
 ### validate-spec-structure.py
@@ -168,12 +184,12 @@ All scripts enforce:
 **Import errors**: Scripts use runtime path manipulation - linter warnings are expected
 
 **Missing dependencies**:
-```bash
-pip install pyyaml jsonschema
+```powershell
+py -3 -m pip install pyyaml jsonschema
 ```
 
 **Pre-commit not running**:
-```bash
+```powershell
 pre-commit install --force
 ```
 
