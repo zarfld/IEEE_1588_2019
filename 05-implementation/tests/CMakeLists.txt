@@ -528,6 +528,33 @@ target_include_directories(at_multi_domain_cmlds PRIVATE ${CMAKE_SOURCE_DIR}/inc
 target_link_libraries(at_multi_domain_cmlds PRIVATE IEEE1588_2019_interface)
 add_test(NAME at_multi_domain_cmlds COMMAND at_multi_domain_cmlds)
 
+# -------------------------------------------------------------
+# GAP-PARENT-001: Dataset Update Tests (RED Phase)
+# -------------------------------------------------------------
+# TEST-UNIT-ParentDS-Update: Unit tests for parent dataset updates
+add_executable(parent_ds_update_red
+    ${CMAKE_CURRENT_LIST_DIR}/test_parent_ds_update_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(parent_ds_update_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(parent_ds_update_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME parent_ds_update_red COMMAND parent_ds_update_red)
+
+# TEST-INT-Announce-Propagation: Integration tests for announce propagation
+add_executable(announce_propagation_red
+    ${CMAKE_CURRENT_LIST_DIR}/test_announce_propagation_red.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(announce_propagation_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(announce_propagation_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME announce_propagation_red COMMAND announce_propagation_red)
+
 # AT-005: Timestamp accuracy placeholder (≤8ns) (StR-018)
 add_executable(at_timestamp_accuracy ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_timestamp_accuracy.cpp)
 target_include_directories(at_timestamp_accuracy PRIVATE ${CMAKE_SOURCE_DIR}/include)

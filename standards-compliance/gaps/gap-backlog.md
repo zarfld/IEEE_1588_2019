@@ -8,19 +8,19 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
 
 ## Batch 1 — Foundational Sync Correctness
 
-- [ ] GAP-BMCA-001 Best Master Clock Algorithm (9.3)
+- [~] GAP-BMCA-001 Best Master Clock Algorithm (9.3)
   - Trace to: StR-EXTS-003
   - Trace to: REQ-F-202
-  - [ ] RED: TEST-UNIT-BMCA-PriorityOrder
-  - [ ] RED: TEST-INT-BMCA-RoleSelection
-  - [ ] GREEN: Implement full priority vector ordering and role assignment
+  - [x] RED: TEST-UNIT-BMCA-PriorityOrder (all tests GREEN after fixes)
+  - [x] RED: TEST-INT-BMCA-RoleSelection (all tests GREEN after fixes)
+  - [x] GREEN: Implemented full priority vector ordering and role assignment (2 critical bugs fixed)
   - [ ] REFACTOR: Extract comparator, add invariants
   - [ ] PHASE-06: Integrate BMCA loop and timers
   - [ ] PHASE-07: Re-verify; update compliance matrix, SFMEA/CIL
-- [ ] GAP-PARENT-001 parentDS/currentDS dynamic updates (8.x, 13.5)
+- [~] GAP-PARENT-001 parentDS/currentDS dynamic updates (8.x, 13.5)
   - Trace to: StR-EXTS-009
-  - [ ] RED: TEST-UNIT-ParentDS-Update
-  - [ ] RED: TEST-INT-Announce-Propagation
+  - [x] RED: TEST-UNIT-ParentDS-Update (2/4 tests failing as expected)
+  - [x] RED: TEST-INT-Announce-Propagation (2/4 tests failing as expected)
   - [ ] GREEN: Parse Announce → datasets; stepsRemoved, clockQuality, flags
   - [ ] PHASE-06: Wire to BMCA callbacks; metrics/health
   - [ ] PHASE-07: Re-verify; matrix + docs
