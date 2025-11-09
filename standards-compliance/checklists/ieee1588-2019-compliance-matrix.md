@@ -12,7 +12,8 @@ assumptions:
   - Minor version fixed to 1 (header.minorVersionPTP = 1)
   - BMCA simplified: selects first foreign master; full priority vector comparison TBD
   - Security (Annex P) not yet implemented (out of baseline scope)
-  - Management & Signaling messages declared but not functionally processed
+  - Management messages declared but not functionally processed
+  - Signaling minimal parsing/dispatch implemented (stub) with dedicated test; TLV parsing pending
   - Peer delay mechanism partially represented (structures present, no full path delay calc)
 references:
   standard: IEEE 1588-2019
@@ -77,7 +78,7 @@ Evidence references use file paths and test case IDs.
 | Clause | Element | Artifact | Tests / Evidence | Status | Notes |
 | 20.2 | Mandatory protocol elements implemented (messages, state machine, datasets, offset calc) | Aggregated across messages.hpp, clocks.hpp/cpp | All listed tests; VERIFICATION_EVIDENCE.md | Partial | Missing: full BMCA, management & signaling handling, peer delay operational flow, security |
 | 20.x | Management message handling | MessageType::Management declared | None | Gap | Parsing & processing absent |
-| 20.x | Signaling message handling | MessageType::Signaling declared | None | Gap | Not implemented |
+| 20.x | Signaling message handling | Minimal stub in `include/IEEE/1588/PTP/2019/messages.hpp` and `src/clocks.cpp` | CTest: `ptp_signaling_message_handling` (05-implementation/tests/test_signaling_message.cpp); CAP-20251109-04 | Partial | Minimal parsing/dispatch implemented; TLVs and behaviors pending |
 | Annex P | Security TLVs & processing | Flags::SECURITY constant | None | Gap | Security features out of current scope |
 
  

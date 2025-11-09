@@ -441,3 +441,36 @@ add_test(NAME example_app_presence COMMAND example_app_presence)
 add_executable(porting_guide_presence ${CMAKE_CURRENT_LIST_DIR}/test_porting_guide_presence.cpp)
 target_compile_definitions(porting_guide_presence PRIVATE REPO_ROOT="${CMAKE_SOURCE_DIR}")
 add_test(NAME porting_guide_presence COMMAND porting_guide_presence)
+
+# -------------------------------------------------------------
+# Acceptance Test Skeletons (Profile-Agnostic) - StR mapping
+# -------------------------------------------------------------
+# AT-001: P2P enforcement & E2E rejection (StR-001, StR-009)
+add_executable(at_p2p_enforcement ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_p2p_enforcement.cpp)
+target_include_directories(at_p2p_enforcement PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(at_p2p_enforcement PRIVATE IEEE1588_2019_interface)
+add_test(NAME at_p2p_enforcement COMMAND at_p2p_enforcement)
+
+# AT-002: Path Trace continuity (StR-004)
+add_executable(at_path_trace_continuity ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_path_trace_continuity.cpp)
+target_include_directories(at_path_trace_continuity PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(at_path_trace_continuity PRIVATE IEEE1588_2019_interface)
+add_test(NAME at_path_trace_continuity COMMAND at_path_trace_continuity)
+
+# AT-003: Convergence performance (<1s to <1µs) (StR-019, StR-010)
+add_executable(at_convergence_performance ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_convergence_performance.cpp)
+target_include_directories(at_convergence_performance PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(at_convergence_performance PRIVATE IEEE1588_2019_interface)
+add_test(NAME at_convergence_performance COMMAND at_convergence_performance)
+
+# AT-004: Multi-domain + CMLDS scaffolding (StR-011, StR-012, StR-016, StR-017)
+add_executable(at_multi_domain_cmlds ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_multi_domain_cmlds.cpp)
+target_include_directories(at_multi_domain_cmlds PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(at_multi_domain_cmlds PRIVATE IEEE1588_2019_interface)
+add_test(NAME at_multi_domain_cmlds COMMAND at_multi_domain_cmlds)
+
+# AT-005: Timestamp accuracy placeholder (≤8ns) (StR-018)
+add_executable(at_timestamp_accuracy ${CMAKE_CURRENT_LIST_DIR}/test_acceptance_timestamp_accuracy.cpp)
+target_include_directories(at_timestamp_accuracy PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(at_timestamp_accuracy PRIVATE IEEE1588_2019_interface)
+add_test(NAME at_timestamp_accuracy COMMAND at_timestamp_accuracy)
