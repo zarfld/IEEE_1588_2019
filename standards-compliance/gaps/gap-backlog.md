@@ -17,11 +17,12 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
   - [ ] REFACTOR: Extract comparator, add invariants
   - [ ] PHASE-06: Integrate BMCA loop and timers
   - [ ] PHASE-07: Re-verify; update compliance matrix, SFMEA/CIL
-- [~] GAP-PARENT-001 parentDS/currentDS dynamic updates (8.x, 13.5)
+- [x] GAP-PARENT-001 parentDS/currentDS dynamic updates (8.x, 13.5)
   - Trace to: StR-EXTS-009
   - [x] RED: TEST-UNIT-ParentDS-Update (2/4 tests failing as expected)
   - [x] RED: TEST-INT-Announce-Propagation (2/4 tests failing as expected)
-  - [ ] GREEN: Parse Announce → datasets; stepsRemoved, clockQuality, flags
+  - [x] GREEN: Parse Announce → datasets; stepsRemoved, clockQuality, flags (2 critical bugs fixed, core functionality working)
+  - [ ] REFACTOR: Optional code cleanup
   - [ ] PHASE-06: Wire to BMCA callbacks; metrics/health
   - [ ] PHASE-07: Re-verify; matrix + docs
 - [ ] GAP-OFFSET-TEST-001 Numeric GREEN acceptance test (11.3)
