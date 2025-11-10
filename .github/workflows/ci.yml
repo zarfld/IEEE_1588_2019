@@ -61,7 +61,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Coverage (gcovr JSON)
-        run: gcovr -r . build --json-summary -o coverage.json
+        run: gcovr -r . build --json -o coverage.json
 
       - name: Download quality gates
         run: cat quality-gates.yml
