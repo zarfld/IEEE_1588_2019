@@ -20,8 +20,11 @@
 #ifndef IEEE_1588_PTP_2019_MESSAGE_FLOW_INTEGRATION_HPP
 #define IEEE_1588_PTP_2019_MESSAGE_FLOW_INTEGRATION_HPP
 
-#include "types.hpp"
-#include "messages.hpp"
+#include "IEEE/1588/PTP/2019/types.hpp"
+#include "IEEE/1588/PTP/2019/messages.hpp"
+#include "IEEE/1588/PTP/2019/bmca_integration.hpp"
+#include "IEEE/1588/PTP/2019/sync_integration.hpp"
+#include "IEEE/1588/PTP/2019/servo_integration.hpp"
 #include "clocks.hpp"
 #include <cstdint>
 #include <string>
@@ -32,16 +35,6 @@ namespace IEEE {
 namespace _1588 {
 namespace PTP {
 namespace _2019 {
-
-// Forward declarations
-namespace servo {
-    class ServoIntegration;
-}
-
-namespace Integration {
-    class BMCACoordinator;
-    class SyncCoordinator;
-}
 
 //==============================================================================
 // Message Flow Statistics
@@ -172,8 +165,8 @@ public:
      * @param port PTP port for state management (must outlive this object)
      */
     explicit MessageFlowCoordinator(
-        BMCACoordinator& bmca,
-        SyncCoordinator& sync,
+        Integration::BMCAIntegration& bmca,
+        SyncIntegration& sync,
         servo::ServoIntegration& servo,
         Clocks::PtpPort& port
     ) noexcept;
@@ -301,8 +294,8 @@ public:
     
 private:
     // Component references
-    BMCACoordinator& bmca_;
-    SyncCoordinator& sync_;
+    Integration::BMCAIntegration& bmca_;
+    SyncIntegration& sync_;
     servo::ServoIntegration& servo_;
     Clocks::PtpPort& port_;
     
@@ -366,7 +359,6 @@ private:
     ) noexcept;
 };
 
-} // namespace Integration
 } // namespace _2019
 } // namespace PTP
 } // namespace _1588

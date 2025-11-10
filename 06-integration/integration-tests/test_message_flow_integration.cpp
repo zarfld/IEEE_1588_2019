@@ -28,7 +28,7 @@
 #include "IEEE/1588/PTP/2019/bmca_integration.hpp"
 #include "IEEE/1588/PTP/2019/sync_integration.hpp"
 #include "IEEE/1588/PTP/2019/servo_integration.hpp"
-#include "IEEE/1588/PTP/2019/clocks.hpp"
+#include "clocks.hpp"
 #include "IEEE/1588/PTP/2019/messages.hpp"
 #include <iostream>
 #include <cassert>
@@ -80,13 +80,26 @@ static void reset_mock_clock() {
 // Mock PtpPort for testing
 class MockPtpPort : public Clocks::PtpPort {
 public:
-    MockPtpPort() : PtpPort(Clocks::PtpClock{}, 1, create_mock_callbacks()) {
+    MockPtpPort() : PtpPort(create_default_config(), create_mock_callbacks()) {
         // Initialize with default state
     }
     
     // Expose state for testing
     void set_port_state(Types::PortState state) {
         // Would set internal state in real implementation
+    }
+    
+private:
+    static Clocks::PortConfiguration create_default_config() {
+        Clocks::PortConfiguration config;
+        config.port_number = 1;
+        config.domain_number = 0;
+        config.announce_interval = 1;
+        config.sync_interval = 0;
+        config.delay_req_interval = 0;
+        config.announce_receipt_timeout = 3;
+        config.delay_mechanism_p2p = false;  // Use E2E
+        return config;
     }
 };
 
@@ -95,9 +108,9 @@ public:
 //==============================================================================
 
 static std::unique_ptr<MockPtpPort> g_mock_port;
-static std::unique_ptr<BMCACoordinator> g_bmca;
-static std::unique_ptr<SyncCoordinator> g_sync;
-static std::unique_ptr<ServoIntegration> g_servo;
+static std::unique_ptr<Integration::BMCAIntegration> g_bmca;
+static std::unique_ptr<SyncIntegration> g_sync;
+static std::unique_ptr<servo::ServoIntegration> g_servo;
 static std::unique_ptr<MessageFlowCoordinator> g_coordinator;
 
 void SetUpTest() {
@@ -107,25 +120,27 @@ void SetUpTest() {
     g_mock_port = std::make_unique<MockPtpPort>();
     
     // Create coordinators
-    g_bmca = std::make_unique<BMCACoordinator>(*g_mock_port);
-    g_sync = std::make_unique<SyncCoordinator>(*g_mock_port);
+    g_bmca = std::make_unique<Integration::BMCAIntegration>(*g_mock_port);
+    g_sync = std::make_unique<SyncIntegration>(*g_mock_port);
     
     auto callbacks = create_mock_callbacks();
-    g_servo = std::make_unique<ServoIntegration>(callbacks);
+    g_servo = std::make_unique<servo::ServoIntegration>(callbacks);
     
     // Create message flow coordinator
     g_coordinator = std::make_unique<MessageFlowCoordinator>(
         *g_bmca, *g_sync, *g_servo, *g_mock_port
     );
     
-    // Configure components
-    BMCAConfiguration bmca_config = BMCAConfiguration::create_default();
+    // Configure components - use nested Configuration structs with default initialization
+    Integration::BMCAIntegration::Configuration bmca_config{};
+    bmca_config.execution_interval_ms = 1000;
     g_bmca->configure(bmca_config);
     
-    SyncConfiguration sync_config = SyncConfiguration::create_default();
+    SyncIntegration::Configuration sync_config{};
+    sync_config.synchronized_threshold_ns = 1000.0;
     g_sync->configure(sync_config);
     
-    ServoConfiguration servo_config;
+    servo::ServoConfiguration servo_config;
     servo_config.kp = 0.7;
     servo_config.ki = 0.3;
     g_servo->configure(servo_config);
@@ -139,103 +154,106 @@ void TearDownTest() {
     g_mock_port.reset();
 }
 
-class MessageFlowIntegrationTest {
-public:
-    
-    // Helper to create test Announce message
-    AnnounceMessage create_announce_message(
+//==============================================================================
+// Test Message Creation Helpers
+//==============================================================================
+
+// Helper to create test Announce message
+static AnnounceMessage create_announce_message(
         std::uint8_t domain = 0,
         std::uint16_t sequence = 0
     ) {
         AnnounceMessage msg;
         msg.header = {};
-        msg.header.setMessageType(Types::MessageType::ANNOUNCE);
+        msg.header.setMessageType(Types::MessageType::Announce);
         msg.header.setVersion(2);
         msg.header.domainNumber = domain;
         msg.header.sequenceId = sequence;
-        msg.header.messageLength = Types::detail::host_to_be16(
+        msg.header.messageLength = detail::host_to_be16(
             static_cast<uint16_t>(sizeof(AnnounceMessage))
         );
         
         msg.body = {};
-        msg.body.currentUtcOffset = Types::detail::host_to_be16(37);
+        msg.body.currentUtcOffset = detail::host_to_be16(37);
         msg.body.grandmasterPriority1 = 128;
-        msg.body.grandmasterClockQuality.clockClass = 248;
-        msg.body.grandmasterClockQuality.clockAccuracy = 0xFE;
-        msg.body.grandmasterClockQuality.offsetScaledLogVariance = Types::detail::host_to_be16(0xFFFF);
+        msg.body.grandmasterClockClass = 248;
+        msg.body.grandmasterClockAccuracy = 0xFE;
+        msg.body.grandmasterClockVariance = detail::host_to_be16(0xFFFF);
         msg.body.grandmasterPriority2 = 128;
-        msg.body.stepsRemoved = Types::detail::host_to_be16(0);
+        msg.body.stepsRemoved = detail::host_to_be16(0);
         msg.body.timeSource = 0xA0;
         
         return msg;
     }
-    
-    // Helper to create test Sync message
-    SyncMessage create_sync_message(
+
+// Helper to create test Sync message
+static SyncMessage create_sync_message(
         std::uint8_t domain = 0,
         std::uint16_t sequence = 0
     ) {
         SyncMessage msg;
         msg.header = {};
-        msg.header.setMessageType(Types::MessageType::SYNC);
+        msg.header.setMessageType(Types::MessageType::Sync);
         msg.header.setVersion(2);
         msg.header.domainNumber = domain;
         msg.header.sequenceId = sequence;
-        msg.header.messageLength = Types::detail::host_to_be16(
+        msg.header.messageLength = detail::host_to_be16(
             static_cast<uint16_t>(sizeof(SyncMessage))
         );
         
         msg.body = {};
-        msg.body.originTimestamp.secondsField = Types::detail::host_to_be48(1000);
-        msg.body.originTimestamp.nanosecondsField = Types::detail::host_to_be32(500000000);
+        msg.body.originTimestamp.seconds_high = 0;
+        msg.body.originTimestamp.seconds_low = detail::host_to_be32(1000);
+        msg.body.originTimestamp.nanoseconds = detail::host_to_be32(500000000);
         
         return msg;
     }
-    
-    // Helper to create test Follow_Up message
-    FollowUpMessage create_follow_up_message(
+
+// Helper to create test Follow_Up message
+static FollowUpMessage create_follow_up_message(
         std::uint8_t domain = 0,
         std::uint16_t sequence = 0
     ) {
         FollowUpMessage msg;
         msg.header = {};
-        msg.header.setMessageType(Types::MessageType::FOLLOW_UP);
+        msg.header.setMessageType(Types::MessageType::Follow_Up);
         msg.header.setVersion(2);
         msg.header.domainNumber = domain;
         msg.header.sequenceId = sequence;
-        msg.header.messageLength = Types::detail::host_to_be16(
+        msg.header.messageLength = detail::host_to_be16(
             static_cast<uint16_t>(sizeof(FollowUpMessage))
         );
         
         msg.body = {};
-        msg.body.preciseOriginTimestamp.secondsField = Types::detail::host_to_be48(1000);
-        msg.body.preciseOriginTimestamp.nanosecondsField = Types::detail::host_to_be32(500000000);
+        msg.body.preciseOriginTimestamp.seconds_high = 0;
+        msg.body.preciseOriginTimestamp.seconds_low = detail::host_to_be32(1000);
+        msg.body.preciseOriginTimestamp.nanoseconds = detail::host_to_be32(500000000);
         
         return msg;
     }
-    
-    // Helper to create test Delay_Resp message
-    DelayRespMessage create_delay_resp_message(
+
+// Helper to create test Delay_Resp message
+static DelayRespMessage create_delay_resp_message(
         std::uint8_t domain = 0,
         std::uint16_t sequence = 0
     ) {
         DelayRespMessage msg;
         msg.header = {};
-        msg.header.setMessageType(Types::MessageType::DELAY_RESP);
+        msg.header.setMessageType(Types::MessageType::Delay_Resp);
         msg.header.setVersion(2);
         msg.header.domainNumber = domain;
         msg.header.sequenceId = sequence;
-        msg.header.messageLength = Types::detail::host_to_be16(
+        msg.header.messageLength = detail::host_to_be16(
             static_cast<uint16_t>(sizeof(DelayRespMessage))
         );
         
         msg.body = {};
-        msg.body.receiveTimestamp.secondsField = Types::detail::host_to_be48(1000);
-        msg.body.receiveTimestamp.nanosecondsField = Types::detail::host_to_be32(500100000);
+        msg.body.receiveTimestamp.seconds_high = 0;
+        msg.body.receiveTimestamp.seconds_low = detail::host_to_be32(1000);
+        msg.body.receiveTimestamp.nanoseconds = detail::host_to_be32(500100000);
         
         return msg;
     }
-};
 
 //==============================================================================
 // Test 1: Message Flow Coordinator Lifecycle
@@ -250,22 +268,19 @@ void MessageFlowIntegrationTest_CoordinatorLifecycle() {
     config.expected_domain = 0;
     config.strict_domain_checking = true;
     
-    auto config_result = coordinator_->configure(config);
+    auto config_result = g_coordinator->configure(config);
     EXPECT_EQ(config_result, Types::PTPError::Success);
     
     // Start
-    auto start_result = coordinator_->start();
+    auto start_result = g_coordinator->start();
     EXPECT_EQ(start_result, Types::PTPError::Success);
-    EXPECT_TRUE(coordinator_->is_running());
+    EXPECT_TRUE(g_coordinator->is_running());
     
-    // Start components
-    bmca_->start();
-    sync_->start();
-    servo_->start();
+    // Components don't have separate start() methods - coordinator manages them
     
     // Stop
-    coordinator_->stop();
-    EXPECT_FALSE(coordinator_->is_running());
+    g_coordinator->stop();
+    EXPECT_FALSE(g_coordinator->is_running());
     
     std::cout << "✅ Test 1 PASS: Coordinator lifecycle works correctly\n";
 }
@@ -274,23 +289,22 @@ void MessageFlowIntegrationTest_CoordinatorLifecycle() {
 // Test 2: Announce Message Processing
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, AnnounceMessageProcessing) {
+void MessageFlowIntegrationTest_AnnounceMessageProcessing() {
     // Start coordinator
     MessageFlowConfiguration config = MessageFlowConfiguration::create_default();
     config.enable_bmca_on_announce = true;
-    coordinator_->configure(config);
-    coordinator_->start();
-    bmca_->start();
+    g_coordinator->configure(config);
+    g_coordinator->start();
     
     // Process Announce message
     auto announce_msg = create_announce_message(0, 1);
     std::uint64_t reception_time = 1000000000ULL;  // 1 second
     
-    auto result = coordinator_->process_announce_message(announce_msg, reception_time);
+    auto result = g_coordinator->process_announce_message(announce_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::Success);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.announce_received, 1u);
     EXPECT_EQ(stats.announce_processed, 1u);
     EXPECT_EQ(stats.bmca_triggered, 1u);
@@ -300,10 +314,10 @@ TEST_F(MessageFlowIntegrationTest, AnnounceMessageProcessing) {
     announce_msg = create_announce_message(0, 2);
     reception_time = 2000000000ULL;  // 2 seconds
     
-    result = coordinator_->process_announce_message(announce_msg, reception_time);
+    result = g_coordinator->process_announce_message(announce_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::Success);
     
-    stats = coordinator_->get_statistics();
+    stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.announce_received, 2u);
     EXPECT_EQ(stats.announce_processed, 2u);
     
@@ -314,24 +328,22 @@ TEST_F(MessageFlowIntegrationTest, AnnounceMessageProcessing) {
 // Test 3: Sync Message Processing
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, SyncMessageProcessing) {
+void MessageFlowIntegrationTest_SyncMessageProcessing() {
     // Start coordinator
     MessageFlowConfiguration config = MessageFlowConfiguration::create_default();
     config.enable_servo_on_sync = true;
-    coordinator_->configure(config);
-    coordinator_->start();
-    sync_->start();
-    servo_->start();
+    g_coordinator->configure(config);
+    g_coordinator->start();
     
     // Process Sync message
     auto sync_msg = create_sync_message(0, 1);
     std::uint64_t reception_time = 1000500000000ULL;  // 1000.5 seconds
     
-    auto result = coordinator_->process_sync_message(sync_msg, reception_time);
+    auto result = g_coordinator->process_sync_message(sync_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::Success);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.sync_received, 1u);
     EXPECT_EQ(stats.sync_processed, 1u);
     EXPECT_EQ(stats.servo_adjustments, 1u);
@@ -341,10 +353,10 @@ TEST_F(MessageFlowIntegrationTest, SyncMessageProcessing) {
     sync_msg = create_sync_message(0, 2);
     reception_time = 1001500000000ULL;  // 1001.5 seconds
     
-    result = coordinator_->process_sync_message(sync_msg, reception_time);
+    result = g_coordinator->process_sync_message(sync_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::Success);
     
-    stats = coordinator_->get_statistics();
+    stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.sync_received, 2u);
     EXPECT_EQ(stats.sync_processed, 2u);
     
@@ -355,19 +367,19 @@ TEST_F(MessageFlowIntegrationTest, SyncMessageProcessing) {
 // Test 4: Follow_Up Message Processing
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, FollowUpMessageProcessing) {
+void MessageFlowIntegrationTest_FollowUpMessageProcessing() {
     // Start coordinator
-    coordinator_->configure(MessageFlowConfiguration::create_default());
-    coordinator_->start();
+    g_coordinator->configure(MessageFlowConfiguration::create_default());
+    g_coordinator->start();
     
     // Process Follow_Up message
     auto follow_up_msg = create_follow_up_message(0, 1);
     
-    auto result = coordinator_->process_follow_up_message(follow_up_msg);
+    auto result = g_coordinator->process_follow_up_message(follow_up_msg);
     EXPECT_EQ(result, Types::PTPError::Success);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.follow_up_received, 1u);
     
     std::cout << "✅ Test 4 PASS: Follow_Up message processing works\n";
@@ -377,19 +389,19 @@ TEST_F(MessageFlowIntegrationTest, FollowUpMessageProcessing) {
 // Test 5: Delay_Resp Message Processing
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, DelayRespMessageProcessing) {
+void MessageFlowIntegrationTest_DelayRespMessageProcessing() {
     // Start coordinator
-    coordinator_->configure(MessageFlowConfiguration::create_default());
-    coordinator_->start();
+    g_coordinator->configure(MessageFlowConfiguration::create_default());
+    g_coordinator->start();
     
     // Process Delay_Resp message
     auto delay_resp_msg = create_delay_resp_message(0, 1);
     
-    auto result = coordinator_->process_delay_resp_message(delay_resp_msg);
+    auto result = g_coordinator->process_delay_resp_message(delay_resp_msg);
     EXPECT_EQ(result, Types::PTPError::Success);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.delay_resp_received, 1u);
     
     std::cout << "✅ Test 5 PASS: Delay_Resp message processing works\n";
@@ -399,29 +411,29 @@ TEST_F(MessageFlowIntegrationTest, DelayRespMessageProcessing) {
 // Test 6: Domain Filtering
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, DomainFiltering) {
+void MessageFlowIntegrationTest_DomainFiltering() {
     // Start coordinator with strict domain checking
     MessageFlowConfiguration config = MessageFlowConfiguration::create_default();
     config.expected_domain = 0;
     config.strict_domain_checking = true;
-    coordinator_->configure(config);
-    coordinator_->start();
+    g_coordinator->configure(config);
+    g_coordinator->start();
     
     // Process message with correct domain
     auto announce_msg = create_announce_message(0, 1);
     std::uint64_t reception_time = 1000000000ULL;
     
-    auto result = coordinator_->process_announce_message(announce_msg, reception_time);
+    auto result = g_coordinator->process_announce_message(announce_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::Success);
     
     // Process message with wrong domain
     announce_msg = create_announce_message(1, 2);  // Domain 1 instead of 0
     
-    result = coordinator_->process_announce_message(announce_msg, reception_time);
+    result = g_coordinator->process_announce_message(announce_msg, reception_time);
     EXPECT_EQ(result, Types::PTPError::WRONG_DOMAIN);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.announce_received, 2u);
     EXPECT_EQ(stats.announce_processed, 1u);
     EXPECT_EQ(stats.domain_mismatches, 1u);
@@ -433,20 +445,20 @@ TEST_F(MessageFlowIntegrationTest, DomainFiltering) {
 // Test 7: Message Validation
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, MessageValidation) {
+void MessageFlowIntegrationTest_MessageValidation() {
     // Start coordinator
-    coordinator_->configure(MessageFlowConfiguration::create_default());
-    coordinator_->start();
+    g_coordinator->configure(MessageFlowConfiguration::create_default());
+    g_coordinator->start();
     
     // Create message with invalid version
     auto announce_msg = create_announce_message(0, 1);
-    announce_msg.header.versionPTP = 1;  // Version 1 instead of 2
+    announce_msg.header.reserved_version = 0x01;  // Version 1 instead of 2 (lower nibble)
     
-    auto result = coordinator_->process_announce_message(announce_msg, 1000000000ULL);
+    auto result = g_coordinator->process_announce_message(announce_msg, 1000000000ULL);
     EXPECT_EQ(result, Types::PTPError::INVALID_VERSION);
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.invalid_messages, 1u);
     EXPECT_EQ(stats.announce_errors, 1u);
     
@@ -457,29 +469,26 @@ TEST_F(MessageFlowIntegrationTest, MessageValidation) {
 // Test 8: Health Status Monitoring
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, HealthStatusMonitoring) {
+void MessageFlowIntegrationTest_HealthStatusMonitoring() {
     // Start all components
     MessageFlowConfiguration config = MessageFlowConfiguration::create_default();
-    coordinator_->configure(config);
-    coordinator_->start();
-    bmca_->start();
-    sync_->start();
-    servo_->start();
+    g_coordinator->configure(config);
+    g_coordinator->start();
     
     // Initially, no message flows active
-    auto health = coordinator_->get_health_status();
+    auto health = g_coordinator->get_health_status();
     EXPECT_FALSE(health.announce_flow_active);
     EXPECT_FALSE(health.sync_flow_active);
     
     // Process some messages
     auto announce_msg = create_announce_message(0, 1);
-    coordinator_->process_announce_message(announce_msg, 1000000000ULL);
+    g_coordinator->process_announce_message(announce_msg, 1000000000ULL);
     
     auto sync_msg = create_sync_message(0, 1);
-    coordinator_->process_sync_message(sync_msg, 1000500000000ULL);
+    g_coordinator->process_sync_message(sync_msg, 1000500000000ULL);
     
     // Now message flows should be active
-    health = coordinator_->get_health_status();
+    health = g_coordinator->get_health_status();
     EXPECT_TRUE(health.announce_flow_active);
     EXPECT_TRUE(health.sync_flow_active);
     EXPECT_TRUE(health.bmca_healthy);
@@ -493,34 +502,34 @@ TEST_F(MessageFlowIntegrationTest, HealthStatusMonitoring) {
 // Test 9: Statistics Tracking
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, StatisticsTracking) {
+void MessageFlowIntegrationTest_StatisticsTracking() {
     // Start coordinator
-    coordinator_->configure(MessageFlowConfiguration::create_default());
-    coordinator_->start();
+    g_coordinator->configure(MessageFlowConfiguration::create_default());
+    g_coordinator->start();
     
     // Process multiple messages
     for (int i = 1; i <= 5; i++) {
         auto announce_msg = create_announce_message(0, static_cast<std::uint16_t>(i));
         std::uint64_t time = 1000000000ULL * i;
-        coordinator_->process_announce_message(announce_msg, time);
+        g_coordinator->process_announce_message(announce_msg, time);
     }
     
     for (int i = 1; i <= 3; i++) {
         auto sync_msg = create_sync_message(0, static_cast<std::uint16_t>(i));
         std::uint64_t time = 1000500000000ULL * i;
-        coordinator_->process_sync_message(sync_msg, time);
+        g_coordinator->process_sync_message(sync_msg, time);
     }
     
     // Check statistics
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.announce_received, 5u);
     EXPECT_EQ(stats.announce_processed, 5u);
     EXPECT_EQ(stats.sync_received, 3u);
     EXPECT_EQ(stats.sync_processed, 3u);
     
     // Reset statistics
-    coordinator_->reset();
-    stats = coordinator_->get_statistics();
+    g_coordinator->reset();
+    stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.announce_received, 0u);
     EXPECT_EQ(stats.sync_received, 0u);
     
@@ -531,36 +540,32 @@ TEST_F(MessageFlowIntegrationTest, StatisticsTracking) {
 // Test 10: Component Integration
 //==============================================================================
 
-TEST_F(MessageFlowIntegrationTest, ComponentIntegration) {
+void MessageFlowIntegrationTest_ComponentIntegration() {
     // Start all components
     MessageFlowConfiguration config = MessageFlowConfiguration::create_default();
     config.enable_bmca_on_announce = true;
     config.enable_servo_on_sync = true;
-    coordinator_->configure(config);
-    coordinator_->start();
-    
-    bmca_->start();
-    sync_->start();
-    servo_->start();
+    g_coordinator->configure(config);
+    g_coordinator->start();
     
     // Process Announce → BMCA
     auto announce_msg = create_announce_message(0, 1);
-    auto result = coordinator_->process_announce_message(announce_msg, 1000000000ULL);
+    auto result = g_coordinator->process_announce_message(announce_msg, 1000000000ULL);
     EXPECT_EQ(result, Types::PTPError::Success);
     
-    auto stats = coordinator_->get_statistics();
+    auto stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.bmca_triggered, 1u);
     
     // Process Sync → Servo
     auto sync_msg = create_sync_message(0, 1);
-    result = coordinator_->process_sync_message(sync_msg, 1000500000000ULL);
+    result = g_coordinator->process_sync_message(sync_msg, 1000500000000ULL);
     EXPECT_EQ(result, Types::PTPError::Success);
     
-    stats = coordinator_->get_statistics();
+    stats = g_coordinator->get_statistics();
     EXPECT_EQ(stats.servo_adjustments, 1u);
     
     // Verify all components operational
-    auto health = coordinator_->get_health_status();
+    auto health = g_coordinator->get_health_status();
     EXPECT_TRUE(health.bmca_operational);
     EXPECT_TRUE(health.servo_operational);
     EXPECT_TRUE(health.bmca_healthy);
@@ -580,56 +585,54 @@ int main() {
     
     // Run each test
     try {
-        MessageFlowIntegrationTest test;
-        
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_CoordinatorLifecycle();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_AnnounceMessageProcessing();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_SyncMessageProcessing();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_FollowUpMessageProcessing();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_DelayRespMessageProcessing();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_DomainFiltering();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_MessageValidation();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_HealthStatusMonitoring();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_StatisticsTracking();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
-        test.SetUp();
+        SetUpTest();
         MessageFlowIntegrationTest_ComponentIntegration();
-        test.TearDown();
+        TearDownTest();
         passed++;
         
     } catch (const std::exception& e) {

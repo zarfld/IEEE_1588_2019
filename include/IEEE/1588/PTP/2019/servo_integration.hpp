@@ -24,6 +24,7 @@
 
 namespace IEEE {
 namespace _1588 {
+namespace PTP {
 namespace _2019 {
 namespace servo {
 
@@ -336,6 +337,7 @@ private:
 
 } // namespace servo
 } // namespace _2019
+} // namespace PTP
 } // namespace _1588
 } // namespace IEEE
 

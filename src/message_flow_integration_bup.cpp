@@ -23,8 +23,8 @@ namespace _2019 {
 //==============================================================================
 
 MessageFlowCoordinator::MessageFlowCoordinator(
-    Integration::BMCAIntegration& bmca,
-    SyncIntegration& sync,
+    Integration::BMCACoordinator& bmca,
+    Integration::SyncCoordinator& sync,
     servo::ServoIntegration& servo,
     Clocks::PtpPort& port
 ) noexcept
@@ -51,11 +51,11 @@ Types::PTPError MessageFlowCoordinator::configure(
 ) noexcept {
     // Validate configuration
     if (config.announce_timeout_ns == 0 || config.sync_timeout_ns == 0) {
-        return Types::PTPError::Invalid_Parameter;
+        return Types::PTPError::INVALID_CONFIGURATION;
     }
     
     if (config.max_message_age_ns == 0) {
-        return Types::PTPError::Invalid_Parameter;
+        return Types::PTPError::INVALID_CONFIGURATION;
     }
     
     config_ = config;
@@ -64,7 +64,7 @@ Types::PTPError MessageFlowCoordinator::configure(
 
 Types::PTPError MessageFlowCoordinator::start() noexcept {
     if (is_running_) {
-        return Types::PTPError::State_Error;
+        return Types::PTPError::ALREADY_INITIALIZED;
     }
     
     // Reset state
@@ -99,7 +99,7 @@ Types::PTPError MessageFlowCoordinator::process_announce_message(
     std::uint64_t reception_timestamp_ns
 ) noexcept {
     if (!is_running_) {
-        return Types::PTPError::State_Error;
+        return Types::PTPError::NOT_INITIALIZED;
     }
     
     statistics_.announce_received++;
@@ -161,7 +161,7 @@ Types::PTPError MessageFlowCoordinator::process_sync_message(
     std::uint64_t reception_timestamp_ns
 ) noexcept {
     if (!is_running_) {
-        return Types::PTPError::State_Error;
+        return Types::PTPError::NOT_INITIALIZED;
     }
     
     statistics_.sync_received++;
@@ -210,7 +210,7 @@ Types::PTPError MessageFlowCoordinator::process_follow_up_message(
     const FollowUpMessage& message
 ) noexcept {
     if (!is_running_) {
-        return Types::PTPError::State_Error;
+        return Types::PTPError::NOT_INITIALIZED;
     }
     
     statistics_.follow_up_received++;
@@ -243,7 +243,7 @@ Types::PTPError MessageFlowCoordinator::process_delay_resp_message(
     const DelayRespMessage& message
 ) noexcept {
     if (!is_running_) {
-        return Types::PTPError::State_Error;
+        return Types::PTPError::NOT_INITIALIZED;
     }
     
     statistics_.delay_resp_received++;
@@ -357,7 +357,7 @@ Types::PTPError MessageFlowCoordinator::check_domain(
     }
     
     if (domain != config_.expected_domain) {
-        return Types::PTPError::Domain_Error;
+        return Types::PTPError::WRONG_DOMAIN;
     }
     
     return Types::PTPError::Success;
@@ -371,7 +371,7 @@ Types::PTPError MessageFlowCoordinator::check_message_age(
     if (current_time_ns > timestamp_ns) {
         const std::uint64_t age_ns = current_time_ns - timestamp_ns;
         if (age_ns > config_.max_message_age_ns) {
-            return Types::PTPError::Timeout;
+            return Types::PTPError::TIMEOUT;
         }
     }
     
