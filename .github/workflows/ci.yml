@@ -60,8 +60,8 @@ jobs:
           path: build/reliability/reliability_history.csv
           if-no-files-found: ignore
 
-      - name: Coverage (gcovr JSON)
-        run: gcovr -r . build --json -o coverage.json
+      - name: Coverage (gcovr JSON summary)
+        run: gcovr -r . build --json-summary -o coverage.json
 
       - name: Download quality gates
         run: cat quality-gates.yml
