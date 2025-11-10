@@ -205,7 +205,8 @@ int main() {
         
         // Now REPLACE with worse priority from SAME foreign master (update existing entry)
         // This simulates the foreign master's quality degrading - local should now win
-        auto worse = make_announce(200, 248, 0xFE, 0xFFFF, 200, 5, 0xAABBCCDDEEFF0011ULL, 0x1122334455667788ULL, 2);
+        // FIX: Use same port_number=1 to actually UPDATE the existing entry, not add a new one
+        auto worse = make_announce(200, 248, 0xFE, 0xFFFF, 200, 5, 0xAABBCCDDEEFF0011ULL, 0x1122334455667788ULL, 1);
         clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                              &worse, sizeof(AnnounceMessage), Types::Timestamp{});
         
@@ -270,7 +271,8 @@ int main() {
         
         // Same foreign master but with IMPROVED parameters (priority1=105, better clockClass)
         // This simulates the same clock announcing improved quality - datasets should update
-        auto masterB = make_announce(105, 130, 0x21, 4500, 105, 1, 0xAAAAAAAAAAAAAAAAULL, 0xAAAAAAAAAAAAAAAAULL, 2);
+        // FIX: Use same port_number=1 to actually UPDATE the existing entry, not add a new one
+        auto masterB = make_announce(105, 130, 0x21, 4500, 105, 1, 0xAAAAAAAAAAAAAAAAULL, 0xAAAAAAAAAAAAAAAAULL, 1);
         clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                              &masterB, sizeof(AnnounceMessage), Types::Timestamp{});
         

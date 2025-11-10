@@ -199,8 +199,9 @@ int main() {
         int transitions_after_better = state_change_count - initial_transitions;
         PortState state_after_better = clock.get_port().get_state();
         
-        // Send worse foreign master - local should win and become master
-        auto worse = make_announce(200, 248, 0xFE, 0xFFFF, 200, 5, 0xEEEEEEEEEEEEEEEEULL, 0xE000000000000005ULL, 5);
+        // Send worse announcement from SAME foreign master (update existing entry) - local should win and become master
+        // FIX: Use same clock identity and port number to UPDATE the foreign master entry
+        auto worse = make_announce(200, 248, 0xFE, 0xFFFF, 200, 5, 0xDDDDDDDDDDDDDDDDULL, 0xD000000000000004ULL, 4);
         clock.process_message(static_cast<std::uint8_t>(MessageType::Announce),
                              &worse, sizeof(AnnounceMessage), Types::Timestamp{});
         
