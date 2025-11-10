@@ -31,6 +31,19 @@ target_link_libraries(servo_behavior_integration PRIVATE IEEE1588_2019)
 add_test(NAME servo_behavior_integration COMMAND servo_behavior_integration)
 set_tests_properties(servo_behavior_integration PROPERTIES LABELS "integration")
 
+# Task 4: Message Flow Integration Test
+add_executable(message_flow_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_message_flow_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/message_flow_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/bmca_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/sync_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/servo_integration.cpp
+)
+target_include_directories(message_flow_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(message_flow_integration PRIVATE IEEE1588_2019)
+add_test(NAME message_flow_integration COMMAND message_flow_integration)
+set_tests_properties(message_flow_integration PROPERTIES LABELS "integration")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
