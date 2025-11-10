@@ -9,6 +9,7 @@ status: draft
 traceability:
   requirements:
     - REQ-F-201
+    - REQ-F-203
     - REQ-F-204
     - REQ-F-205
 ---
@@ -16,11 +17,13 @@ traceability:
 # ADR-014: Profile Selection Timing (Build-time vs. Runtime)
 
 ## Metadata
+
 ```yaml
 adrId: ADR-014
 status: proposed
 relatedRequirements:
   - REQ-F-201  # Profile abstraction
+  - REQ-F-203  # Domain 0 default with external control disabled
   - REQ-F-204  # P2P delay mechanism
   - REQ-F-205  # Dataset/MIB coherence
 relatedComponents:

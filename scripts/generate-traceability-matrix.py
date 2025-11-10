@@ -59,7 +59,8 @@ def is_guidance(path: pathlib.Path, text: str) -> bool:
         '.github/prompts',
         '.github/instructions', 
         'spec-kit-templates',
-        'docs/'  # Documentation and guides
+        'docs/',  # Documentation and guides
+        '07-verification-validation/traceability/'  # Generated traceability reports
     ]
     if any(seg in path.as_posix() for seg in excluded_paths):
         return True
@@ -99,9 +100,9 @@ for path in files:
         text = path.read_text(encoding='utf-8', errors='ignore')
     except Exception:
         continue
-    # Skip placeholder example IDs (e.g., REQ-F-000, ADR-XXX) from counting
-    text = re.sub(r'ADR-XXX', '', text)
-    text = re.sub(r'REQ-(F|NF)-000', '', text)
+    # Skip placeholder example IDs (e.g., REQ-F-000, ADR-XXX) that appear in templates
+    text = re.sub(r'ADR-XXX\b', '', text)
+    text = re.sub(r'REQ-(F|NF)-000\b', '', text)
     for key, pat in PATTERNS.items():
         for match in pat.findall(text):
             index[key].add(match)
