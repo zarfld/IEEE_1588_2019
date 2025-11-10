@@ -11,6 +11,16 @@ target_link_libraries(bmca_runtime_integration PRIVATE IEEE1588_2019)
 add_test(NAME bmca_runtime_integration COMMAND bmca_runtime_integration)
 set_tests_properties(bmca_runtime_integration PROPERTIES LABELS "integration")
 
+# Task 2: Sync Accuracy Integration Test
+add_executable(sync_accuracy_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_sync_accuracy_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/sync_integration.cpp
+)
+target_include_directories(sync_accuracy_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(sync_accuracy_integration PRIVATE IEEE1588_2019)
+add_test(NAME sync_accuracy_integration COMMAND sync_accuracy_integration)
+set_tests_properties(sync_accuracy_integration PROPERTIES LABELS "integration")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
