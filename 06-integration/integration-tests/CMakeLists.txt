@@ -21,6 +21,16 @@ target_link_libraries(sync_accuracy_integration PRIVATE IEEE1588_2019)
 add_test(NAME sync_accuracy_integration COMMAND sync_accuracy_integration)
 set_tests_properties(sync_accuracy_integration PROPERTIES LABELS "integration")
 
+# Task 3: Servo Behavior Integration Test
+add_executable(servo_behavior_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_servo_behavior_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/servo_integration.cpp
+)
+target_include_directories(servo_behavior_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(servo_behavior_integration PRIVATE IEEE1588_2019)
+add_test(NAME servo_behavior_integration COMMAND servo_behavior_integration)
+set_tests_properties(servo_behavior_integration PROPERTIES LABELS "integration")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
