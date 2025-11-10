@@ -5,7 +5,7 @@ phase: 03-architecture
 version: 1.0.0
 author: Architecture Team
 date: "2025-11-10"
-status: accepted
+status: approved
 traceability:
   requirements:
     - StR-EXTS-015
@@ -23,7 +23,7 @@ traceability:
 ## Metadata
 ```yaml
 adrId: ADR-015
-status: accepted
+status: approved
 relatedRequirements:
   - StR-EXTS-015  # IEEE 1588-2019 Annex K security extensions
   - STR-SEC-004   # Optional Authentication (Post-MVP, P2 priority)

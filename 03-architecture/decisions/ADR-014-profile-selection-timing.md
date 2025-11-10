@@ -5,7 +5,7 @@ phase: 03-architecture
 version: 1.0.0
 author: Architecture Team
 date: "2025-11-09"
-status: proposed
+status: draft
 traceability:
   requirements:
     - REQ-F-201
