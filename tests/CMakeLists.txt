@@ -61,6 +61,12 @@ target_include_directories(transparent_clock_simple PRIVATE ${CMAKE_SOURCE_DIR}/
 target_link_libraries(transparent_clock_simple PRIVATE IEEE1588_2019)
 add_test(NAME transparent_clock_simple COMMAND transparent_clock_simple)
 
+# GAP-DATASETS-001 RED Phase - TimePropertiesDataSet acceptance tests
+add_executable(time_properties_dataset_red ${CMAKE_CURRENT_LIST_DIR}/test_time_properties_dataset_red.cpp)
+target_include_directories(time_properties_dataset_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(time_properties_dataset_red PRIVATE IEEE1588_2019)
+add_test(NAME time_properties_dataset_red COMMAND time_properties_dataset_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
