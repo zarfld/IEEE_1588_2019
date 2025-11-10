@@ -1201,7 +1201,6 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
     Types::TimeInterval t4_minus_t3 = delay_resp_rx_timestamp_ - delay_req_tx_timestamp_;
     double t2_t1_ns = t2_minus_t1.toNanoseconds();
     double t4_t3_ns = t4_minus_t3.toNanoseconds();
-    std::fprintf(stderr, "DEBUG-CALC: t2_t1_ns=%f, t4_t3_ns=%f\n", t2_t1_ns, t4_t3_ns);
     
     // Apply correctionField per IEEE 1588-2019 Section 11.3.2
     // Total correction = sum of corrections from Sync, Follow_Up, and Delay_Resp messages
