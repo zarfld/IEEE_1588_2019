@@ -580,6 +580,217 @@ using PdelayRespMessage = PTPMessage<PdelayRespBody>;
 using PdelayRespFollowUpMessage = PTPMessage<PdelayRespFollowUpBody>;
 
 //==============================================================================
+// TLV (Type-Length-Value) Structure (Section 14)
+//==============================================================================
+
+/**
+ * @brief TLV Type Enumeration (IEEE 1588-2019 Section 14.1)
+ * 
+ * Defines standard TLV types for Management and Signaling messages.
+ * Network byte order (big-endian) when transmitted.
+ */
+namespace TLVType {
+    constexpr std::uint16_t MANAGEMENT                  = 0x0001;  // Section 15.5.4.1
+    constexpr std::uint16_t MANAGEMENT_ERROR_STATUS     = 0x0002;  // Section 15.5.4.2
+    constexpr std::uint16_t ORGANIZATION_EXTENSION      = 0x0003;  // Section 14.3
+    constexpr std::uint16_t REQUEST_UNICAST_TRANSMISSION = 0x0004;  // Section 16.1
+    constexpr std::uint16_t GRANT_UNICAST_TRANSMISSION  = 0x0005;  // Section 16.1
+    constexpr std::uint16_t CANCEL_UNICAST_TRANSMISSION = 0x0006;  // Section 16.1
+    constexpr std::uint16_t ACKNOWLEDGE_CANCEL_UNICAST_TRANSMISSION = 0x0007;  // Section 16.1
+    constexpr std::uint16_t PATH_TRACE                  = 0x0008;  // Section 16.2
+    constexpr std::uint16_t ALTERNATE_TIME_OFFSET_INDICATOR = 0x0009;  // Section 16.3
+}
+
+/**
+ * @brief TLV Header Structure (IEEE 1588-2019 Section 14)
+ * 
+ * Common header for all TLV entities. Consists of:
+ * - tlvType: 2 bytes (network byte order) - identifies TLV type
+ * - lengthField: 2 bytes (network byte order) - octets in valueField (excludes type/length)
+ * 
+ * @note All multi-byte fields use network byte order (big-endian) per Section 7.1.2
+ */
+struct TLVHeader {
+    std::uint16_t tlvType;       // TLV type identifier (network byte order)
+    std::uint16_t lengthField;   // Length of valueField in octets (network byte order)
+    
+    /**
+     * @brief Validate TLV header
+     * @return PTPResult with validation status
+     */
+    PTPResult<void> validate() const noexcept {
+        // TLV type validation - check if type is known/valid
+        const std::uint16_t type = detail::be16_to_host(tlvType);
+        // Accept all types for now; specific validation in TLV-specific parsers
+        
+        // Length field must be reasonable (< 64KB by definition, but practical limit lower)
+        const std::uint16_t length = detail::be16_to_host(lengthField);
+        if (length > 1500) {  // Ethernet MTU as practical upper bound
+            return PTPResult<void>::failure(PTPError::INVALID_LENGTH);
+        }
+        
+        return PTPResult<void>::success();
+    }
+};
+
+/**
+ * @brief Management Action Field Enumeration (IEEE 1588-2019 Section 15.4)
+ * 
+ * Defines action types for Management messages.
+ */
+namespace ManagementAction {
+    constexpr std::uint8_t GET          = 0x00;  // Section 15.4.1 - Request dataset values
+    constexpr std::uint8_t SET          = 0x01;  // Section 15.4.1 - Set dataset values
+    constexpr std::uint8_t RESPONSE     = 0x02;  // Section 15.4.1 - Response to GET/SET
+    constexpr std::uint8_t COMMAND      = 0x03;  // Section 15.4.1 - Execute command
+    constexpr std::uint8_t ACKNOWLEDGE  = 0x04;  // Section 15.4.1 - Acknowledge command
+}
+
+/**
+ * @brief Management Message Body (IEEE 1588-2019 Section 15.5.3)
+ * 
+ * Management message structure following common header (34 bytes).
+ * Total management-specific fields: 16 bytes before TLVs.
+ * 
+ * Structure (bytes relative to start of body, after 34-byte common header):
+ * - Bytes 0-9: targetPortIdentity (10 bytes)
+ * - Byte 10: startingBoundaryHops
+ * - Byte 11: boundaryHops
+ * - Byte 12: reserved (4 bits) + actionField (4 bits)
+ * - Byte 13: reserved
+ * - Bytes 14+: TLV entities (variable length)
+ * 
+ * @note All multi-byte fields use network byte order (big-endian)
+ */
+struct ManagementMessageBody {
+    // Bytes 0-9: Target port identity (10 bytes)
+    PortIdentity targetPortIdentity;
+    
+    // Byte 10: Starting boundary hops (Section 15.5.3.3)
+    std::uint8_t startingBoundaryHops;
+    
+    // Byte 11: Boundary hops (Section 15.5.3.4)
+    std::uint8_t boundaryHops;
+    
+    // Byte 12: Reserved (4 bits) + Action field (4 bits) - Section 15.5.3.5
+    std::uint8_t reserved_actionField;
+    
+    // Byte 13: Reserved
+    std::uint8_t reserved;
+    
+    // Bytes 14+: TLV entities follow (not included in fixed structure)
+    // TLVs are parsed separately due to variable length
+    
+    /**
+     * @brief Get action field value from reserved_actionField byte
+     * @return Action field value (lower 4 bits)
+     */
+    constexpr std::uint8_t getActionField() const noexcept {
+        return reserved_actionField & 0x0F;  // Lower 4 bits
+    }
+    
+    /**
+     * @brief Set action field value in reserved_actionField byte
+     * @param action Action field value (must be 0-15)
+     */
+    constexpr void setActionField(std::uint8_t action) noexcept {
+        reserved_actionField = (reserved_actionField & 0xF0) | (action & 0x0F);
+    }
+    
+    /**
+     * @brief Validate management message body
+     * @return PTPResult with validation status
+     */
+    PTPResult<void> validate() const noexcept {
+        // Validate action field is in valid range
+        const std::uint8_t action = getActionField();
+        if (action > ManagementAction::ACKNOWLEDGE) {
+            return PTPResult<void>::failure(PTPError::Invalid_Parameter);
+        }
+        
+        // Validate boundary hops
+        if (boundaryHops > startingBoundaryHops) {
+            return PTPResult<void>::failure(PTPError::Invalid_Parameter);
+        }
+        
+        return PTPResult<void>::success();
+    }
+};
+
+/**
+ * @brief Management ID Enumeration (IEEE 1588-2019 Section 15.5.3.1)
+ * 
+ * Identifies which dataset or command is being accessed.
+ * Used within MANAGEMENT TLV payload.
+ */
+namespace ManagementId {
+    constexpr std::uint16_t NULL_MANAGEMENT             = 0x0000;  // Section 15.5.3.1.1
+    constexpr std::uint16_t CLOCK_DESCRIPTION           = 0x0001;  // Section 15.5.3.1.2
+    constexpr std::uint16_t USER_DESCRIPTION            = 0x0002;  // Section 15.5.3.1.3
+    constexpr std::uint16_t SAVE_IN_NON_VOLATILE_STORAGE = 0x0003; // Section 15.5.3.1.4
+    constexpr std::uint16_t RESET_NON_VOLATILE_STORAGE  = 0x0004;  // Section 15.5.3.1.5
+    constexpr std::uint16_t INITIALIZE                  = 0x0005;  // Section 15.5.3.1.6
+    constexpr std::uint16_t FAULT_LOG                   = 0x0006;  // Section 15.5.3.1.7
+    constexpr std::uint16_t FAULT_LOG_RESET             = 0x0007;  // Section 15.5.3.1.8
+    
+    // Dataset access (Section 8)
+    constexpr std::uint16_t DEFAULT_DATA_SET            = 0x2000;  // Section 8.2.1
+    constexpr std::uint16_t CURRENT_DATA_SET            = 0x2001;  // Section 8.2.2
+    constexpr std::uint16_t PARENT_DATA_SET             = 0x2002;  // Section 8.2.3
+    constexpr std::uint16_t TIME_PROPERTIES_DATA_SET    = 0x2003;  // Section 8.2.4
+    constexpr std::uint16_t PORT_DATA_SET               = 0x2004;  // Section 8.2.5
+    constexpr std::uint16_t PRIORITY1                   = 0x2005;  // Section 8.2.1
+    constexpr std::uint16_t PRIORITY2                   = 0x2006;  // Section 8.2.1
+    constexpr std::uint16_t DOMAIN_NUMBER               = 0x2007;  // Section 8.2.1 (renamed from DOMAIN to avoid Windows macro conflict)
+    constexpr std::uint16_t SLAVE_ONLY                  = 0x2008;  // Section 8.2.1
+    constexpr std::uint16_t LOG_ANNOUNCE_INTERVAL       = 0x2009;  // Section 8.2.1
+    constexpr std::uint16_t ANNOUNCE_RECEIPT_TIMEOUT    = 0x200A;  // Section 8.2.1
+    constexpr std::uint16_t LOG_SYNC_INTERVAL           = 0x200B;  // Section 8.2.1
+    constexpr std::uint16_t VERSION_NUMBER              = 0x200C;  // Section 8.2.1
+    constexpr std::uint16_t CURRENT_TIME                = 0x200F;  // Section 8.2.2 (renamed from TIME to avoid Windows macro conflict)
+    constexpr std::uint16_t CLOCK_ACCURACY              = 0x2010;  // Section 8.2.1
+    constexpr std::uint16_t UTC_PROPERTIES              = 0x2011;  // Section 8.2.4
+    constexpr std::uint16_t TRACEABILITY_PROPERTIES     = 0x2012;  // Section 8.2.4
+    constexpr std::uint16_t TIMESCALE_PROPERTIES        = 0x2013;  // Section 8.2.4
+}
+
+/**
+ * @brief Management TLV Structure (IEEE 1588-2019 Section 15.5.4.1)
+ * 
+ * MANAGEMENT TLV payload structure:
+ * - managementId: 2 bytes (network byte order) - identifies dataset/command
+ * - dataField: variable length - dataset-specific data
+ * 
+ * This structure represents the valueField of a TLV with tlvType = MANAGEMENT (0x0001).
+ */
+struct ManagementTLV {
+    std::uint16_t managementId;  // Management ID (network byte order)
+    // dataField follows (variable length, parsed separately)
+    
+    /**
+     * @brief Get management ID in host byte order
+     * @return Management ID value
+     */
+    constexpr std::uint16_t getManagementId() const noexcept {
+        return detail::be16_to_host(managementId);
+    }
+    
+    /**
+     * @brief Set management ID from host byte order
+     * @param id Management ID value
+     */
+    constexpr void setManagementId(std::uint16_t id) noexcept {
+        managementId = detail::host_to_be16(id);
+    }
+};
+
+//==============================================================================
+// Management Message Type Alias
+//==============================================================================
+
+using ManagementMessage = PTPMessage<ManagementMessageBody>;
+
+//==============================================================================
 // Signaling Message (Section 13.12) - Minimal Stub
 //==============================================================================
 /**

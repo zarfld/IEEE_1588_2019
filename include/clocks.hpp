@@ -355,6 +355,74 @@ struct StateCallbacks {
     void (*on_fault)(const char* fault_description);
 };
 
+//==============================================================================
+// TLV Parsing Helper Functions (IEEE 1588-2019 Section 14)
+//==============================================================================
+
+/**
+ * @brief Parse TLV header from buffer
+ * @param buffer Input buffer containing TLV data
+ * @param buffer_size Size of input buffer
+ * @param header Output TLV header structure
+ * @return Success/failure result
+ * @note IEEE 1588-2019 Section 14 - TLV format
+ */
+inline Types::PTPResult<void> parse_tlv_header(const std::uint8_t* buffer,
+                                               std::size_t buffer_size,
+                                               TLVHeader& header) noexcept {
+    if (buffer == nullptr || buffer_size < sizeof(TLVHeader)) {
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    // Copy TLV header (already in network byte order)
+    std::memcpy(&header, buffer, sizeof(TLVHeader));
+    
+    // Validate header
+    return header.validate();
+}
+
+/**
+ * @brief Parse Management TLV from buffer
+ * @param buffer Input buffer containing Management TLV payload (after TLV header)
+ * @param buffer_size Size of input buffer
+ * @param mgmt_tlv Output Management TLV structure
+ * @return Success/failure result
+ * @note IEEE 1588-2019 Section 15.5.4.1 - MANAGEMENT TLV format
+ */
+inline Types::PTPResult<void> parse_management_tlv(const std::uint8_t* buffer,
+                                                   std::size_t buffer_size,
+                                                   ManagementTLV& mgmt_tlv) noexcept {
+    if (buffer == nullptr || buffer_size < sizeof(ManagementTLV)) {
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    // Copy Management TLV header (managementId is in network byte order)
+    std::memcpy(&mgmt_tlv, buffer, sizeof(ManagementTLV));
+    
+    return Types::PTPResult<void>::success();
+}
+
+/**
+ * @brief Validate TLV length field against buffer bounds
+ * @param tlv_length Length field from TLV header (host byte order)
+ * @param available_size Available buffer size for TLV payload
+ * @return Success/failure result
+ * @note IEEE 1588-2019 Section 14.2 - lengthField validation
+ */
+inline Types::PTPResult<void> validate_tlv_length(std::uint16_t tlv_length,
+                                                  std::size_t available_size) noexcept {
+    if (tlv_length > available_size) {
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    // Additional sanity check: TLV length should not exceed practical limits
+    if (tlv_length > 1500) {  // Ethernet MTU limit
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    return Types::PTPResult<void>::success();
+}
+
 /**
  * @brief PTP Port State Machine
  * @details Implementation of IEEE 1588-2019 port state machine with
@@ -488,6 +556,19 @@ public:
      * @note IEEE 1588-2019 Section 11.4.3 - Two-step peer delay
      */
     Types::PTPResult<void> process_pdelay_resp_follow_up(const PdelayRespFollowUpMessage& message) noexcept;
+    
+    /**
+     * @brief Process Management message (dataset GET/SET operations)
+     * @param message Management message to process
+     * @param response_buffer Buffer to store response (if GET operation)
+     * @param response_size Size of response buffer / bytes written on success
+     * @return Success/failure result
+     * @note IEEE 1588-2019 Section 15 - Management messages
+     * @note This is a minimal implementation supporting basic GET operations
+     */
+    Types::PTPResult<void> process_management(const ManagementMessage& message,
+                                              std::uint8_t* response_buffer,
+                                              std::size_t& response_size) noexcept;
     
     // Periodic processing (deterministic timing)
     

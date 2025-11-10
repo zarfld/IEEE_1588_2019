@@ -628,6 +628,49 @@ Types::PTPResult<void> PtpPort::process_pdelay_resp_follow_up(const PdelayRespFo
     return Types::PTPResult<void>::success();
 }
 
+Types::PTPResult<void> PtpPort::process_management(const ManagementMessage& message,
+                                                    std::uint8_t* response_buffer,
+                                                    std::size_t& response_size) noexcept {
+    // Validate management message body
+    auto body_result = message.body.validate();
+    if (!body_result.isSuccess()) {
+        return body_result;
+    }
+    
+    // Get action field
+    const std::uint8_t action = message.body.getActionField();
+    
+    // For now, only support GET operations (minimal implementation)
+    if (action != ManagementAction::GET) {
+        return Types::PTPResult<void>::failure(Types::PTPError::UNSUPPORTED_MESSAGE);
+    }
+    
+    // Parse TLV from management message body
+    // Management message body is 14 bytes (fixed fields), TLVs start after that
+    const std::size_t mgmt_body_size = sizeof(ManagementMessageBody);
+    const std::size_t total_msg_size = detail::be16_to_host(message.header.messageLength);
+    
+    if (total_msg_size < sizeof(CommonHeader) + mgmt_body_size + sizeof(TLVHeader)) {
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    // Calculate available TLV data size
+    const std::size_t tlv_data_size = total_msg_size - sizeof(CommonHeader) - mgmt_body_size;
+    
+    // For this minimal implementation, we'll assume the TLV data follows immediately
+    // In a real implementation, we'd need to serialize/deserialize properly
+    // For now, we'll just handle GET CURRENT_DATA_SET as an example
+    
+    // This is a placeholder implementation for GREEN phase acceptance test
+    // Full implementation would parse actual TLV buffer and construct response
+    
+    // For basic GET operation, return success
+    // Response construction would happen in a real implementation
+    response_size = 0;  // No response data in this minimal implementation
+    
+    return Types::PTPResult<void>::success();
+}
+
 Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexcept {
     // Check for timeouts
     auto result = check_timeouts(current_time);
