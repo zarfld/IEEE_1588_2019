@@ -65,7 +65,7 @@ int main() {
     // In RED phase: This will print FAIL and return 1
     // In GREEN phase: This will actually call accessor and validate fields
     
-    #if 0  // Disabled until GREEN phase implements accessor
+    #if 1  // GREEN PHASE: Accessor implemented!
     auto time_props = clock.get_time_properties_data_set();
     
     // Verify structure has all required fields

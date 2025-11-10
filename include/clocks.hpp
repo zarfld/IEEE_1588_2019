@@ -195,6 +195,43 @@ struct ParentDataSet {
     std::uint8_t grandmaster_priority2{128};
 };
 
+/**
+ * @brief Time Properties Data Set per IEEE 1588-2019 Section 8.2.4
+ * @details Time properties from grandmaster clock with deterministic structure
+ * 
+ * Contains time metadata extracted from Announce message header flags and body.
+ * All fields map directly to IEEE 1588-2019 specification requirements.
+ * 
+ * @see IEEE 1588-2019, Section 8.2.4 "timePropertiesDS data set member specifications"
+ * @see IEEE 1588-2019, Section 13.5 "Announce message"
+ * @see IEEE 1588-2019, Table 34 "Announce message fields"
+ */
+struct TimePropertiesDataSet {
+    /** Current UTC offset in seconds (from AnnounceBody byte 44-45) */
+    std::int16_t currentUtcOffset{0};
+    
+    /** True if currentUtcOffset is valid (from flagField bit 0x0004) */
+    bool currentUtcOffsetValid{false};
+    
+    /** True if last minute of current day has 59 seconds (from flagField bit 0x0002) */
+    bool leap59{false};
+    
+    /** True if last minute of current day has 61 seconds (from flagField bit 0x0001) */
+    bool leap61{false};
+    
+    /** True if timescale is PTP (from flagField bit 0x0008) */
+    bool ptpTimescale{false};
+    
+    /** True if time is traceable to primary reference (from flagField bit 0x0010) */
+    bool timeTraceable{false};
+    
+    /** True if frequency is traceable to primary reference (from flagField bit 0x0020) */
+    bool frequencyTraceable{false};
+    
+    /** Time source (from AnnounceBody byte 63) per IEEE 1588-2019 Table 6 */
+    std::uint8_t timeSource{0};
+};
+
 
 /**
  * @brief Clock synchronization information
@@ -483,6 +520,11 @@ public:
     
     /** Get parent data set */
     constexpr const ParentDataSet& get_parent_data_set() const noexcept { return parent_data_set_; }
+    
+    /** Get time properties data set per IEEE 1588-2019 Section 8.2.4 */
+    constexpr const TimePropertiesDataSet& get_time_properties_data_set() const noexcept { 
+        return time_properties_data_set_; 
+    }
 
     /** Get port data set (for dataset/read observability tests) */
     constexpr const PortDataSet& get_port_data_set() const noexcept { return port_data_set_; }
@@ -531,6 +573,7 @@ private:
     PortDataSet port_data_set_;
     CurrentDataSet current_data_set_;
     ParentDataSet parent_data_set_;
+    TimePropertiesDataSet time_properties_data_set_;
     PortStatistics statistics_;
     
     // Timing state (bounded precision)
@@ -704,6 +747,11 @@ public:
     
     /** Check if clock is synchronized */
     constexpr bool is_synchronized() const noexcept { return port_.is_synchronized(); }
+    
+    /** Get time properties data set per IEEE 1588-2019 Section 8.2.4 */
+    constexpr const TimePropertiesDataSet& get_time_properties_data_set() const noexcept {
+        return port_.get_time_properties_data_set();
+    }
 
 private:
     PtpPort port_;  ///< Single port for Ordinary Clock

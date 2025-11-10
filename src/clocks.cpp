@@ -391,6 +391,20 @@ Types::PTPResult<void> PtpPort::process_announce(const AnnounceMessage& message)
         return result;
     }
     
+    // Extract timePropertiesDS from Announce message per IEEE 1588-2019 Section 8.2.4
+    // Flag field bits (Section 13.3.2.6)
+    const std::uint16_t flags = detail::be16_to_host(message.header.flagField);
+    time_properties_data_set_.leap61 = (flags & Flags::LI_61) != 0;
+    time_properties_data_set_.leap59 = (flags & Flags::LI_59) != 0;
+    time_properties_data_set_.currentUtcOffsetValid = (flags & Flags::CURRENT_UTC_OFFSET_VALID) != 0;
+    time_properties_data_set_.ptpTimescale = (flags & Flags::PTP_TIMESCALE) != 0;
+    time_properties_data_set_.timeTraceable = (flags & Flags::TIME_TRACEABLE) != 0;
+    time_properties_data_set_.frequencyTraceable = (flags & Flags::FREQUENCY_TRACEABLE) != 0;
+    
+    // Announce body fields (Section 13.5, Table 34)
+    time_properties_data_set_.currentUtcOffset = detail::be16_to_host(message.body.currentUtcOffset);
+    time_properties_data_set_.timeSource = message.body.timeSource;
+    
     // Run BMCA if in appropriate state
     if (port_data_set_.port_state == PortState::Listening ||
         port_data_set_.port_state == PortState::PreMaster ||
