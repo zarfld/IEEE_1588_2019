@@ -5,7 +5,7 @@ standard: 29148
 phase: 02-requirements
 version: 1.0.0
 author: "standards-integration-workstream"
-date: 2025-11-09
+date: "2025-11-09"
 status: draft
 traceability:
   stakeholderRequirements:
