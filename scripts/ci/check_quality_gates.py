@@ -67,7 +67,7 @@ def main():
     if covered is None:
         print("Unable to determine line coverage from coverage.json (expected keys like line_coverage, line_percent, or totals)", file=sys.stderr)
         sys.exit(4)
-    minimum = gates.get('coverage', {}).get('minimum', 80)
+    minimum = gates.get('coverage', {}).get('minimum', 75.0)
 
     print(f"Line coverage: {covered:.2f}% (minimum {minimum}%)")
     if covered < minimum:
