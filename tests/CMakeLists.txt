@@ -120,4 +120,10 @@ target_include_directories(clocks_header_compile PRIVATE ${CMAKE_SOURCE_DIR}/inc
 target_link_libraries(clocks_header_compile PRIVATE IEEE1588_2019)
 add_test(NAME clocks_header_compile COMMAND clocks_header_compile)
 
-message(STATUS "IEEE 1588-2019 additional tests: clocks_api_compile, clocks_header_compile")
+# Coverage boost test - simple API coverage
+add_executable(simple_coverage_boost ${CMAKE_CURRENT_LIST_DIR}/test_simple_coverage_boost.cpp)
+target_include_directories(simple_coverage_boost PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(simple_coverage_boost PRIVATE IEEE1588_2019)
+add_test(NAME simple_coverage_boost COMMAND simple_coverage_boost)
+
+message(STATUS "IEEE 1588-2019 additional tests: clocks_api_compile, clocks_header_compile, simple_coverage_boost")
