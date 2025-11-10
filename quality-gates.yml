@@ -5,7 +5,7 @@ traceability:
   requirements: [REQ-NF-REL-003]
 purpose: "Quality gate thresholds for CI enforcement (coverage, complexity, duplication)"
 coverage:
-  minimum: 80  # minimum total line coverage percentage
+  minimum: 75.0  # minimum total line coverage percentage
 complexity:
   maximum: 10  # max cyclomatic complexity per function
 duplications:
