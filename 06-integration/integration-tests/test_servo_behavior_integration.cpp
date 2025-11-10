@@ -11,9 +11,8 @@
 #include <cmath>
 #include <vector>
 
-using namespace IEEE::_1588::_2019;
-using namespace IEEE::_1588::_2019::servo;
-using namespace IEEE::_1588::PTP::_2019;  // For StateCallbacks and Types
+using namespace IEEE::_1588::PTP::_2019;
+using namespace IEEE::_1588::PTP::_2019::servo;
 
 //==============================================================================
 // Test Infrastructure - Mock Clock Callbacks

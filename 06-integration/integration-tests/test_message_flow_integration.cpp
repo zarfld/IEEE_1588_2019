@@ -430,7 +430,7 @@ void MessageFlowIntegrationTest_DomainFiltering() {
     announce_msg = create_announce_message(1, 2);  // Domain 1 instead of 0
     
     result = g_coordinator->process_announce_message(announce_msg, reception_time);
-    EXPECT_EQ(result, Types::PTPError::WRONG_DOMAIN);
+    EXPECT_EQ(result, Types::PTPError::Domain_Error);
     
     // Check statistics
     auto stats = g_coordinator->get_statistics();
