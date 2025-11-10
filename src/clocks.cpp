@@ -745,7 +745,14 @@ Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexc
     }
     // Health heartbeat emission (FM-007): throttle to 1 second
     const auto one_second = time_interval_for_log_interval(0, 1);
+    auto elapsed = current_time - last_health_emit_time_;
+    std::printf("DEBUG health: last=%lld.%09u, current=%lld.%09u, elapsed=%lld ns, timeout=%lld ns, expired=%d\n",
+               (long long)last_health_emit_time_.getTotalSeconds(), last_health_emit_time_.nanoseconds,
+               (long long)current_time.getTotalSeconds(), current_time.nanoseconds,
+               (long long)elapsed.toNanoseconds(), (long long)one_second.toNanoseconds(),
+               is_timeout_expired(last_health_emit_time_, current_time, one_second) ? 1 : 0);
     if (is_timeout_expired(last_health_emit_time_, current_time, one_second)) {
+        std::printf("DEBUG: Emitting health heartbeat\n");
         Common::utils::health::emit();
         last_health_emit_time_ = current_time;
     }

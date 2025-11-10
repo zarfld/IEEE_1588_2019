@@ -30,18 +30,26 @@ int main() {
   static std::atomic<int> emits{0};
   struct Local {
     static void on_health(const Common::utils::health::SelfTestReport&) {
-      emits.fetch_add(1, std::memory_order_relaxed);
+      int count = emits.fetch_add(1, std::memory_order_relaxed) + 1;
+      std::printf("HEALTH EMIT #%d\n", count);
     }
   };
   Common::utils::health::set_observer(&Local::on_health);
+    std::printf("After set_observer: emits=%d\n", emits.load());
 
     StateCallbacks cbs{}; // no sending; listening state does nothing
     PortConfiguration cfg{};
     cfg.port_number = 1;
+    std::printf("After config setup: emits=%d\n", emits.load());
 
     PtpPort port(cfg, cbs);
+    std::printf("After port construction: emits=%d\n", emits.load());
+    
     if (!port.initialize().is_success()) { std::fprintf(stderr, "init failed\n"); return 1; }
+    std::printf("After initialize: emits=%d\n", emits.load());
+    
     if (!port.start().is_success()) { std::fprintf(stderr, "start failed\n"); return 2; }
+    std::printf("After start: emits=%d\n", emits.load());
 
     // t=0: no heartbeat yet
     (void)port.tick(make_ns(0));
