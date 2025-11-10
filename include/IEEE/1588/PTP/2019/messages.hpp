@@ -791,26 +791,110 @@ struct ManagementTLV {
 using ManagementMessage = PTPMessage<ManagementMessageBody>;
 
 //==============================================================================
-// Signaling Message (Section 13.12) - Minimal Stub
+// Signaling Message (IEEE 1588-2019 Section 13.10)
 //==============================================================================
+
 /**
- * @brief Minimal Signaling message representation
- *
- * Clause reference: IEEE 1588-2019 Section 13.12 (Signaling message)
- * This minimal stub only covers the common header portion required for
- * early TDD parsing (CAP-20251109-04 / GAP-SIGNAL-001). The full TLV
- * payload set (unicast negotiation, path trace, alternate timescale,
- * authentication) will be added incrementally in future CAP closures.
+ * @brief Signaling Message Body (IEEE 1588-2019 Section 13.10.2)
+ * 
+ * Signaling message structure following common header (34 bytes).
+ * Contains only targetPortIdentity field (10 bytes).
+ * TLVs follow immediately after this body (variable length).
+ * 
+ * Structure (bytes relative to start of body, after 34-byte common header):
+ * - Bytes 0-9: targetPortIdentity (10 bytes)
+ * - Bytes 10+: TLV entities (variable length, zero or more TLVs)
+ * 
+ * @note Signaling messages may contain multiple TLVs of different types
+ * @note All multi-byte fields use network byte order (big-endian)
  */
-struct SignalingStubBody {
-    // Placeholder for future TLV data; kept zero-sized for now to reuse
-    // existing PTPMessage template without impacting layout contracts.
-    // Validation trivially succeeds; future implementation will add
-    // bounded TLV iteration with strict size checks.
-    PTPResult<void> validate() const noexcept { return PTPResult<void>::success(); }
+struct SignalingMessageBody {
+    // Bytes 0-9: Target port identity (10 bytes)
+    // All Fs (FF-FF-FF-FF-FF-FF-FF-FF-FF-FF) means "all ports"
+    PortIdentity targetPortIdentity;
+    
+    // Bytes 10+: TLV entities follow (not included in fixed structure)
+    // TLVs are parsed separately due to variable length and count
+    
+    /**
+     * @brief Validate Signaling message body
+     * @return PTPResult with validation status
+     */
+    PTPResult<void> validate() const noexcept {
+        // targetPortIdentity is always valid (any value allowed per Section 13.10.2)
+        // All Fs means "all ports", any other value targets specific port
+        return PTPResult<void>::success();
+    }
 };
 
-using SignalingMessage = PTPMessage<SignalingStubBody>;
+/**
+ * @brief REQUEST_UNICAST_TRANSMISSION TLV (IEEE 1588-2019 Section 16.1.4.1)
+ * 
+ * Used to request unicast transmission of specific message types.
+ * Part of unicast message negotiation mechanism.
+ * 
+ * Structure (7 bytes valueField after TLVHeader):
+ * - Byte 0: messageType (Enumeration4) - which message type to request
+ * - Byte 1: reserved
+ * - Byte 2: logInterMessagePeriod (Integer8) - requested interval
+ * - Bytes 3-6: durationField (UInteger32, network byte order) - request duration in seconds
+ */
+struct RequestUnicastTransmissionTLV {
+    std::uint8_t  messageType;           // Enumeration4: message type to request (Sync, Delay_Req, etc.)
+    std::uint8_t  reserved;              // Reserved byte
+    std::int8_t   logInterMessagePeriod; // Integer8: log2 of message interval in seconds
+    std::uint32_t durationField;         // UInteger32: duration in seconds (network byte order)
+};
+
+/**
+ * @brief GRANT_UNICAST_TRANSMISSION TLV (IEEE 1588-2019 Section 16.1.4.2)
+ * 
+ * Response to REQUEST_UNICAST_TRANSMISSION, granting or denying request.
+ * 
+ * Structure (9 bytes valueField after TLVHeader):
+ * - Byte 0: messageType (Enumeration4) - granted message type
+ * - Byte 1: reserved
+ * - Byte 2: logInterMessagePeriod (Integer8) - granted interval
+ * - Bytes 3-6: durationField (UInteger32, network byte order) - granted duration in seconds
+ * - Byte 7: reserved
+ * - Byte 8: renewal (Boolean) - whether renewal is allowed
+ */
+struct GrantUnicastTransmissionTLV {
+    std::uint8_t  messageType;           // Enumeration4: granted message type
+    std::uint8_t  reserved1;             // Reserved byte
+    std::int8_t   logInterMessagePeriod; // Integer8: granted log interval
+    std::uint32_t durationField;         // UInteger32: granted duration (network byte order)
+    std::uint8_t  reserved2;             // Reserved byte
+    std::uint8_t  renewal;               // Boolean: renewal allowed (0=no, 1=yes)
+};
+
+/**
+ * @brief PATH_TRACE TLV (IEEE 1588-2019 Section 16.2.3)
+ * 
+ * Contains sequence of ClockIdentity values representing path through network.
+ * Variable length: lengthField = N × 8 (where N is number of clocks).
+ * 
+ * Structure (variable length valueField after TLVHeader):
+ * - Bytes 0-7: First ClockIdentity (8 bytes)
+ * - Bytes 8-15: Second ClockIdentity (8 bytes)
+ * - ... (up to N ClockIdentity entries)
+ * 
+ * @note pathSequence size determined by TLV lengthField / 8
+ */
+struct PathTraceTLV {
+    std::uint8_t pathSequence[256];  // Up to 32 ClockIdentity entries (32 × 8 = 256 bytes max)
+    
+    /**
+     * @brief Get number of ClockIdentity entries in path
+     * @param tlv_length Length field from TLV header
+     * @return Number of ClockIdentity entries
+     */
+    static constexpr std::size_t get_path_count(std::uint16_t tlv_length) noexcept {
+        return tlv_length / 8;  // Each ClockIdentity is 8 bytes
+    }
+};
+
+using SignalingMessage = PTPMessage<SignalingMessageBody>;
 
 // Compile-time size verification for all message types
 // Wire-size static_asserts removed pending portable serialization layer.

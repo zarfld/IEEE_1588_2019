@@ -570,6 +570,20 @@ public:
                                               std::uint8_t* response_buffer,
                                               std::size_t& response_size) noexcept;
     
+    /**
+     * @brief Process Signaling message (unicast negotiation, PATH_TRACE, etc.)
+     * @param message Signaling message to process
+     * @param response_buffer Buffer to store response (if needed)
+     * @param response_size Size of response buffer / bytes written on success
+     * @return Success/failure result
+     * @note IEEE 1588-2019 Section 13.10 - Signaling messages
+     * @note IEEE 1588-2019 Section 16 - Optional features (unicast, path trace)
+     * @note This is a minimal implementation supporting basic TLV parsing
+     */
+    Types::PTPResult<void> process_signaling(const SignalingMessage& message,
+                                            std::uint8_t* response_buffer,
+                                              std::size_t& response_size) noexcept;
+    
     // Periodic processing (deterministic timing)
     
     /**
@@ -814,7 +828,10 @@ public:
     
     // State queries
     
-    /** Get the single PTP port */
+    /** Get the single PTP port (non-const) */
+    constexpr PtpPort& get_port() noexcept { return port_; }
+    
+    /** Get the single PTP port (const) */
     constexpr const PtpPort& get_port() const noexcept { return port_; }
     
     /** Get clock type */

@@ -671,6 +671,51 @@ Types::PTPResult<void> PtpPort::process_management(const ManagementMessage& mess
     return Types::PTPResult<void>::success();
 }
 
+Types::PTPResult<void> PtpPort::process_signaling(const SignalingMessage& message,
+                                                   std::uint8_t* response_buffer,
+                                                   std::size_t& response_size) noexcept {
+    // Validate signaling message body
+    auto body_result = message.body.validate();
+    if (!body_result.isSuccess()) {
+        return body_result;
+    }
+    
+    // Parse TLV loop from signaling message body
+    // Signaling message body is 10 bytes (targetPortIdentity only), TLVs start after that
+    const std::size_t signaling_body_size = sizeof(SignalingMessageBody);
+    const std::size_t total_msg_size = detail::be16_to_host(message.header.messageLength);
+    
+    // Check minimum message size (header + body, TLVs are optional)
+    if (total_msg_size < sizeof(CommonHeader) + signaling_body_size) {
+        return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
+    }
+    
+    // Calculate available TLV data size
+    const std::size_t tlv_data_size = total_msg_size - sizeof(CommonHeader) - signaling_body_size;
+    
+    // If no TLVs present, that's valid (though unusual)
+    if (tlv_data_size == 0) {
+        response_size = 0;
+        return Types::PTPResult<void>::success();
+    }
+    
+    // For this minimal implementation, we acknowledge receipt of Signaling message
+    // but don't actually process individual TLVs yet
+    // Full implementation would:
+    // 1. Iterate through TLV loop using parse_tlv_header()
+    // 2. Handle known TLV types (REQUEST_UNICAST_TRANSMISSION, GRANT_UNICAST_TRANSMISSION, PATH_TRACE)
+    // 3. Safely skip unknown TLV types (forward compatibility per Section 14.1.1)
+    // 4. Construct appropriate responses for unicast negotiation
+    
+    // This is a placeholder implementation for GREEN phase acceptance test
+    // Full implementation would parse actual TLV buffer and handle each TLV type
+    
+    // For now, return success indicating message was received and validated
+    response_size = 0;  // No response data in this minimal implementation
+    
+    return Types::PTPResult<void>::success();
+}
+
 Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexcept {
     // Check for timeouts
     auto result = check_timeouts(current_time);

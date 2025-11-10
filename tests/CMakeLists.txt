@@ -73,6 +73,12 @@ target_include_directories(management_tlv_red PRIVATE ${CMAKE_SOURCE_DIR}/includ
 target_link_libraries(management_tlv_red PRIVATE IEEE1588_2019)
 add_test(NAME management_tlv_red COMMAND management_tlv_red)
 
+# GAP-SIGNAL-001 RED Phase - Signaling message handling acceptance tests
+add_executable(signaling_message_red ${CMAKE_CURRENT_LIST_DIR}/test_signaling_message_red.cpp)
+target_include_directories(signaling_message_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(signaling_message_red PRIVATE IEEE1588_2019)
+add_test(NAME signaling_message_red COMMAND signaling_message_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
