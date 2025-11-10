@@ -305,6 +305,7 @@ private:
     Types::Timestamp last_execution_time_;
     Types::PortState last_role_;
     std::uint8_t last_parent_identity_[8];
+    bool first_execution_done_{false};  ///< Track if first execution completed
     
     // Runtime state
     bool is_running_;
