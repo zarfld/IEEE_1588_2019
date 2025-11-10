@@ -55,6 +55,7 @@ static const char* state_name(IEEE::_1588::PTP::_2019::Types::PortState s) {
 
 // OP-002: offset cycle adapter (dominant operation)
 TestResult run_offset_cycle(IEEE::_1588::PTP::_2019::Clocks::PtpPort &port, std::mt19937 &rng) {
+    (void)rng;  // Suppress unused parameter warning (reserved for future use)
     namespace P = IEEE::_1588::PTP::_2019;
     using namespace P::Clocks;
     // Simulate receipt of Sync (T2) and Follow_Up (T1) and Delay Req/Resp (T3/T4)
@@ -232,7 +233,6 @@ static TestResult run_state_sweep(
     // From UNCALIBRATED, perform offset cycles to achieve SLAVE (heuristic) with deterministic success.
     // Strategy: ensure have_sync_, have_follow_up_, have_delay_req_, have_delay_resp_ sequence repeated
     // until successful_offsets_in_window_ reaches threshold (>=3) then transition_to_state(Slave) occurs.
-    P::Types::Timestamp ts{};
     for (int i=0;i<5;i++) {
         // Non-zero timestamps to ensure offset calculation succeeds
         P::Types::Timestamp t1{}; t1.nanoseconds = static_cast<std::uint32_t>(i*4000);

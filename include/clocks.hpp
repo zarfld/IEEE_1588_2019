@@ -32,6 +32,7 @@ Notes: Public interface for PTP clocks and port state machines; aligns with IEEE
 #include "IEEE/1588/PTP/2019/types.hpp"
 #include "IEEE/1588/PTP/2019/messages.hpp"
 #include <cstdint>
+#include <cstring>
 #include <array>
 #include "Common/utils/logger.hpp"
 #include "Common/utils/fault_injection.hpp"

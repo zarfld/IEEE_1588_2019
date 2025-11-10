@@ -653,6 +653,9 @@ Types::PTPResult<void> PtpPort::process_pdelay_resp_follow_up(const PdelayRespFo
 Types::PTPResult<void> PtpPort::process_management(const ManagementMessage& message,
                                                     std::uint8_t* response_buffer,
                                                     std::size_t& response_size) noexcept {
+    // Suppress unused parameter warnings for minimal implementation
+    (void)response_buffer;
+    
     // Validate management message body
     auto body_result = message.body.validate();
     if (!body_result.isSuccess()) {
@@ -676,8 +679,8 @@ Types::PTPResult<void> PtpPort::process_management(const ManagementMessage& mess
         return Types::PTPResult<void>::failure(Types::PTPError::INVALID_LENGTH);
     }
     
-    // Calculate available TLV data size
-    const std::size_t tlv_data_size = total_msg_size - sizeof(CommonHeader) - mgmt_body_size;
+    // Calculate available TLV data size (for future use)
+    // const std::size_t tlv_data_size = total_msg_size - sizeof(CommonHeader) - mgmt_body_size;
     
     // For this minimal implementation, we'll assume the TLV data follows immediately
     // In a real implementation, we'd need to serialize/deserialize properly
@@ -696,6 +699,8 @@ Types::PTPResult<void> PtpPort::process_management(const ManagementMessage& mess
 Types::PTPResult<void> PtpPort::process_signaling(const SignalingMessage& message,
                                                    std::uint8_t* response_buffer,
                                                    std::size_t& response_size) noexcept {
+    // Suppress unused parameter warnings for minimal implementation
+    (void)response_buffer;
     // Validate signaling message body
     auto body_result = message.body.validate();
     if (!body_result.isSuccess()) {

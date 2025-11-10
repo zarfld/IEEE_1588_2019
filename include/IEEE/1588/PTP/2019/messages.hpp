@@ -619,9 +619,8 @@ struct TLVHeader {
      * @return PTPResult with validation status
      */
     PTPResult<void> validate() const noexcept {
-        // TLV type validation - check if type is known/valid
-        const std::uint16_t type = detail::be16_to_host(tlvType);
-        // Accept all types for now; specific validation in TLV-specific parsers
+        // TLV type validation - accept all types for now; specific validation in TLV-specific parsers
+        // (Type field is in network byte order: tlvType)
         
         // Length field must be reasonable (< 64KB by definition, but practical limit lower)
         const std::uint16_t length = detail::be16_to_host(lengthField);
