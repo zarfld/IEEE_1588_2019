@@ -67,6 +67,25 @@ Types::PTPError MessageFlowCoordinator::start() noexcept {
         return Types::PTPError::State_Error;
     }
     
+    // Start sub-coordinators
+    auto bmca_result = bmca_.start();
+    if (!bmca_result.is_success()) {
+        return Types::PTPError::State_Error;
+    }
+    
+    auto sync_result = sync_.start();
+    if (!sync_result.is_success()) {
+        bmca_.stop();
+        return Types::PTPError::State_Error;
+    }
+    
+    auto servo_result = servo_.start();
+    if (!servo_result) {
+        sync_.stop();
+        bmca_.stop();
+        return Types::PTPError::State_Error;
+    }
+    
     // Reset state
     statistics_.reset();
     first_announce_ = true;

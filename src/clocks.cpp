@@ -344,9 +344,24 @@ Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcep
         // Start listening for Announce messages
         // Reset announce timeout
         announce_timeout_time_ = Types::Timestamp{};
-        // Clear parent data set when returning to Listening (no master selected)
+        // Reset parent data set when returning to Listening from Slave/Uncalibrated (no master selected)
         // Per IEEE 1588-2019 Section 9.2.6.11: Announce receipt timeout clears parent
-        std::memset(&parent_data_set_, 0, sizeof(parent_data_set_));
+        // CRITICAL: Set GM identity to local clock identity (not zeros) to avoid BMCA issues
+        // Don't clear on initial transition from Initializing to avoid affecting initialization
+        if (old_state == PortState::Slave || old_state == PortState::Uncalibrated) {
+            parent_data_set_.parent_port_identity.port_number = 0;
+            parent_data_set_.parent_port_identity.clock_identity.fill(0);
+            parent_data_set_.parent_stats = false;
+            parent_data_set_.observed_parent_offset_scaled_log_variance = 0xFFFF;
+            parent_data_set_.observed_parent_clock_phase_change_rate = 0x7FFFFFFF;
+            // Set GM identity to local clock (not zeros) per constructor logic
+            parent_data_set_.grandmaster_identity = port_data_set_.port_identity.clock_identity;
+            parent_data_set_.grandmaster_clock_quality.clock_class = 248;
+            parent_data_set_.grandmaster_clock_quality.clock_accuracy = 0xFE;
+            parent_data_set_.grandmaster_clock_quality.offset_scaled_log_variance = 0xFFFF;
+            parent_data_set_.grandmaster_priority1 = 128;
+            parent_data_set_.grandmaster_priority2 = 128;
+        }
         break;
         
     case PortState::PreMaster:
@@ -913,12 +928,7 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     // Prune expired foreign masters before BMCA execution per IEEE 1588-2019 Section 9.3.2.5
     // This ensures only valid foreign masters participate in Best Master Clock Algorithm
     Types::Timestamp current_time = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
-    std::printf("DEBUG run_bmca(): before prune, foreign_count=%d, time=%llu.%09u\n",
-               foreign_master_count_, 
-               static_cast<unsigned long long>(current_time.getTotalSeconds()), 
-               current_time.nanoseconds);
     auto prune_result = prune_expired_foreign_masters(current_time);
-    std::printf("DEBUG run_bmca(): after prune, foreign_count=%d\n", foreign_master_count_);
     if (!prune_result.is_success()) {
         Common::utils::logging::warn("BMCA", 0x0111, "Failed to prune expired foreign masters");
     }
@@ -1123,15 +1133,8 @@ Types::PTPResult<void> PtpPort::prune_expired_foreign_masters(const Types::Times
             config_.announce_receipt_timeout
         );
         
-        std::printf("DEBUG prune: FM[%d] last_seen=%llu.%09u, current=%llu.%09u, log_interval=%d, timeout_count=%d, timeout_ns=%.0f\n",
-                   read_index,
-                   static_cast<unsigned long long>(foreign_timestamp.getTotalSeconds()), foreign_timestamp.nanoseconds,
-                   static_cast<unsigned long long>(current_time.getTotalSeconds()), current_time.nanoseconds,
-                   log_interval, config_.announce_receipt_timeout, timeout_interval.toNanoseconds());
-        
         // Check if this foreign master has expired
         bool expired = is_timeout_expired(foreign_timestamp, current_time, timeout_interval);
-        std::printf("DEBUG prune: expired=%s\n", expired ? "YES" : "NO");
         
         if (expired) {
             // Foreign master expired - skip it (don't copy to write position)
