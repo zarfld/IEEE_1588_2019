@@ -79,6 +79,12 @@ target_include_directories(signaling_message_red PRIVATE ${CMAKE_SOURCE_DIR}/inc
 target_link_libraries(signaling_message_red PRIVATE IEEE1588_2019)
 add_test(NAME signaling_message_red COMMAND signaling_message_red)
 
+# GAP-PROFILE-001 RED Phase - Profile differentiation acceptance tests
+add_executable(profile_params_red ${CMAKE_CURRENT_LIST_DIR}/test_profile_params_red.cpp)
+target_include_directories(profile_params_red PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(profile_params_red PRIVATE IEEE1588_2019)
+add_test(NAME profile_params_red COMMAND profile_params_red)
+
 message(STATUS "IEEE 1588-2019 PTP tests configured: ptp_state_machine_tests")
 
 # Additional compilation/API smoke tests
