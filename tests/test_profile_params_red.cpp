@@ -30,17 +30,21 @@
  */
 
 #include "IEEE/1588/PTP/2019/messages.hpp"
+#include "IEEE/1588/PTP/2019/profile.hpp"
 #include "clocks.hpp"
 #include <iostream>
 #include <cstdint>
 #include <cstring>
 
-using namespace IEEE::_1588::PTP::_2019;
-using namespace Clocks;
+using namespace IEEE::_1588::_2019;
+using namespace IEEE::_1588::PTP::_2019::Clocks;
+
+// Alias for easier test readability
+namespace Types = IEEE::_1588::_2019;
 
 // RED Phase: Test compiles but fails at runtime
 // Toggle to GREEN phase once implementation is ready
-#define RED_PHASE 1
+#define RED_PHASE 0
 
 int main() {
     std::cout << "\n=== GAP-PROFILE-001: Profile Differentiation Test ===" << std::endl;
