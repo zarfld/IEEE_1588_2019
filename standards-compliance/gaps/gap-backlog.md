@@ -135,11 +135,18 @@ Legend: [ ] TODO, [~] IN PROGRESS, [x] DONE
   - [ ] REFACTOR: Optional cleanup (current implementation clean and minimal)
   - [ ] PHASE-06: Wire to health monitoring, add metrics dashboard
   - [ ] PHASE-07: Update compliance matrix, add integration tests
-- [ ] GAP-MGMT-001 Management messages (15, TLVs 14)
+- [~] GAP-MGMT-001 Management messages (15, TLVs 14)
   - Trace to: StR-EXTS-009
   - Trace to: REQ-F-205
-  - [ ] RED: TEST-UNIT-Mgmt-TLV-Parse
-  - [ ] RED: TEST-UNIT-Mgmt-Get (at least one dataset GET)
+  - [x] RED: test_management_tlv_red.cpp (proper TDD RED: test compiles but fails at runtime)
+    - Test registered as Test #18 in CTest suite
+    - Clear failure message lists all IEEE 1588-2019 Section 15 requirements
+    - ManagementMessageBody structure requirements (Section 15.5.3)
+    - TLV (Type-Length-Value) structure requirements (Section 14)
+    - Management TLV types: MANAGEMENT (0x0001), MANAGEMENT_ERROR_STATUS (0x0002)
+    - TLV parser function requirements with bounds checking
+    - Basic GET operation for CURRENT_DATA_SET (managementId=0x0001)
+    - Management action field values: GET (0x00), SET (0x01), RESPONSE (0x02), COMMAND (0x03), ACKNOWLEDGE (0x04)
   - [ ] GREEN: Minimal GET path; robust TLV parse
   - [ ] PHASE-06 + 07
 - [ ] GAP-SIGNAL-001 Signaling handling (13.10/16.x)
