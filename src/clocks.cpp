@@ -311,6 +311,7 @@ Types::PTPResult<void> PtpPort::process_event(StateEvent event) noexcept {
 
 Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcept {
     PortState old_state = port_data_set_.port_state;
+    std::fprintf(stderr, "DEBUG-TRANSITION: %d -> %d\n", (int)old_state, (int)new_state);
     port_data_set_.port_state = new_state;
     statistics_.state_transitions++;
     // Reset heuristic counter when entering UNCALIBRATED; clear on others as well
@@ -1201,6 +1202,7 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
     Types::TimeInterval t4_minus_t3 = delay_resp_rx_timestamp_ - delay_req_tx_timestamp_;
     double t2_t1_ns = t2_minus_t1.toNanoseconds();
     double t4_t3_ns = t4_minus_t3.toNanoseconds();
+    std::fprintf(stderr, "DEBUG-CALC: t2_t1_ns=%f, t4_t3_ns=%f\n", t2_t1_ns, t4_t3_ns);
     
     // Apply correctionField per IEEE 1588-2019 Section 11.3.2
     // Total correction = sum of corrections from Sync, Follow_Up, and Delay_Resp messages
@@ -1219,6 +1221,7 @@ Types::PTPResult<void> PtpPort::calculate_offset_and_delay() noexcept {
         Common::utils::health::record_offset_ns(static_cast<long long>(current_data_set_.offset_from_master.toNanoseconds()));
         if (port_data_set_.port_state == PortState::Uncalibrated) {
             ++successful_offsets_in_window_;
+            std::fprintf(stderr, "DEBUG: successful_offsets_in_window_=%u\n", successful_offsets_in_window_);
         }
         // Reset sample flags so next offset requires fresh T1..T4 (prevents double counting per cycle)
         have_sync_ = have_follow_up_ = have_delay_req_ = have_delay_resp_ = false;

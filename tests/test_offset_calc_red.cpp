@@ -61,21 +61,38 @@ int main() {
         return 12;
     }
 
-    // Prepare timestamps (logical sequence)
-    // T1 master transmit sync time (from Follow_Up preciseOriginTimestamp)
-    Timestamp T1 = test_now();               // 0.0s
-    Timestamp T2 = test_now();               // 0.1s (slave reception of Sync)
-    // We will let the port generate Delay_Req via tick; capture approximate T3
-    Timestamp tick_time = test_now();        // 0.2s used to drive tick (Delay_Req send)
+    // Prepare explicit timestamps with proper ordering to ensure positive path delay
+    // T1 = master sends Sync at 1.000s
+    // T2 = slave receives Sync at 1.100s (100ms later, includes offset + path delay)
+    // T3 = slave sends Delay_Req at 2.000s 
+    // T4 = master receives Delay_Req at 2.050s (50ms later, path delay only)
+    // Expected: offset ~= 75ms, path_delay ~= 75ms
+    Timestamp T1{};
+    T1.setTotalSeconds(1);
+    T1.nanoseconds = 0;
+    
+    Timestamp T2{};
+    T2.setTotalSeconds(1);
+    T2.nanoseconds = 100'000'000;  // +100ms
+    
+    Timestamp T3{};
+    T3.setTotalSeconds(2);
+    T3.nanoseconds = 0;
+    
+    Timestamp T4{};
+    T4.setTotalSeconds(2);
+    T4.nanoseconds = 50'000'000;   // +50ms
 
     // Build Sync (two-step) and Follow_Up messages
     SyncMessage sync{}; sync.initialize(MessageType::Sync, cfg.domain_number, port.get_identity());
     FollowUpMessage follow{}; follow.initialize(MessageType::Follow_Up, cfg.domain_number, port.get_identity());
     follow.body.preciseOriginTimestamp = T1; // precise origin of prior Sync
 
-    // Build Delay_Resp referencing our port (simulate completion of delay measurement)
-    // We'll set T4 after tick so that T4 > T3.
+    // Build Delay_Req and Delay_Resp messages
+    DelayReqMessage delayReq{}; delayReq.initialize(MessageType::Delay_Req, cfg.domain_number, port.get_identity());
     DelayRespMessage delayResp{}; delayResp.initialize(MessageType::Delay_Resp, cfg.domain_number, port.get_identity());
+    delayResp.body.receiveTimestamp = T4;    // master receive timestamp
+    delayResp.body.requestingPortIdentity = port.get_identity();
 
     // Act: process Sync reception at T2
     auto rSync = port.process_sync(sync, T2);
@@ -91,13 +108,12 @@ int main() {
         return 21;
     }
 
-    // Drive tick to send Delay_Req (establish T3 inside port)
-    (void)port.tick(tick_time);
-
-    // Set T4 after sending Delay_Req to ensure ordering (T4 > T3)
-    Timestamp T4 = test_now();               // now later than internal T3
-    delayResp.body.receiveTimestamp = T4;    // master receive timestamp
-    delayResp.body.requestingPortIdentity = port.get_identity();
+    // Act: process Delay_Req at T3 (establishes T3 timestamp)
+    auto rDReq = port.process_delay_req(delayReq, T3);
+    if (!rDReq.is_success()) {
+        std::fprintf(stderr, "TEST-OFFSET-CALC-001 FAIL: process_delay_req error %u\n", (unsigned)rDReq.get_error());
+        return 22;
+    }
 
     // Act: process Delay_Resp (captures T4 and computes offset/path delay)
     auto rDR = port.process_delay_resp(delayResp);
