@@ -57,6 +57,19 @@ target_link_libraries(end_to_end_integration PRIVATE IEEE1588_2019)
 add_test(NAME end_to_end_integration COMMAND end_to_end_integration)
 set_tests_properties(end_to_end_integration PROPERTIES LABELS "integration;end-to-end")
 
+# Task 6: Error Recovery Integration Test
+add_executable(error_recovery_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_error_recovery_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/message_flow_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/bmca_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/sync_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/servo_integration.cpp
+)
+target_include_directories(error_recovery_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(error_recovery_integration PRIVATE IEEE1588_2019)
+add_test(NAME error_recovery_integration COMMAND error_recovery_integration)
+set_tests_properties(error_recovery_integration PROPERTIES LABELS "integration;error-recovery")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
