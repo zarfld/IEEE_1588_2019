@@ -1,6 +1,16 @@
 # Phase 06 Integration Tests CMake
 cmake_minimum_required(VERSION 3.16)
 
+# Task 1: BMCA Runtime Integration Test
+add_executable(bmca_runtime_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_bmca_runtime_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/bmca_integration.cpp
+)
+target_include_directories(bmca_runtime_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(bmca_runtime_integration PRIVATE IEEE1588_2019)
+add_test(NAME bmca_runtime_integration COMMAND bmca_runtime_integration)
+set_tests_properties(bmca_runtime_integration PROPERTIES LABELS "integration")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
