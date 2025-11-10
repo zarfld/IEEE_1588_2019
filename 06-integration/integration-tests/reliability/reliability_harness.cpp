@@ -239,7 +239,26 @@ static TestResult run_state_sweep(
     // until successful_offsets_in_window_ reaches threshold (>=3) then transition_to_state(Slave) occurs.
     // Use incrementing timestamps to ensure uniqueness across iterations
     // Pattern based on test_offset_calc_red.cpp but with monotonically increasing values
+    // CRITICAL: Send Announce messages to prevent ANNOUNCE_RECEIPT_TIMEOUT and maintain Uncalibrated state
+    P::Clocks::AnnounceMessage announce{};
+    announce.initialize(P::Types::MessageType::Announce, 0, port.get_identity());
+    // Set announce body to indicate a valid master (better than local clock)
+    announce.body.grandmasterPriority1 = 127; // Better than default 128
+    announce.body.grandmasterClockClass = 6; // Primary reference (GPS)
+    announce.body.grandmasterClockAccuracy = 0x20; // Within 25ns
+    announce.body.grandmasterClockVariance = 0x4000; // Will be converted to network byte order by protocol
+    announce.body.grandmasterPriority2 = 127;
+    announce.body.grandmasterIdentity = port.get_identity().clock_identity;
+    announce.body.stepsRemoved = 0; // Will be converted to network byte order by protocol
+    announce.body.timeSource = 0x20; // GPS
+    
     for (int i=0;i<6;i++) {
+        // Send Announce message FIRST to prevent ANNOUNCE_RECEIPT_TIMEOUT and maintain Uncalibrated state
+        P::Types::Timestamp announce_time{};
+        announce_time.setTotalSeconds(1 + i);
+        announce.body.originTimestamp = announce_time;
+        port.process_announce(announce);
+        
         // T1 = master sends Sync at (1+i).000s
         // T2 = slave receives Sync at (1+i).100s (100ms later, includes offset + path delay)
         // T3 = slave sends Delay_Req at (2+i).000s 
