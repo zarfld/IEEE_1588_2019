@@ -1,7 +1,7 @@
 # Orphan Analysis
 
 ## requirements_no_links
-- REQ-F-042
+- None
 
 ## scenarios_no_req
 - None
