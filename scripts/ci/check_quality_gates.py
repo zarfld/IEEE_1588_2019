@@ -30,12 +30,43 @@ def main():
     data = json.loads(cov_path.read_text(encoding='utf-8'))
     gates = yaml.safe_load(gates_path.read_text(encoding='utf-8'))
 
-    # gcovr JSON summary: line_coverage is fraction (0..1)
+    # Try multiple gcovr JSON shapes to extract total line coverage.
+    # Preferred: gcovr --json-summary with 'line_coverage' as fraction (0..1).
+    covered = None  # percent (0..100)
+
+    # 1) Newer gcovr summary: fraction 0..1
     line_fraction = data.get('line_coverage')
-    if line_fraction is None:
-        print("line_coverage missing in coverage.json", file=sys.stderr)
+    if isinstance(line_fraction, (int, float)):
+        covered = float(line_fraction) * 100.0
+
+    # 2) Some gcovr versions use 'line_percent' (already 0..100)
+    if covered is None:
+        line_percent = data.get('line_percent')
+        if isinstance(line_percent, (int, float)):
+            covered = float(line_percent)
+
+    # 3) Totals style keys (e.g., lines_covered/lines)
+    if covered is None:
+        totals = (
+            data.get('totals')
+            or data.get('summary')
+            or data.get('gcovr_summary')
+            or {}
+        )
+        lines_total = totals.get('lines') or totals.get('lines_total')
+        lines_covered = totals.get('lines_covered') or totals.get('covered_lines')
+        if isinstance(lines_total, (int, float)) and isinstance(lines_covered, (int, float)) and lines_total:
+            covered = (float(lines_covered) / float(lines_total)) * 100.0
+
+    # 4) Cobertura-like summary (rare in this path): 'line-rate' (0..1)
+    if covered is None:
+        line_rate = data.get('line-rate') or data.get('line_rate')
+        if isinstance(line_rate, (int, float)):
+            covered = float(line_rate) * 100.0
+
+    if covered is None:
+        print("Unable to determine line coverage from coverage.json (expected keys like line_coverage, line_percent, or totals)", file=sys.stderr)
         sys.exit(4)
-    covered = line_fraction * 100.0
     minimum = gates.get('coverage', {}).get('minimum', 80)
 
     print(f"Line coverage: {covered:.2f}% (minimum {minimum}%)")
