@@ -44,6 +44,19 @@ target_link_libraries(message_flow_integration PRIVATE IEEE1588_2019)
 add_test(NAME message_flow_integration COMMAND message_flow_integration)
 set_tests_properties(message_flow_integration PROPERTIES LABELS "integration")
 
+# Task 5: End-to-End Validation Test
+add_executable(end_to_end_integration
+    ${CMAKE_CURRENT_LIST_DIR}/test_end_to_end_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/message_flow_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/bmca_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/sync_integration.cpp
+    ${CMAKE_SOURCE_DIR}/src/servo_integration.cpp
+)
+target_include_directories(end_to_end_integration PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(end_to_end_integration PRIVATE IEEE1588_2019)
+add_test(NAME end_to_end_integration COMMAND end_to_end_integration)
+set_tests_properties(end_to_end_integration PROPERTIES LABELS "integration;end-to-end")
+
 add_executable(boundary_clock_integration
     ${CMAKE_CURRENT_LIST_DIR}/test_boundary_clock_integration.cpp
 )
