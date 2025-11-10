@@ -385,6 +385,10 @@ Types::PTPResult<void> PtpPort::transition_to_state(PortState new_state) noexcep
 Types::PTPResult<void> PtpPort::process_announce(const AnnounceMessage& message) noexcept {
     statistics_.announce_messages_received++;
     
+    // Update last announce time for timeout tracking (IEEE 1588-2019 Section 9.5.17)
+    // This is used by the announce receipt timeout mechanism in Slave/Uncalibrated states
+    last_announce_time_ = callbacks_.get_timestamp ? callbacks_.get_timestamp() : Types::Timestamp{};
+    
     // Update foreign master list
     auto result = update_foreign_master_list(message);
     if (!result.hasValue()) {
@@ -733,7 +737,9 @@ Types::PTPResult<void> PtpPort::tick(const Types::Timestamp& current_time) noexc
         calculate_offset_and_delay();
     }
     // Allow BMCA reevaluation on tick in key states to handle external triggers (e.g., forced tie tests)
-    if (port_data_set_.port_state == PortState::Listening ||
+    // However, only run BMCA if we have foreign masters to compare against, or if we're in PreMaster
+    // (PreMaster needs BMCA to transition to Master after qualification timeout)
+    if ((port_data_set_.port_state == PortState::Listening && foreign_master_count_ > 0) ||
         port_data_set_.port_state == PortState::PreMaster) {
         run_bmca();
     }
@@ -878,6 +884,11 @@ Types::PTPResult<void> PtpPort::check_timeouts(const Types::Timestamp& current_t
 
         if (is_timeout_expired(last_announce_time_, current_time, announce_timeout_interval)) {
             statistics_.announce_timeouts++;
+            // Per IEEE 1588-2019 Section 9.5.17: On announce receipt timeout, the port
+            // must stop considering the current master and transition to Listening.
+            // Clear foreign master list to prevent BMCA from immediately re-selecting
+            // the expired master.
+            foreign_master_count_ = 0;
             return process_event(StateEvent::ANNOUNCE_RECEIPT_TIMEOUT);
         }
     }
