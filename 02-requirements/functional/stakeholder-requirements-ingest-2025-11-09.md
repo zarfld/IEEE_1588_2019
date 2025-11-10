@@ -1,33 +1,12 @@
 ---
-specType: requirements
-standard: "29148"
-phase: "02-requirements"
+specType: guidance
+phase: "01-stakeholder-requirements"
 version: "0.1.0"
 author: "GitHub Copilot"
 date: "2025-11-09"
 status: draft
-traceability:
-  stakeholderRequirements:
-    - StR-001
-    - StR-002
-    - StR-003
-    - StR-004
-    - StR-005
-    - StR-006
-    - StR-007
-    - StR-008
-    - StR-009
-    - StR-010
-    - StR-011
-    - StR-012
-    - StR-013
-    - StR-014
-    - StR-015
-    - StR-016
-    - StR-017
-    - StR-018
-    - StR-019
-    - StR-020
+purpose: "Stakeholder requirements extraction from external standards (802.1AS, 60802, AES67)"
+note: "This is a stakeholder requirements document (StR-*) that will be used to derive system requirements (REQ-*) in separate specifications"
 ---
 
 # Stakeholder Requirements Ingest (802.1AS, 60802, AES67)

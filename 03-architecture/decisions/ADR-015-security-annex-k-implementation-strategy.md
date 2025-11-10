@@ -8,8 +8,8 @@ date: "2025-11-10"
 status: approved
 traceability:
   requirements:
-    - StR-EXTS-015
-    - STR-SEC-004
+    - REQ-EXTS-NF-015
+    - REQ-NF-S-004
     - REQ-NF-S-001
     - REQ-NF-S-002
   gaps:
@@ -21,16 +21,17 @@ traceability:
 > **GAP-SEC-001**: Decision on security policy - defer, partial, or full implementation of IEEE 1588-2019 Annex K (Integrated Security).
 
 ## Metadata
+
 ```yaml
 adrId: ADR-015
 status: approved
 relatedRequirements:
-  - StR-EXTS-015  # IEEE 1588-2019 Annex K security extensions
-  - STR-SEC-004   # Optional Authentication (Post-MVP, P2 priority)
-  - REQ-NF-S-001  # Input Validation
-  - REQ-NF-S-002  # Memory Safety
+  - REQ-EXTS-NF-015  # IEEE 1588-2019 Annex K security extensions
+  - REQ-NF-S-004     # Optional Authentication (Post-MVP, P2 priority)
+  - REQ-NF-S-001     # Input Validation
+  - REQ-NF-S-002     # Memory Safety
 relatedGaps:
-  - GAP-SEC-001   # Security/Annex K policy decision
+  - GAP-SEC-001      # Security/Annex K policy decision
 supersedes: []
 supersededBy: null
 author: Architecture Team
@@ -48,7 +49,9 @@ IEEE 1588-2019 Annex K defines **Integrated Security** mechanisms for authentica
 - Protection against replay attacks, man-in-the-middle, and spoofing
 
 ### Stakeholder Requirements
-**STR-SEC-004** (Priority P2 - Post-MVP):
+
+**REQ-NF-S-004** (Priority P2 - Post-MVP):
+
 - Support IEEE 1588-2019 Annex K as **optional feature**
 - HMAC-SHA256 authentication of PTP messages
 - Optional encryption of management messages
@@ -56,11 +59,13 @@ IEEE 1588-2019 Annex K defines **Integrated Security** mechanisms for authentica
 - **Post-MVP priority** - not required for 1.0 release
 
 ### Current Security Baseline
+
 The implementation already provides **foundational security** through:
-1. **Input Validation** (REQ-NF-S-001, STR-SEC-001): All network packets validated before processing
-2. **Memory Safety** (REQ-NF-S-002, STR-SEC-002): No buffer overruns, bounds checking
-3. **Static Analysis** (STR-SEC-003): Zero critical defects required
-4. **Fuzzing Coverage** (STR-SEC-003): 100M fuzzed inputs with zero crashes
+
+1. **Input Validation** (REQ-NF-S-001): All network packets validated before processing
+2. **Memory Safety** (REQ-NF-S-002): No buffer overruns, bounds checking
+3. **Static Analysis**: Zero critical defects required
+4. **Fuzzing Coverage**: 100M fuzzed inputs with zero crashes
 
 ### Forces in Tension
 1. **Security vs. Performance**: Cryptographic operations add latency/jitter to time-critical path
@@ -185,10 +190,10 @@ The 1.0 release will focus on **defensive security** (input validation, memory s
 |-----------------|-------------------|-------|
 | IEEE 1588-2019 Annex K (Integrated Security) | **DEFERRED** to post-1.0 | Annex K is **optional** per specification |
 | IEEE 1588-2019 Section 14.1.1 (TLV forward compatibility) | **COMPLIANT** | TLV parser safely ignores unknown security TLVs |
-| STR-SEC-001 (Input Validation) | **COMPLIANT** | All network packets validated |
-| STR-SEC-002 (Memory Safety) | **COMPLIANT** | No buffer overruns, bounds checking |
-| STR-SEC-003 (Security Audit) | **COMPLIANT** | Static analysis + fuzzing coverage |
-| STR-SEC-004 (Optional Authentication) | **DEFERRED** per P2 (Post-MVP) priority | Explicitly marked Post-MVP by stakeholders |
+| REQ-NF-S-001 (Input Validation) | **COMPLIANT** | All network packets validated |
+| REQ-NF-S-002 (Memory Safety) | **COMPLIANT** | No buffer overruns, bounds checking |
+| REQ-NF-S-003 (Security Audit) | **COMPLIANT** | Static analysis + fuzzing coverage |
+| REQ-NF-S-004 (Optional Authentication) | **DEFERRED** per P2 (Post-MVP) priority | Explicitly marked Post-MVP by stakeholders |
 
 ## Implementation Notes
 
@@ -231,9 +236,10 @@ The 1.0 release will focus on **defensive security** (input validation, memory s
 - **IEEE 802.1X** - Network Access Control (recommended perimeter security)
 
 ### Project Documents:
-- **STR-SEC-004** (01-stakeholder-requirements/stakeholder-requirements-spec.md:705) - Post-MVP authentication requirement
-- **REQ-NF-S-001** (02-requirements/system-requirements-specification.md:846) - Input Validation
-- **REQ-NF-S-002** (02-requirements/system-requirements-specification.md:908) - Memory Safety
+
+- **REQ-NF-S-004** (02-requirements) - Post-MVP authentication requirement
+- **REQ-NF-S-001** (02-requirements) - Input Validation
+- **REQ-NF-S-002** (02-requirements) - Memory Safety
 - **GAP-SEC-001** (standards-compliance/gaps/gap-backlog.md) - Security policy decision
 
 ### Related ADRs:
