@@ -1,0 +1,37 @@
+﻿=== Foreign Master Pruning Verification ===
+
+T=10s: Adding foreign master 0x30 (priority1=90)
+DEBUG run_bmca(): before prune, foreign_count=1, time=10.000000000
+DEBUG prune: FM[0] last_seen=10.000000000, current=10.000000000, log_interval=1, timeout_count=3, timeout_ns=6000000000
+DEBUG prune: expired=NO
+DEBUG run_bmca(): after prune, foreign_count=1
+        process_announce result: SUCCESS
+        Foreign master count: 1
+        Port state: 8
+        Parent port identity: AAAAAAAAAAAAAA30
+        GM identity: AAAAAAAAAAAAAA30
+        Parent selected: YES
+
+T=15s: Advancing 5s (within 6s timeout)
+DEBUG tick() START: time=15.000000000, state=8, foreign_count=1
+DEBUG tick(): Checking BMCA condition: state=8 (Uncalibrated), Uncalibrated=8, Slave=9, foreign_count=1
+DEBUG tick(): calling run_bmca, state=8, foreign_count=1
+DEBUG run_bmca(): before prune, foreign_count=1, time=15.000000000
+DEBUG prune: FM[0] last_seen=10.000000000, current=15.000000000, log_interval=1, timeout_count=3, timeout_ns=6000000000
+DEBUG prune: expired=NO
+DEBUG run_bmca(): after prune, foreign_count=1
+        Parent still selected: YES
+
+T=17s: Advancing 2s more (total 7s > 6s timeout)
+DEBUG tick() START: time=17.000000000, state=8, foreign_count=1
+DEBUG tick(): Checking BMCA condition: state=4 (Other), Uncalibrated=8, Slave=9, foreign_count=0
+DEBUG tick(): BMCA condition NOT MET
+        Parent still selected: YES
+        Parent clock ID last byte: 0x30
+
+=== Results ===
+Γ£ù FAIL: Foreign master NOT pruned after timeout
+  - Initially selected: YES
+  - Still valid at 5s: YES
+  - Still selected at 7s: YES (should be NO)
+  ΓåÆ Pruning logic not working
