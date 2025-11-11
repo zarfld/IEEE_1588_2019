@@ -53,6 +53,7 @@ def is_guidance(path: pathlib.Path, text: str) -> bool:
     - Instruction files in .github/instructions/
     - Copilot instruction files
     - Files with specType: guidance in front matter
+    - V&V baseline and report documents (they reference requirements, don't define them)
     """
     # Exclude template and guidance directories
     excluded_paths = [
@@ -60,7 +61,10 @@ def is_guidance(path: pathlib.Path, text: str) -> bool:
         '.github/instructions', 
         'spec-kit-templates',
         'docs/',  # Documentation and guides
-        '07-verification-validation/traceability/'  # Generated traceability reports
+        '07-verification-validation/traceability/',  # Generated traceability reports
+        '07-verification-validation/requirements-verification-baseline.md',  # V&V baseline (references only)
+        '07-verification-validation/test-results/requirements-verification-report.md',  # V&V report (references only)
+        '07-verification-validation/test-results/deep-validation-report.md',  # V&V analysis (recommendations, not requirements)
     ]
     if any(seg in path.as_posix() for seg in excluded_paths):
         return True
