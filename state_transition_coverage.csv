@@ -1,0 +1,15 @@
+State,Visited,TransitionsFrom
+Initializing,1,4
+Listening,1,9
+PreMaster,1,7
+Master,1,4
+Passive,1,6
+Uncalibrated,1,14
+Slave,1,7
+Faulty,1,2
+Disabled,1,2
+Summary,StatesCoveragePct,100
+Summary,TotalTransitions,55
+Summary,EdgesVisited,25
+Summary,EdgesExpected,25
+Summary,EdgesCoveragePct,100
