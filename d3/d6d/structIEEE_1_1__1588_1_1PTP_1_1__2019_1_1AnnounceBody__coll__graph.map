@@ -1,0 +1,11 @@
+<map id="IEEE::_1588::PTP::_2019::AnnounceBody" name="IEEE::_1588::PTP::_2019::AnnounceBody">
+<area shape="rect" id="Node000001" title="Announce message body for Best Master Clock Algorithm." alt="" coords="71,664,277,904"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="5,261,185,601"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="107,601,115,639,117,647,112,649,110,641,102,602"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="210,391,362,471"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="282,472,267,551,242,641,239,650,234,648,237,639,261,549,277,471"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="229,133,343,199"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="289,213,289,391,283,391,283,213"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="275,5,297,71"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="289,71,289,117,283,117,283,71"/>
+</map>

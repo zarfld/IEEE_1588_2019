@@ -1,0 +1,15 @@
+<map id="IEEE::_1588::PTP::_2019::PTPMessage::validate" name="IEEE::_1588::PTP::_2019::PTPMessage::validate">
+<area shape="rect" id="Node000001" title="Validate complete message structure." alt="" coords="5,102,217,142"/>
+<area shape="rect" id="Node000002" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#acfa5f3eedb7017790b9646cd6e009368" title="Validate header consistency with deterministic checks." alt="" coords="265,95,440,149"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="217,119,251,119,251,125,217,125"/>
+<area shape="rect" id="Node000003" href="$dd/d39/namespacedetail.html#a162d12447333d9129db6326825711788" title=" " alt="" coords="500,5,655,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="392,92,437,65,487,40,507,32,508,37,489,44,439,70,395,97"/>
+<area shape="rect" id="Node000005" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#ac117cae1495eaef1359f0dbfcc673431" title="Extract PTP version with compile&#45;time optimization." alt="" coords="490,55,665,109"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="440,104,476,97,477,103,441,109"/>
+<area shape="rect" id="Node000006" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#acf151a8e3d48dc72ba72d7793942017f" title="Create error result (alias for failure)" alt="" coords="488,133,667,188"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="441,134,475,140,474,146,440,140"/>
+<area shape="rect" id="Node000007" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="488,212,667,267"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="401,147,489,197,503,204,500,208,487,202,398,152"/>
+<area shape="rect" id="Node000004" href="$dd/d39/namespacedetail.html#af252a1f9a94bf9b62e57b592d3268f51" title=" " alt="" coords="715,5,840,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="655,15,701,15,701,21,655,21"/>
+</map>

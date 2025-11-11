@@ -1,0 +1,7 @@
+<map id="Common::utils::health::emit" name="Common::utils::health::emit">
+<area shape="rect" id="Node000001" title=" " alt="" coords="277,49,444,89"/>
+<area shape="rect" id="Node000002" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="263,57,229,52,230,47,264,52"/>
+<area shape="rect" id="Node000003" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,85,217,125"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="264,86,217,93,217,87,263,80"/>
+</map>

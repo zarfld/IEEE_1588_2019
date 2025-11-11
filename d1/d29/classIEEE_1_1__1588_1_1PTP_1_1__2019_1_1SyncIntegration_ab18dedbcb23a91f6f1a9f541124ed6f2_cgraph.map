@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::SyncIntegration::start" name="IEEE::_1588::PTP::_2019::SyncIntegration::start">
+<area shape="rect" id="Node000001" title="Start synchronization monitoring." alt="" coords="5,84,176,139"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="224,5,403,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="168,81,222,62,224,67,170,86"/>
+<area shape="rect" id="Node000003" href="$df/d62/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncStatistics.html#a92e9c6824fc6deee001a6484407d6712" title="Reset all statistics to initial state." alt="" coords="233,84,393,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="176,109,220,109,220,114,176,114"/>
+<area shape="rect" id="Node000004" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="224,163,403,217"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="170,136,224,156,222,161,168,141"/>
+</map>

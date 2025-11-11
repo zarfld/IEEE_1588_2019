@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::OrdinaryClock::initialize" name="IEEE::_1588::PTP::_2019::Clocks::OrdinaryClock::initialize">
+<area shape="rect" id="Node000001" title="Initialize ordinary clock." alt="" coords="5,5,217,60"/>
+<area shape="rect" id="Node000002" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#add8c9fc3127416e3956871825e1c4688" title="Initialize port state machine." alt="" coords="265,5,432,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="218,30,252,30,252,35,218,35"/>
+<area shape="rect" id="Node000003" href="$d6/d79/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PortStatistics.html#aed142f0da85e70bf12d58a4cb3eb5f99" title="Reset all counters to zero." alt="" coords="480,5,687,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="432,30,466,30,466,35,432,35"/>
+</map>

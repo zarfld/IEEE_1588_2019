@@ -1,0 +1,11 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/ieee1588_2019.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/ieee1588_2019.hpp">
+<area shape="rect" id="Node000001" title="IEEE 1588&#45;2019 PTP v2.1 main include header." alt="" coords="19,5,229,75"/>
+<area shape="rect" id="Node000002" href="$dd/de3/types_8hpp.html" title="IEEE 1588&#45;2019 PTP v2.1 fundamental data types and constants." alt="" coords="81,123,167,148"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="127,75,127,109,121,109,121,75"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,196,72,221"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="112,150,65,189,61,185,109,146"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="96,196,152,221"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="127,148,127,182,121,182,121,148"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="177,196,247,221"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="140,146,189,185,185,189,136,150"/>
+</map>

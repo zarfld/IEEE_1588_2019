@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::OrdinaryClock::is_master" name="IEEE::_1588::PTP::_2019::Clocks::OrdinaryClock::is_master">
+<area shape="rect" id="Node000001" title="Check if clock is master." alt="" coords="5,5,217,60"/>
+<area shape="rect" id="Node000002" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a6374d033db598a3d991655729e1d78f5" title="Check if port is in master role." alt="" coords="265,5,432,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="218,30,252,30,252,35,218,35"/>
+</map>

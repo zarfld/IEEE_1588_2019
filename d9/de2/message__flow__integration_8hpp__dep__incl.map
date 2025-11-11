@@ -1,0 +1,7 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/message_flow_integration.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/message_flow_integration.hpp">
+<area shape="rect" id="Node000001" title="IEEE 1588&#45;2019 Message Flow Integration Coordinator." alt="" coords="144,5,369,75"/>
+<area shape="rect" id="Node000002" href="$d7/daa/message__flow__integration_8cpp.html" title="IEEE 1588&#45;2019 Message Flow Integration Implementation." alt="" coords="5,130,252,185"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="211,86,160,132,156,128,208,82"/>
+<area shape="rect" id="Node000003" href="$d6/d99/message__flow__integration__bup_8cpp.html" title=" " alt="" coords="276,123,496,192"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="306,82,350,120,346,124,303,86"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::stop" name="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::stop">
+<area shape="rect" id="Node000001" title="Stop BMCA execution coordination." alt="" coords="288,5,456,60"/>
+<area shape="rect" id="Node000002" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#ae5378f7adda0a2d9a93dcb7979b1a44b" title="Start message flow processing." alt="" coords="5,5,240,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="274,35,240,35,240,30,274,30"/>
+</map>

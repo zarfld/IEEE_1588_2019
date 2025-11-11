@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Types::Timestamp::validate" name="IEEE::_1588::PTP::_2019::Types::Timestamp::validate">
+<area shape="rect" id="Node000001" title="Validate timestamp fields." alt="" coords="5,45,193,100"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#acf151a8e3d48dc72ba72d7793942017f" title="Create error result (alias for failure)" alt="" coords="241,5,420,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="193,54,227,48,228,53,194,59"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="241,84,420,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="194,86,228,92,227,97,193,91"/>
+</map>

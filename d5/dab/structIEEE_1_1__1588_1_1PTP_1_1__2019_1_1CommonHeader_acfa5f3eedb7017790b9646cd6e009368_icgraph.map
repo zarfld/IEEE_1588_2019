@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::CommonHeader::validate" name="IEEE::_1588::PTP::_2019::CommonHeader::validate">
+<area shape="rect" id="Node000001" title="Validate header consistency with deterministic checks." alt="" coords="265,5,440,60"/>
+<area shape="rect" id="Node000002" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#ab8bcc56e4cfd00c45bf6da5c959dce25" title="Validate complete message structure." alt="" coords="5,13,217,53"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="252,35,217,35,217,30,252,30"/>
+</map>

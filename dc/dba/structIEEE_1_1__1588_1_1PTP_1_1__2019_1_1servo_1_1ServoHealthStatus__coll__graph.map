@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::servo::ServoHealthStatus" name="IEEE::_1588::PTP::_2019::servo::ServoHealthStatus">
+<area shape="rect" id="Node000001" title="Servo health and status information." alt="" coords="5,263,232,483"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="79,135,158,200"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="121,200,121,246,116,246,116,200"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="53,5,184,85"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="121,99,121,134,116,134,116,99"/>
+</map>

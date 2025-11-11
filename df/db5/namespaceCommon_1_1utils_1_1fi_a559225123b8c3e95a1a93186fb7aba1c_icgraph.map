@@ -1,0 +1,12 @@
+<map id="Common::utils::fi::is_offset_jitter_enabled" name="Common::utils::fi::is_offset_jitter_enabled">
+<area shape="rect" id="Node000001" title=" " alt="" coords="707,42,881,82"/>
+<area shape="rect" id="Node000002" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="693,60,229,40,229,35,693,55"/>
+<area shape="rect" id="Node000003" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#aec9746d507dc8131538845de04614675" title=" " alt="" coords="492,70,659,110"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="693,78,659,82,658,77,692,72"/>
+<area shape="rect" id="Node000004" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a039bc597c3de1a97c0f78590dc2a51f8" title=" " alt="" coords="277,70,444,110"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="478,93,444,93,444,87,478,87"/>
+<area shape="poly" id="edge4_Node000004_Node000002" title=" " alt="" coords="263,70,229,62,230,56,265,65"/>
+<area shape="rect" id="Node000005" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,85,217,125"/>
+<area shape="poly" id="edge5_Node000004_Node000005" title=" " alt="" coords="264,98,217,101,217,96,264,93"/>
+</map>

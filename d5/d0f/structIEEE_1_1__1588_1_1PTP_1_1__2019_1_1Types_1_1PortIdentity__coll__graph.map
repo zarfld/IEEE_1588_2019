@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::Types::PortIdentity" name="IEEE::_1588::PTP::_2019::Types::PortIdentity">
+<area shape="rect" id="Node000001" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="5,404,188,524"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="21,261,173,341"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="99,341,99,387,94,387,94,341"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="39,133,154,199"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="99,212,99,261,94,261,94,212"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="85,5,108,71"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="99,71,99,117,94,117,94,71"/>
+</map>

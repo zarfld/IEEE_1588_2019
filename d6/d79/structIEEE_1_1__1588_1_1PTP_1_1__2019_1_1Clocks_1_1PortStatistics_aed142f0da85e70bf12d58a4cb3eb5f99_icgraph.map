@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PortStatistics::reset" name="IEEE::_1588::PTP::_2019::Clocks::PortStatistics::reset">
+<area shape="rect" id="Node000001" title="Reset all counters to zero." alt="" coords="480,45,687,100"/>
+<area shape="rect" id="Node000002" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a482742ee94b858b3d99ba6fb31a83592" title="Clear all statistics counters." alt="" coords="265,5,432,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="466,55,432,49,433,44,467,50"/>
+<area shape="rect" id="Node000003" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#add8c9fc3127416e3956871825e1c4688" title="Initialize port state machine." alt="" coords="265,84,432,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="467,95,433,100,432,95,466,89"/>
+<area shape="rect" id="Node000004" href="$dc/dd4/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1OrdinaryClock.html#a0d90618a621f585bd1340608e7738566" title="Initialize ordinary clock." alt="" coords="5,84,217,139"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="252,114,217,114,217,109,252,109"/>
+</map>

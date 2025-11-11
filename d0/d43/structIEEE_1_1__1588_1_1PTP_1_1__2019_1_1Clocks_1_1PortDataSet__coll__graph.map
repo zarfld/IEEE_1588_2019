@@ -1,0 +1,13 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PortDataSet" name="IEEE::_1588::PTP::_2019::Clocks::PortDataSet">
+<area shape="rect" id="Node000001" title="PTP Port Data Set per IEEE 1588&#45;2019 Section 8.2.5." alt="" coords="151,587,360,821"/>
+<area shape="rect" id="Node000002" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="5,404,188,524"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="138,523,171,571,166,574,134,525"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="21,261,173,341"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="99,341,99,387,94,387,94,341"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="39,133,154,199"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="99,212,99,261,94,261,94,212"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="85,5,108,71"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="99,71,99,117,94,117,94,71"/>
+<area shape="rect" id="Node000006" href="$d6/df7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1TimeInterval.html" title="Time Interval &#45; scaled nanoseconds for time intervals." alt="" coords="212,404,429,524"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="307,525,294,571,289,570,302,523"/>
+</map>

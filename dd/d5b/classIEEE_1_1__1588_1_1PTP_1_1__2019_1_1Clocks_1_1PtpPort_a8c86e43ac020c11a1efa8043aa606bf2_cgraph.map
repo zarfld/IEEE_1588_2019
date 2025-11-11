@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_pdelay_resp" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_pdelay_resp">
+<area shape="rect" id="Node000001" title="Process received Pdelay_Resp message (peer delay response)" alt="" coords="5,45,172,100"/>
+<area shape="rect" id="Node000002" href="$d6/df7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1TimeInterval.html#a35d30c0bb2f6fbed6e21640c0813d272" title="Create from nanoseconds." alt="" coords="220,5,417,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,56,206,49,207,55,173,61"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="229,84,408,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="173,84,216,91,215,97,172,89"/>
+</map>

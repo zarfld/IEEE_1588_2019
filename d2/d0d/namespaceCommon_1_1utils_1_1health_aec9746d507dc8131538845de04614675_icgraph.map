@@ -1,0 +1,9 @@
+<map id="Common::utils::health::self_test" name="Common::utils::health::self_test">
+<area shape="rect" id="Node000001" title=" " alt="" coords="492,49,659,89"/>
+<area shape="rect" id="Node000002" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a039bc597c3de1a97c0f78590dc2a51f8" title=" " alt="" coords="277,49,444,89"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="478,71,444,71,444,66,478,66"/>
+<area shape="rect" id="Node000003" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="263,57,229,52,230,47,264,52"/>
+<area shape="rect" id="Node000004" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,85,217,125"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="264,86,217,93,217,87,263,80"/>
+</map>

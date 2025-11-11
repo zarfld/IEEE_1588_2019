@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Types::Timestamp::getTotalSeconds" name="IEEE::_1588::PTP::_2019::Types::Timestamp::getTotalSeconds">
+<area shape="rect" id="Node000001" title="Get total seconds (48&#45;bit)" alt="" coords="241,45,429,100"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html#a5cf7576d31299641aee2a59b427e3c30" title="Comparison operators for Timestamp." alt="" coords="5,5,193,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="227,57,193,51,194,46,228,52"/>
+<area shape="rect" id="Node000003" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html#a463e025ce369f54ae3ca259a51b7235f" title=" " alt="" coords="5,84,193,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="228,93,194,99,193,93,227,88"/>
+</map>

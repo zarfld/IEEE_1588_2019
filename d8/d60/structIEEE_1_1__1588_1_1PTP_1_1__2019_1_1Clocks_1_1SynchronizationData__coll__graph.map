@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::SynchronizationData" name="IEEE::_1588::PTP::_2019::Clocks::SynchronizationData">
+<area shape="rect" id="Node000001" title="Clock synchronization information." alt="" coords="188,423,435,523"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="5,5,185,345"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="138,344,152,372,171,397,184,410,180,414,167,400,148,375,133,347"/>
+<area shape="rect" id="Node000003" href="$d9/d23/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1CorrectionField.html" title="Correction Field &#45; time correction in units of nanoseconds * 2^16." alt="" coords="209,75,413,275"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="314,276,314,406,309,406,309,276"/>
+<area shape="rect" id="Node000004" href="$d6/df7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1TimeInterval.html" title="Time Interval &#45; scaled nanoseconds for time intervals." alt="" coords="437,115,655,235"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="515,237,464,317,400,400,388,413,384,410,396,397,460,314,511,234"/>
+</map>

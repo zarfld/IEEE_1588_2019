@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::FollowUpBody" name="IEEE::_1588::PTP::_2019::FollowUpBody">
+<area shape="rect" id="Node000001" title="Follow_Up message body for two&#45;step time distribution." alt="" coords="18,408,173,488"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="5,5,185,345"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="98,345,98,392,93,392,93,345"/>
+</map>

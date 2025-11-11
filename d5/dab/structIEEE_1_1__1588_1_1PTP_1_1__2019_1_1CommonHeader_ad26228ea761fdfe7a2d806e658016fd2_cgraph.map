@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::CommonHeader::isEventMessage" name="IEEE::_1588::PTP::_2019::CommonHeader::isEventMessage">
+<area shape="rect" id="Node000001" title="Check if this is an event message requiring timestamping." alt="" coords="5,5,180,60"/>
+<area shape="rect" id="Node000002" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#afe4705acf1c9f7a79c89a313f2780967" title="Extract message type with zero&#45;cost abstraction." alt="" coords="228,5,403,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="180,30,214,30,214,35,180,35"/>
+</map>

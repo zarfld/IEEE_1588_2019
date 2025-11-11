@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::CommonHeader::isTwoStep" name="IEEE::_1588::PTP::_2019::CommonHeader::isTwoStep">
+<area shape="rect" id="Node000001" title="Check if two&#45;step flag is set." alt="" coords="5,5,180,60"/>
+<area shape="rect" id="Node000002" href="$dd/d39/namespacedetail.html#a162d12447333d9129db6326825711788" title=" " alt="" coords="228,20,383,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="180,30,214,30,214,35,180,35"/>
+<area shape="rect" id="Node000003" href="$dd/d39/namespacedetail.html#af252a1f9a94bf9b62e57b592d3268f51" title=" " alt="" coords="431,20,556,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="383,30,417,30,417,35,383,35"/>
+</map>

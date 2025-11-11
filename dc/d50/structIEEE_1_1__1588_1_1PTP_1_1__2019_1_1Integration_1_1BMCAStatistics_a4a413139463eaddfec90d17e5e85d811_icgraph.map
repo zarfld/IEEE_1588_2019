@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::Integration::BMCAStatistics::reset" name="IEEE::_1588::PTP::_2019::Integration::BMCAStatistics::reset">
+<area shape="rect" id="Node000001" title="Reset all statistics to initial state." alt="" coords="509,45,672,100"/>
+<area shape="rect" id="Node000002" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#ad5d8a03b174bec5d8c52faa6ec46d310" title="Reset all statistics and health indicators." alt="" coords="288,5,461,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="495,58,461,51,462,46,496,53"/>
+<area shape="rect" id="Node000003" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#a697fef5b98bc6c79c858bd428419018c" title="Start BMCA execution coordination." alt="" coords="289,84,460,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="496,92,461,99,460,93,495,87"/>
+<area shape="rect" id="Node000004" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#ae5378f7adda0a2d9a93dcb7979b1a44b" title="Start message flow processing." alt="" coords="5,84,240,139"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="276,114,240,114,240,109,276,109"/>
+</map>

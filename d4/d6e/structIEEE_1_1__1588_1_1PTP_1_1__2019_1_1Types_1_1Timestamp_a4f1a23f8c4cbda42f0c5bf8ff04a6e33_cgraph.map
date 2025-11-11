@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Types::Timestamp::operator*" name="IEEE::_1588::PTP::_2019::Types::Timestamp::operator*">
+<area shape="rect" id="Node000001" title="Multiply timestamp by scalar (for timeout calculations)" alt="" coords="5,5,193,60"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html#a1af198c073621e6a78deda651dbac1e0" title="Set total seconds (48&#45;bit)" alt="" coords="241,5,429,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="194,30,227,30,227,35,194,35"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::reset" name="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::reset">
+<area shape="rect" id="Node000001" title="Reset all statistics and health indicators." alt="" coords="5,5,179,60"/>
+<area shape="rect" id="Node000002" href="$dc/d50/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAStatistics.html#a4a413139463eaddfec90d17e5e85d811" title="Reset all statistics to initial state." alt="" coords="227,5,389,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="179,30,213,30,213,35,179,35"/>
+</map>

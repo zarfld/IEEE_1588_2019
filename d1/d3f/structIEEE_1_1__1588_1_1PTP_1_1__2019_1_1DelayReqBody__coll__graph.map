@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::DelayReqBody" name="IEEE::_1588::PTP::_2019::DelayReqBody">
+<area shape="rect" id="Node000001" title="Delay_Req message body &#45; end&#45;to&#45;end delay measurement." alt="" coords="17,408,174,488"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="5,5,185,345"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="98,345,98,392,93,392,93,345"/>
+</map>

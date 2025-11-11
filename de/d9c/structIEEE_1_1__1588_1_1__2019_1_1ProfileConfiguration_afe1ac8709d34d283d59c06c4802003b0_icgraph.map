@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::_2019::ProfileConfiguration::validate" name="IEEE::_1588::_2019::ProfileConfiguration::validate">
+<area shape="rect" id="Node000001" title="Validate profile configuration parameters." alt="" coords="267,20,425,75"/>
+<area shape="rect" id="Node000002" href="$d9/dbe/profile_8hpp.html#a86596b115ddb1fd8442acef4c9511e28" title="Apply IEEE 1588&#45;2019 profile configuration to PortConfiguration." alt="" coords="59,5,165,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="253,38,165,27,166,22,253,33"/>
+<area shape="rect" id="Node000003" href="$d8/d6f/namespaceIEEE_1_1__1588_1_1__2019.html#a1e2eda752c16bfa914568d4fa407bd7b" title="Validate profile parameters against IEEE 1588&#45;2019 constraints." alt="" coords="5,55,219,95"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="253,61,219,65,219,60,253,56"/>
+</map>

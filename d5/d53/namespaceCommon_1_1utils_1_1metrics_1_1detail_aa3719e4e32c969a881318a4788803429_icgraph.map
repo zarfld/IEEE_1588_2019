@@ -1,0 +1,24 @@
+<map id="Common::utils::metrics::detail::counters" name="Common::utils::metrics::detail::counters">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1017,93,1192,133"/>
+<area shape="rect" id="Node000002" href="$da/d3c/namespaceCommon_1_1utils_1_1metrics.html#ad00d54590ea6b9d55d3f7ac3b56fe83c" title=" " alt="" coords="767,20,969,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1035,90,968,67,909,48,911,43,970,62,1037,85"/>
+<area shape="rect" id="Node000005" href="$da/d3c/namespaceCommon_1_1utils_1_1metrics.html#a03bb1ad6c5348aaaf75d0217bbb2dd63" title=" " alt="" coords="544,86,719,126"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="1004,112,969,111,719,109,719,103,969,106,1004,107"/>
+<area shape="rect" id="Node000007" href="$da/d3c/namespaceCommon_1_1utils_1_1metrics.html#ad79f6ccc91ba143fe01d18a27b611c89" title=" " alt="" coords="781,121,955,161"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="1004,127,956,133,955,128,1003,122"/>
+<area shape="rect" id="Node000008" href="$da/d3c/namespaceCommon_1_1utils_1_1metrics.html#a91a447237c08bb1ce67d7a5a40b18341" title=" " alt="" coords="781,185,955,225"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="1050,141,970,175,937,187,935,182,968,170,1048,136"/>
+<area shape="rect" id="Node000003" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a4ab8635c746ecdc8190cb48fe0762e9f" title="Process received Follow_Up message." alt="" coords="548,5,715,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="753,35,715,35,715,30,753,30"/>
+<area shape="rect" id="Node000004" href="$d0/d7d/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1BoundaryClock.html#a8d21ce8a95c4f7fcee5ab7853fa6c60e" title="Process received PTP message on specific port." alt="" coords="277,5,496,60"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="534,35,496,35,496,30,534,30"/>
+<area shape="rect" id="Node000006" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,84,229,139"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="530,110,230,113,230,108,530,104"/>
+<area shape="rect" id="Node000009" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#aec9746d507dc8131538845de04614675" title=" " alt="" coords="548,183,715,223"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="767,207,715,206,715,201,767,201"/>
+<area shape="rect" id="Node000010" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a039bc597c3de1a97c0f78590dc2a51f8" title=" " alt="" coords="303,170,470,210"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="534,201,470,197,470,192,534,195"/>
+<area shape="poly" id="edge10_Node000010_Node000006" title=" " alt="" coords="303,169,211,141,212,136,305,164"/>
+<area shape="rect" id="Node000011" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,170,217,210"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="289,193,217,193,217,187,289,187"/>
+</map>

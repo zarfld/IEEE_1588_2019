@@ -1,0 +1,7 @@
+<map id="detail::host_to_be16" name="detail::host_to_be16">
+<area shape="rect" id="Node000001" title=" " alt="" coords="268,49,423,74"/>
+<area shape="rect" id="Node000002" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#a243dec37d21b12d026928fae10a9f6e6" title="Initialize message with proper defaults." alt="" coords="5,5,220,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="254,50,220,45,221,39,254,45"/>
+<area shape="rect" id="Node000003" href="$dc/dc2/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementTLV.html#a43f14c90c32c2ebc698fa521f73ab202" title="Set management ID from host byte order." alt="" coords="23,70,202,125"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="254,78,203,86,202,81,254,73"/>
+</map>

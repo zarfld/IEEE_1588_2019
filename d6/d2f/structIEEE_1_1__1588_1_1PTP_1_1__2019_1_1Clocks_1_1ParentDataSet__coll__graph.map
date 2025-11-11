@@ -1,0 +1,14 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::ParentDataSet" name="IEEE::_1588::PTP::_2019::Clocks::ParentDataSet">
+<area shape="rect" id="Node000001" title="Parent Data Set per IEEE 1588&#45;2019 Section 8.2.3." alt="" coords="229,601,435,791"/>
+<area shape="rect" id="Node000002" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="241,404,423,524"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="335,524,335,585,329,585,329,524"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,261,157,341"/>
+<area shape="poly" id="edge5_Node000001_Node000003" title=" " alt="" coords="71,342,62,382,56,429,59,477,65,501,74,523,102,562,136,595,175,624,216,647,213,651,173,628,133,599,98,565,70,525,60,502,54,478,51,428,56,381,66,341"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="143,339,228,393,225,398,141,344"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="24,133,139,199"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="84,212,84,261,79,261,79,212"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="70,5,93,71"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="84,71,84,117,79,117,79,71"/>
+<area shape="rect" id="Node000006" href="$de/da1/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1ClockQuality.html" title="Clock Quality &#45; describes the quality of a clock." alt="" coords="448,404,653,524"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="524,526,487,579,449,616,446,612,483,576,520,523"/>
+</map>

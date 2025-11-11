@@ -1,0 +1,37 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/clocks.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/clocks.hpp">
+<area shape="rect" id="Node000001" title="IEEE 1588&#45;2019 PTP Clock State Machines Implementation." alt="" coords="833,5,1044,60"/>
+<area shape="rect" id="Node000002" href="$d4/dbb/bmca__integration_8hpp.html" title="BMCA Runtime Integration Coordinator." alt="" coords="199,108,409,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="820,56,488,111,410,125,409,119,488,105,819,50"/>
+<area shape="rect" id="Node000003" href="$de/d83/message__flow__integration_8hpp.html" title="IEEE 1588&#45;2019 Message Flow Integration Coordinator." alt="" coords="391,225,617,295"/>
+<area shape="poly" id="edge8_Node000001_Node000003" title=" " alt="" coords="820,44,737,53,654,66,583,85,557,97,538,110,520,135,509,166,505,197,504,225,499,225,499,196,504,164,515,133,534,106,554,92,582,80,653,61,737,48,819,39"/>
+<area shape="rect" id="Node000007" href="$d9/dbe/profile_8hpp.html" title="Generic PTP profile abstraction supporting multiple external standards (IEEE 1588&#45;2019 core,..." alt="" coords="1068,108,1279,177"/>
+<area shape="poly" id="edge9_Node000001_Node000007" title=" " alt="" coords="1010,64,1101,105,1099,110,1007,68"/>
+<area shape="rect" id="Node000008" href="$d3/d46/profile__adapter_8hpp.html" title="Minimal adapter to apply a ProfileConfig to a PTP PortConfiguration." alt="" coords="1261,225,1472,295"/>
+<area shape="poly" id="edge11_Node000001_Node000008" title=" " alt="" coords="1058,45,1194,69,1252,86,1292,106,1309,126,1326,156,1356,224,1351,226,1321,159,1305,129,1289,110,1250,91,1193,75,1057,50"/>
+<area shape="rect" id="Node000009" href="$da/d7e/servo__integration_8hpp.html" title="IEEE 1588&#45;2019 Servo Integration &#45; Clock Adjustment Control." alt="" coords="548,108,759,177"/>
+<area shape="poly" id="edge12_Node000001_Node000009" title=" " alt="" coords="857,67,743,110,741,105,855,62"/>
+<area shape="rect" id="Node000011" href="$d0/d75/sync__integration_8hpp.html" title="IEEE 1588&#45;2019 Synchronization Integration Coordinator." alt="" coords="833,108,1044,177"/>
+<area shape="poly" id="edge17_Node000001_Node000011" title=" " alt="" coords="941,74,941,108,936,108,936,74"/>
+<area shape="rect" id="Node000013" href="$d0/d70/clocks_8cpp.html" title="IEEE 1588&#45;2019 PTP Clock State Machines Implementation." alt="" coords="1353,115,1564,170"/>
+<area shape="poly" id="edge22_Node000001_Node000013" title=" " alt="" coords="1058,51,1192,75,1335,105,1365,113,1364,118,1334,111,1191,81,1057,56"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="376,182,447,223,444,227,373,187"/>
+<area shape="rect" id="Node000004" href="$d7/daa/message__flow__integration_8cpp.html" title="IEEE 1588&#45;2019 Message Flow Integration Implementation." alt="" coords="519,350,766,405"/>
+<area shape="poly" id="edge6_Node000002_Node000004" title=" " alt="" coords="319,190,342,244,359,270,380,293,404,307,440,321,528,347,526,353,438,327,402,312,377,297,355,273,337,246,314,192"/>
+<area shape="rect" id="Node000005" href="$d6/d99/message__flow__integration__bup_8cpp.html" title=" " alt="" coords="265,343,485,412"/>
+<area shape="poly" id="edge7_Node000002_Node000005" title=" " alt="" coords="289,191,280,242,281,269,288,294,304,319,325,340,322,344,300,322,283,296,275,269,274,242,283,190"/>
+<area shape="rect" id="Node000006" href="$dc/df9/bmca__integration_8cpp.html" title="BMCA Runtime Integration Coordinator Implementation." alt="" coords="5,233,216,287"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="237,187,156,235,153,230,234,182"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="557,302,613,348,609,352,554,306"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="458,306,414,344,411,340,454,302"/>
+<area shape="poly" id="edge10_Node000007_Node000008" title=" " alt="" coords="1243,182,1312,223,1309,227,1240,187"/>
+<area shape="poly" id="edge13_Node000009_Node000003" title=" " alt="" coords="601,188,550,227,546,223,597,184"/>
+<area shape="poly" id="edge14_Node000009_Node000004" title=" " alt="" coords="654,191,647,350,641,350,649,191"/>
+<area shape="poly" id="edge15_Node000009_Node000005" title=" " alt="" coords="535,167,441,193,404,209,381,227,367,254,362,284,363,314,368,342,363,343,358,315,357,284,362,252,377,224,401,205,439,188,534,162"/>
+<area shape="rect" id="Node000010" href="$d3/d20/servo__integration_8cpp.html" title="IEEE 1588&#45;2019 Servo Integration Implementation." alt="" coords="691,233,901,287"/>
+<area shape="poly" id="edge16_Node000009_Node000010" title=" " alt="" coords="707,184,765,231,762,235,704,188"/>
+<area shape="poly" id="edge18_Node000011_Node000003" title=" " alt="" coords="820,178,617,232,616,226,819,173"/>
+<area shape="poly" id="edge19_Node000011_Node000004" title=" " alt="" coords="1058,175,1152,204,1200,223,1212,242,1216,261,1212,278,1201,296,1172,319,1130,336,1077,350,1017,361,888,374,767,379,766,373,888,368,1017,355,1076,345,1128,331,1169,314,1197,293,1207,276,1210,261,1207,244,1197,227,1150,209,1057,180"/>
+<area shape="poly" id="edge20_Node000011_Node000005" title=" " alt="" coords="947,191,946,218,942,246,932,273,915,297,882,317,835,329,780,336,719,339,599,340,547,341,507,345,486,350,484,344,506,340,547,336,599,334,719,333,779,330,834,324,880,312,912,293,928,271,937,245,941,218,942,191"/>
+<area shape="rect" id="Node000012" href="$da/d84/sync__integration_8cpp.html" title="IEEE 1588&#45;2019 Synchronization Integration Implementation." alt="" coords="976,233,1187,287"/>
+<area shape="poly" id="edge21_Node000011_Node000012" title=" " alt="" coords="993,184,1051,231,1047,235,989,188"/>
+</map>

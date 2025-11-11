@@ -1,0 +1,31 @@
+<map id="detail::bswap16" name="detail::bswap16">
+<area shape="rect" id="Node000001" title=" " alt="" coords="737,481,863,507"/>
+<area shape="rect" id="Node000002" href="$dd/d39/namespacedetail.html#a162d12447333d9129db6326825711788" title=" " alt="" coords="535,335,689,360"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="770,475,628,362,631,358,773,471"/>
+<area shape="rect" id="Node000013" href="$dd/d39/namespacedetail.html#a996eb85710c236449da938fd178891dc" title=" " alt="" coords="535,628,689,653"/>
+<area shape="poly" id="edge12_Node000001_Node000013" title=" " alt="" coords="773,517,631,630,628,626,770,513"/>
+<area shape="rect" id="Node000003" href="$dc/dc2/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementTLV.html#a504f06ff757be835c4b326fc9d7406b7" title="Get management ID in host byte order." alt="" coords="290,5,469,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="603,322,591,270,568,203,533,134,511,102,485,73,467,60,471,56,488,69,515,98,538,131,573,201,596,268,609,320"/>
+<area shape="rect" id="Node000004" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#a8e3892178961527932c50a0d7a061dfd" title="Check if two&#45;step flag is set." alt="" coords="292,84,467,139"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="599,323,582,285,557,239,525,193,485,152,465,139,468,135,488,148,529,189,562,237,587,283,603,321"/>
+<area shape="rect" id="Node000005" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#ab83582f84eb72c45afa389da04eafafd" title="Process received Announce message." alt="" coords="296,163,463,217"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="590,326,545,278,516,253,485,231,461,218,464,214,488,226,519,249,548,274,593,322"/>
+<area shape="rect" id="Node000007" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a6eea3cfb2fa2d3bf60f457204aac263d" title="Process Management message (dataset GET/SET operations)" alt="" coords="292,241,467,296"/>
+<area shape="poly" id="edge6_Node000002_Node000007" title=" " alt="" coords="560,333,460,299,462,294,561,328"/>
+<area shape="rect" id="Node000008" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#ad1c71f4696ee7b634b9fda2f9fdafad7" title="Process Signaling message (unicast negotiation, PATH_TRACE, etc.)" alt="" coords="296,320,463,375"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="520,350,463,350,463,345,520,345"/>
+<area shape="rect" id="Node000009" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#acfa5f3eedb7017790b9646cd6e009368" title="Validate header consistency with deterministic checks." alt="" coords="292,399,467,453"/>
+<area shape="poly" id="edge8_Node000002_Node000009" title=" " alt="" coords="561,367,462,401,460,396,560,362"/>
+<area shape="rect" id="Node000011" href="$dd/d8c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1AnnounceBody.html#a9eba687b764b366ae8cd9e2c5075b802" title="Validate announce message fields." alt="" coords="296,477,463,532"/>
+<area shape="poly" id="edge10_Node000002_Node000011" title=" " alt="" coords="593,373,548,420,519,446,488,468,464,481,461,476,485,464,516,442,545,416,590,369"/>
+<area shape="rect" id="Node000012" href="$da/d44/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1TLVHeader.html#ae4467c38de8f3a88b72ed79b9d6f4300" title="Validate TLV header." alt="" coords="279,557,479,597"/>
+<area shape="poly" id="edge11_Node000002_Node000012" title=" " alt="" coords="604,374,588,412,563,459,530,506,488,547,469,559,466,554,485,543,526,503,558,456,583,410,599,372"/>
+<area shape="rect" id="Node000006" href="$d0/d7d/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1BoundaryClock.html#a8d21ce8a95c4f7fcee5ab7853fa6c60e" title="Process received PTP message on specific port." alt="" coords="5,163,224,217"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="282,193,224,193,224,187,282,187"/>
+<area shape="rect" id="Node000010" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#ab8bcc56e4cfd00c45bf6da5c959dce25" title="Validate complete message structure." alt="" coords="9,406,221,446"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="278,429,221,429,221,423,278,423"/>
+<area shape="rect" id="Node000014" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#a243dec37d21b12d026928fae10a9f6e6" title="Initialize message with proper defaults." alt="" coords="272,621,487,661"/>
+<area shape="poly" id="edge13_Node000013_Node000014" title=" " alt="" coords="521,643,487,643,487,638,521,638"/>
+<area shape="rect" id="Node000015" href="$dc/dc2/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementTLV.html#a43f14c90c32c2ebc698fa521f73ab202" title="Set management ID from host byte order." alt="" coords="290,685,469,740"/>
+<area shape="poly" id="edge14_Node000013_Node000015" title=" " alt="" coords="558,660,469,688,467,683,556,655"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::stop" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::stop">
+<area shape="rect" id="Node000001" title="Stop port operation." alt="" coords="301,5,504,45"/>
+<area shape="rect" id="Node000002" href="$dc/dd4/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1OrdinaryClock.html#ae95a9c38bad33fa3cd28f18a78855e30" title="Stop clock operation." alt="" coords="5,5,253,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="288,28,254,28,254,23,288,23"/>
+</map>

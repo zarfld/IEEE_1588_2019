@@ -1,0 +1,19 @@
+<map id="Common::utils::logging::log" name="Common::utils::logging::log">
+<area shape="rect" id="Node000001" title=" " alt="" coords="765,109,967,134"/>
+<area shape="rect" id="Node000002" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#abd4d1491b89d46b3c1a23c3215e05aa9" title=" " alt="" coords="544,133,717,173"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="759,138,718,144,717,139,759,133"/>
+<area shape="rect" id="Node000006" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#ac4ff0da06ed8691b6de48fdfb80763a7" title=" " alt="" coords="544,69,717,109"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="759,109,717,104,718,98,759,104"/>
+<area shape="rect" id="Node000007" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#a227085469bb6814ec47bc7bad3cb5ae6" title=" " alt="" coords="544,197,717,237"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="825,142,718,188,688,200,686,195,716,183,823,137"/>
+<area shape="rect" id="Node000008" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#a13808fa27e8709ab556ab27063fd6c97" title=" " alt="" coords="544,5,717,45"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="823,106,716,60,686,48,688,43,718,55,825,101"/>
+<area shape="rect" id="Node000003" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="272,39,496,94"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="559,131,462,97,463,92,561,126"/>
+<area shape="rect" id="Node000004" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a4ab8635c746ecdc8190cb48fe0762e9f" title="Process received Follow_Up message." alt="" coords="301,158,467,213"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="531,169,468,177,467,172,530,164"/>
+<area shape="rect" id="Node000005" href="$d0/d7d/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1BoundaryClock.html#a8d21ce8a95c4f7fcee5ab7853fa6c60e" title="Process received PTP message on specific port." alt="" coords="5,158,224,213"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="287,188,224,188,224,183,287,183"/>
+<area shape="poly" id="edge7_Node000007_Node000004" title=" " alt="" coords="530,207,467,199,468,193,531,202"/>
+<area shape="poly" id="edge9_Node000008_Node000003" title=" " alt="" coords="531,45,497,50,496,45,530,39"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::_2019::ProfileConfig" name="IEEE::_1588::_2019::ProfileConfig">
+<area shape="rect" id="Node000001" title="Feature flag configuration describing a PTP profile selection." alt="" coords="5,263,259,603"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="93,135,171,200"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="135,200,135,246,129,246,129,200"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="67,5,197,85"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="135,99,135,134,129,134,129,99"/>
+</map>

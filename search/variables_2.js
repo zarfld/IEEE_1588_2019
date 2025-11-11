@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['cancel_5funicast_5ftransmission_0',['CANCEL_UNICAST_TRANSMISSION',['../d8/d7c/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1TLVType.html#ab5aedb8faa2bd83b97774c43adb17326',1,'IEEE::_1588::PTP::_2019::TLVType']]],
+  ['clock_5faccuracy_1',['clock_accuracy',['../de/d06/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementId.html#a4bc978c40000f23edd3b2b74ff755d6d',1,'IEEE::_1588::PTP::_2019::ManagementId::CLOCK_ACCURACY'],['../de/da1/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1ClockQuality.html#a8ef125cd498ebaa2b60b24abe341ccb9',1,'IEEE::_1588::PTP::_2019::Types::ClockQuality::clock_accuracy']]],
+  ['clock_5fclass_2',['clock_class',['../de/da1/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1ClockQuality.html#a24f7cb8f7d393e30e3bc2a6f392e1524',1,'IEEE::_1588::PTP::_2019::Types::ClockQuality']]],
+  ['clock_5fdescription_3',['CLOCK_DESCRIPTION',['../de/d06/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementId.html#a2529eacf4cb4e5681c69b43a9ee14693',1,'IEEE::_1588::PTP::_2019::ManagementId']]],
+  ['clock_5fidentity_4',['clock_identity',['../dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html#ae15979d7a0b5e981611f6c72c82abc05',1,'IEEE::_1588::PTP::_2019::Types::PortIdentity']]],
+  ['clock_5fidentity_5flength_5',['CLOCK_IDENTITY_LENGTH',['../d4/d6d/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types.html#abdaa0b2369420221dfdcd757cc00bb2c',1,'IEEE::_1588::PTP::_2019::Types']]],
+  ['clock_5fidentity_5foffset_6',['CLOCK_IDENTITY_OFFSET',['../d4/d6d/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types.html#ae23f2a92fa04bf83bd02db28bda4415a',1,'IEEE::_1588::PTP::_2019::Types']]],
+  ['clockidentity_7',['clockIdentity',['../df/dd3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1DefaultDataSet.html#aae4f04c1a484acc4a33c44138d107882',1,'IEEE::_1588::PTP::_2019::Clocks::DefaultDataSet']]],
+  ['clockquality_8',['clockQuality',['../df/dd3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1DefaultDataSet.html#a26b8894c8080e9d395ca43b8471c4ebc',1,'IEEE::_1588::PTP::_2019::Clocks::DefaultDataSet']]],
+  ['cmldsrequired_9',['cmldsRequired',['../d6/dd9/structIEEE_1_1__1588_1_1__2019_1_1ProfileConfig.html#a9d3ec233e92db5c0b0fbdc5c97d7ff73',1,'IEEE::_1588::_2019::ProfileConfig']]],
+  ['command_10',['COMMAND',['../dc/da3/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementAction.html#a32dfc1e9058b3df43b5c9cdca1840696',1,'IEEE::_1588::PTP::_2019::ManagementAction']]],
+  ['controlfield_11',['controlField',['../d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#a39fc097f2349b143fbe66cce85f2b4c0',1,'IEEE::_1588::PTP::_2019::CommonHeader']]],
+  ['correction_12',['correction',['../d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a95b32b2e378d159da0e83697769cf0f3',1,'IEEE::_1588::PTP::_2019::Clocks::SynchronizationData']]],
+  ['correctionfield_13',['correctionField',['../d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#ad464ab6cb40fd423456fbbd0ff564f9a',1,'IEEE::_1588::PTP::_2019::CommonHeader']]],
+  ['critical_5fthreshold_5fns_14',['critical_threshold_ns',['../de/d3b/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration_1_1Configuration.html#ac30a88fa156dfbfda02b7ab5fb104891',1,'IEEE::_1588::PTP::_2019::SyncIntegration::Configuration']]],
+  ['current_5fdata_5fset_15',['CURRENT_DATA_SET',['../de/d06/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementId.html#ad9b95106e32ac89bbe781e32269ead34',1,'IEEE::_1588::PTP::_2019::ManagementId']]],
+  ['current_5fdelay_5fns_16',['current_delay_ns',['../df/d62/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncStatistics.html#a59ec99388f8c3c1d04c88f89a59f15ca',1,'IEEE::_1588::PTP::_2019::SyncStatistics']]],
+  ['current_5fforeign_5fcount_17',['current_foreign_count',['../dc/d50/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAStatistics.html#a156260004ed784a3cdc1de3f4fb75fd1',1,'IEEE::_1588::PTP::_2019::Integration::BMCAStatistics']]],
+  ['current_5foffset_5fns_18',['current_offset_ns',['../df/d62/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncStatistics.html#a3681db85d39718ad742b2250d424a709',1,'IEEE::_1588::PTP::_2019::SyncStatistics']]],
+  ['current_5ftime_19',['CURRENT_TIME',['../de/d06/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementId.html#a8ef5928e3d8c83a93281a1ed6c56f550',1,'IEEE::_1588::PTP::_2019::ManagementId']]],
+  ['current_5futc_5foffset_5fvalid_20',['CURRENT_UTC_OFFSET_VALID',['../d2/db4/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Flags.html#afd10859c08463c3d4f7f1440e41a1c50',1,'IEEE::_1588::PTP::_2019::Flags']]],
+  ['currentutcoffset_21',['currentutcoffset',['../dd/d8c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1AnnounceBody.html#a79efa8b5083ead6d1598dc9c2e1a4a71',1,'IEEE::_1588::PTP::_2019::AnnounceBody::currentUtcOffset'],['../d3/d2b/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1TimePropertiesDataSet.html#af88629411c997467ccbc7aa7587b46a4',1,'IEEE::_1588::PTP::_2019::Clocks::TimePropertiesDataSet::currentUtcOffset']]],
+  ['currentutcoffsetvalid_22',['currentUtcOffsetValid',['../d3/d2b/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1TimePropertiesDataSet.html#adde6ff7db1ce7edb4775cde03b417602',1,'IEEE::_1588::PTP::_2019::Clocks::TimePropertiesDataSet']]]
+];

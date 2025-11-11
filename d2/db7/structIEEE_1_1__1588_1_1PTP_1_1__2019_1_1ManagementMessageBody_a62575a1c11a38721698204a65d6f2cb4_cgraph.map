@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::ManagementMessageBody::validate" name="IEEE::_1588::PTP::_2019::ManagementMessageBody::validate">
+<area shape="rect" id="Node000001" title="Validate management message body." alt="" coords="5,84,252,139"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="334,5,513,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="231,81,320,57,321,63,232,87"/>
+<area shape="rect" id="Node000003" href="$d2/db7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementMessageBody.html#a36939f173ecc91188a3879fa26f5df0e" title="Get action field value from reserved_actionField byte." alt="" coords="300,84,547,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="252,109,286,109,286,114,252,114"/>
+<area shape="rect" id="Node000004" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="334,163,513,217"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="232,136,321,160,320,165,231,141"/>
+</map>

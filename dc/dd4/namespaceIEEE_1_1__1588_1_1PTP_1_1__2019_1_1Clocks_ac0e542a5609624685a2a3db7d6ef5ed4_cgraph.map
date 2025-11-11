@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::parse_management_tlv" name="IEEE::_1588::PTP::_2019::Clocks::parse_management_tlv">
+<area shape="rect" id="Node000001" title="Parse Management TLV from buffer." alt="" coords="5,45,161,100"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="209,5,388,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="161,56,195,49,196,54,162,61"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="209,84,388,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="162,84,196,90,195,95,161,89"/>
+</map>
