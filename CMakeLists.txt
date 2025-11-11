@@ -172,6 +172,65 @@ add_custom_target(traceability_matrix
     VERBATIM
 )
 
+# Documentation generation (optional)
+option(IEEE1588_BUILD_DOCS "Build Doxygen API documentation" OFF)
+
+if(IEEE1588_BUILD_DOCS)
+    find_package(Doxygen)
+    
+    if(DOXYGEN_FOUND)
+        # Set Doxygen input and output directories
+        set(DOXYGEN_INPUT_DIR ${CMAKE_SOURCE_DIR})
+        set(DOXYGEN_OUTPUT_DIR ${CMAKE_BINARY_DIR}/docs/doxygen)
+        set(DOXYGEN_WARNINGS_LOG ${DOXYGEN_OUTPUT_DIR}/warnings.log)
+        
+        # Create output directory
+        file(MAKE_DIRECTORY ${DOXYGEN_OUTPUT_DIR})
+        
+        # Configure Doxyfile with CMake variables
+        set(DOXYFILE_IN ${CMAKE_SOURCE_DIR}/Doxyfile)
+        set(DOXYFILE_OUT ${CMAKE_BINARY_DIR}/Doxyfile)
+        
+        configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
+        
+        # Add custom target for generating documentation
+        add_custom_target(docs
+            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM
+        )
+        
+        # Add custom target to check documentation warnings
+        add_custom_target(docs-check-warnings
+            COMMAND ${CMAKE_COMMAND} -E echo "Checking Doxygen warnings..."
+            COMMAND ${CMAKE_COMMAND} -E cat ${DOXYGEN_WARNINGS_LOG}
+            DEPENDS docs
+            COMMENT "Checking documentation warnings"
+            VERBATIM
+        )
+        
+        # Optional: Generate documentation coverage report
+        find_package(Python3 COMPONENTS Interpreter)
+        if(Python3_FOUND)
+            add_custom_target(docs-coverage
+                COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate-doxygen.py --coverage
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                DEPENDS docs
+                COMMENT "Generating documentation coverage report"
+                VERBATIM
+            )
+        endif()
+        
+        message(STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE}")
+        message(STATUS "Documentation will be generated in: ${DOXYGEN_OUTPUT_DIR}")
+        message(STATUS "Build documentation with: cmake --build . --target docs")
+    else()
+        message(WARNING "Doxygen not found. Documentation cannot be generated.")
+        message(STATUS "Install Doxygen from: https://www.doxygen.nl/download.html")
+    endif()
+endif()
+
 # Installation
 install(
     DIRECTORY ${IEEE1588_2019_INCLUDE_DIR}/

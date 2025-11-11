@@ -9,6 +9,16 @@ dist/
 build/
 *.js.map
 
+# Generated documentation (Doxygen)
+# Documentation is auto-generated from source code comments
+# Publish via GitHub Pages, Read the Docs, or CI/CD instead
+docs/doxygen/html/
+docs/doxygen/xml/
+docs/doxygen/latex/
+docs/doxygen/warnings.log
+docs/doxygen/IEEE1588_2019_PTP.tag
+Doxyfile.bak
+
 # Environment variables
 .env
 .env.local
