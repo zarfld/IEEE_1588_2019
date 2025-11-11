@@ -5,11 +5,11 @@ Parses markdown files for ID patterns and produces:
  - reports/orphans.md (lists missing link elements)
 
 Patterns recognized (with optional 4-char category prefix for complex projects):
-  StR-[ABCD-]?\d{3}              (e.g., StR-001 or StR-CORE-001)
-  REQ-(ABCD-)?(F|NF)-[A-Z+-]?\d{3}  (e.g., REQ-F-001 or REQ-AUTH-F-001)
-  ADR-[ABCD-]?\d{3}              (e.g., ADR-001 or ADR-INFRA-001)
-  ARC-C-[ABCD-]?\d{3}            (e.g., ARC-C-001 or ARC-C-CORE-001)
-  QA-SC-[ABCD-]?\d{3}            (e.g., QA-SC-001 or QA-SC-PERF-001)
+  StR-[ABCD-]?\\d{3}              (e.g., StR-001 or StR-CORE-001)
+  REQ-(ABCD-)?(F|NF)-[A-Z+-]?\\d{3}  (e.g., REQ-F-001 or REQ-AUTH-F-001)
+  ADR-[ABCD-]?\\d{3}              (e.g., ADR-001 or ADR-INFRA-001)
+  ARC-C-[ABCD-]?\\d{3}            (e.g., ARC-C-001 or ARC-C-CORE-001)
+  QA-SC-[ABCD-]?\\d{3}            (e.g., QA-SC-001 or QA-SC-PERF-001)
   TEST-[ABCD-]?[A-Z0-9-]+        (e.g., TEST-LOGIN-001 or TEST-AUTH-LOGIN-001)
 
 Heuristics (improve later):
@@ -63,8 +63,8 @@ def is_guidance(path: pathlib.Path, text: str) -> bool:
         'docs/',  # Documentation and guides
         '07-verification-validation/traceability/',  # Generated traceability reports
         '07-verification-validation/requirements-verification-baseline.md',  # V&V baseline (references only)
-        '07-verification-validation/test-results/requirements-verification-report.md',  # V&V report (references only)
-        '07-verification-validation/test-results/deep-validation-report.md',  # V&V analysis (recommendations, not requirements)
+        '07-verification-validation/test-results/',  # V&V reports (references only)
+        '07-verification-validation/test-cases/acceptance/',  # Acceptance tests (reference requirements, don't define)
     ]
     if any(seg in path.as_posix() for seg in excluded_paths):
         return True
