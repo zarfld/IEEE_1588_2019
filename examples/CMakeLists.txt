@@ -1,6 +1,11 @@
 # IEEE 1588-2019 PTP v2.1 Examples
 # Example applications demonstrating time-sensitive design principles
 
+# Phase 08 - Transition Examples
+# Complete working examples for learning and integration
+add_subdirectory(01-basic-ptp-slave)
+add_subdirectory(02-bmca-integration)
+
 # Time-sensitive types example
 add_executable(time_sensitive_types_example
     time_sensitive_types_example.cpp
