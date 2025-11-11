@@ -5,6 +5,7 @@
 # Complete working examples for learning and integration
 add_subdirectory(01-basic-ptp-slave)
 add_subdirectory(02-bmca-integration)
+add_subdirectory(03-hal-implementation-template)
 
 # Time-sensitive types example
 add_executable(time_sensitive_types_example
