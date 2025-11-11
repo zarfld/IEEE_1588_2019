@@ -99,6 +99,18 @@ PtpPort::PtpPort(const PortConfiguration& config,
     parent_data_set_.grandmaster_priority1 = 128;
     parent_data_set_.grandmaster_priority2 = 128;
     
+    // Initialize default data set per IEEE 1588-2019 Section 8.2.1
+    default_data_set_.twoStepFlag = true;  // Use two-step clock by default
+    default_data_set_.clockIdentity = port_data_set_.port_identity.clock_identity;
+    default_data_set_.numberPorts = 1;     // Single port by default (can be overridden)
+    default_data_set_.clockQuality.clock_class = 248;  // Default: application-specific
+    default_data_set_.clockQuality.clock_accuracy = 0xFE;  // Unknown accuracy
+    default_data_set_.clockQuality.offset_scaled_log_variance = 0xFFFF;  // Maximum variance
+    default_data_set_.priority1 = 128;     // Default priority per IEEE 1588-2019
+    default_data_set_.priority2 = 128;     // Default priority per IEEE 1588-2019
+    default_data_set_.domainNumber = config.domain_number;
+    default_data_set_.slaveOnly = false;   // Can become master by default
+    
     // Initialize foreign master list
     foreign_masters_.fill(AnnounceMessage{});
     foreign_master_timestamps_.fill(Types::Timestamp{});

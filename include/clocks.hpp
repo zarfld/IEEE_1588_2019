@@ -233,6 +233,70 @@ struct TimePropertiesDataSet {
     std::uint8_t timeSource{0};
 };
 
+/**
+ * @brief Default Data Set per IEEE 1588-2019 Section 8.2.1
+ * @details Static configuration and quality characteristics of the local PTP clock
+ * 
+ * This data set contains the default clock attributes required for BMCA operation,
+ * management functions, and protocol configuration. It describes the local clock's
+ * identity, quality, priorities, and operational mode.
+ * 
+ * CRITICAL REQUIREMENT: This data set is MANDATORY per IEEE 1588-2019 Section 8.2.1.
+ * All PTP clock implementations must maintain this data set for proper protocol operation.
+ * 
+ * Field-by-field mapping per IEEE 1588-2019 Table 8:
+ * - twoStepFlag: Indicates if clock uses two-step sync mechanism (one-step vs. two-step)
+ * - clockIdentity: 64-bit unique identifier for the PTP clock (8-byte array)
+ * - numberPorts: Total number of PTP ports on this clock (UInteger16)
+ * - clockQuality: Quality characteristics (clockClass, clockAccuracy, offsetScaledLogVariance)
+ * - priority1: First BMCA comparison priority (0-255, default 128)
+ * - priority2: Second BMCA comparison priority (0-255, default 128)
+ * - domainNumber: PTP domain for clock isolation (0-127 for Default profile, 0 for Power profile)
+ * - slaveOnly: If TRUE, clock can never become Master (always Slave/Passive/Listening)
+ * 
+ * BMCA Usage (IEEE 1588-2019 Section 9.3):
+ * - priority1, priority2: Used in dataset comparison steps (dataset0, dataset2)
+ * - clockQuality: Used in clockQuality comparison step (dataset1)
+ * - clockIdentity: Used as tiebreaker in final identity comparison
+ * 
+ * @see IEEE 1588-2019, Section 8.2.1 "defaultDS data set member specifications"
+ * @see IEEE 1588-2019, Table 8 "defaultDS data set members"
+ * @see IEEE 1588-2019, Section 9.3 "Best master clock algorithm"
+ * 
+ * @note This implementation is based on understanding of IEEE 1588-2019 specification.
+ *       No copyrighted content from IEEE documents is reproduced. Refer to original
+ *       IEEE 1588-2019 specification for authoritative requirements.
+ */
+struct DefaultDataSet {
+    /** Two-step flag: TRUE if clock uses two-step sync, FALSE for one-step (IEEE Table 8) */
+    bool twoStepFlag{true};
+    
+    /** Clock identity: 64-bit unique identifier for this PTP clock (IEEE Table 8) */
+    Types::ClockIdentity clockIdentity{};
+    
+    /** Number of PTP ports: Total port count on this clock (IEEE Table 8) */
+    std::uint16_t numberPorts{1};
+    
+    /** Clock quality: Describes quality characteristics (class, accuracy, variance) (IEEE Table 8) */
+    Types::ClockQuality clockQuality{
+        248,    // clockClass: 248 = Default (application-specific, not locked to external source)
+        0xFE,   // clockAccuracy: 0xFE = Unknown accuracy
+        0xFFFF  // offsetScaledLogVariance: 0xFFFF = Maximum variance (uninitialized/unknown)
+    };
+    
+    /** Priority1: First BMCA comparison priority, 0-255, default 128 (IEEE Table 8) */
+    std::uint8_t priority1{128};
+    
+    /** Priority2: Second BMCA comparison priority, 0-255, default 128 (IEEE Table 8) */
+    std::uint8_t priority2{128};
+    
+    /** Domain number: PTP domain identifier for clock isolation, 0-127 (IEEE Table 8) */
+    std::uint8_t domainNumber{0};
+    
+    /** Slave only: If TRUE, clock can never become Master (IEEE Table 8) */
+    bool slaveOnly{false};
+};
+
 
 /**
  * @brief Clock synchronization information
@@ -330,6 +394,8 @@ static_assert(sizeof(CurrentDataSet) <= 32,
               "CurrentDataSet must be compact for real-time access");  
 static_assert(sizeof(ParentDataSet) <= 64, 
               "ParentDataSet must be compact for BMCA operations");
+static_assert(sizeof(DefaultDataSet) <= 64,
+              "DefaultDataSet must be compact for clock configuration access");
 
 /**
  * @brief State Machine Callbacks
@@ -622,6 +688,11 @@ public:
         return time_properties_data_set_; 
     }
 
+    /** Get default data set per IEEE 1588-2019 Section 8.2.1 */
+    constexpr const DefaultDataSet& get_default_data_set() const noexcept {
+        return default_data_set_;
+    }
+
     /** Get port data set (for dataset/read observability tests) */
     constexpr const PortDataSet& get_port_data_set() const noexcept { return port_data_set_; }
     
@@ -670,6 +741,7 @@ private:
     CurrentDataSet current_data_set_;
     ParentDataSet parent_data_set_;
     TimePropertiesDataSet time_properties_data_set_;
+    DefaultDataSet default_data_set_;  ///< Default data set per IEEE 1588-2019 Section 8.2.1
     PortStatistics statistics_;
     
     // Timing state (bounded precision)

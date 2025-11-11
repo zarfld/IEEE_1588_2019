@@ -222,6 +222,18 @@ target_include_directories(datasets_accessors_red PRIVATE
 target_link_libraries(datasets_accessors_red PRIVATE IEEE1588_2019_interface)
 add_test(NAME datasets_accessors_red COMMAND datasets_accessors_red)
 
+# Test 27a: DefaultDataSet initialization (CRITICAL - IEEE 1588-2019 Section 8.2.1)
+add_executable(default_ds_init_red
+    ${CMAKE_SOURCE_DIR}/tests/test_default_ds_init.cpp
+    ${BMCA_IMPL_SOURCES}
+)
+target_include_directories(default_ds_init_red PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/05-implementation/src
+)
+target_link_libraries(default_ds_init_red PRIVATE IEEE1588_2019_interface)
+add_test(NAME default_ds_init_red COMMAND default_ds_init_red)
+
 # Test 28: GAP-BMCA-001 - Priority vector ordering (RED for full BMCA compliance)
 add_executable(bmca_priority_order_red
     ${CMAKE_CURRENT_LIST_DIR}/test_bmca_priority_order_red.cpp
