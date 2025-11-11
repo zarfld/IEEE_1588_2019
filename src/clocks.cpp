@@ -953,12 +953,13 @@ Types::PTPResult<void> PtpPort::run_bmca() noexcept {
     // Build local priority vector from LOCAL clock's own parameters (not parent_data_set)
     // parent_data_set represents the CURRENT MASTER, not the local clock itself
     // Per IEEE 1588-2019 Section 9.3, BMCA compares local clock parameters to foreign masters
+    // Read from defaultDS per IEEE 1588-2019 Section 8.2.1 (CAP-20251111-01 - Integration Fix)
     PriorityVector local{};
-    local.priority1 = 128;  // Local clock default priority1
-    local.clockClass = 248; // Slave-only default
-    local.clockAccuracy = 0xFE; // Unknown accuracy
-    local.variance = 0xFFFF; // Maximum variance
-    local.priority2 = 128;  // Local clock default priority2
+    local.priority1 = default_data_set_.priority1;  // From defaultDS (not hardcoded 128)
+    local.clockClass = default_data_set_.clockQuality.clock_class; // From defaultDS
+    local.clockAccuracy = default_data_set_.clockQuality.clock_accuracy; // From defaultDS
+    local.variance = default_data_set_.clockQuality.offset_scaled_log_variance; // From defaultDS
+    local.priority2 = default_data_set_.priority2;  // From defaultDS (not hardcoded 128)
     // Use LOCAL port's clock identity for BMCA comparison (not parent_data_set GM identity)
     // Collapse 8-byte ClockIdentity into u64 for comparator (implementation detail)
     // Note: This is a simplified monotonic mapping for increment 1; full comparator uses byte-wise ordering.
