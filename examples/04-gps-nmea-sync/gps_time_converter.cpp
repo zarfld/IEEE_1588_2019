@@ -169,5 +169,88 @@ int64_t GPSTimeConverter::estimate_time_uncertainty(const NMEA::GPSTimeData& gps
     return base_uncertainty_ns * quality_factor;
 }
 
+GPSTimeConverter::ClockQualityAttributes 
+GPSTimeConverter::update_clock_quality(
+    NMEA::GPSFixStatus gps_fix_status,
+    uint8_t pps_state) {
+    
+    // IEEE 1588-2019 Table 5: clockClass values
+    // IEEE 1588-2019 Table 6: clockAccuracy values
+    // IEEE 1588-2019 Table 8-2: timeSource enumeration
+    
+    ClockQualityAttributes quality;
+    
+    // Determine timeSource and clockClass based on GPS fix
+    switch (gps_fix_status) {
+        case NMEA::GPSFixStatus::NO_FIX:
+        case NMEA::GPSFixStatus::SIGNAL_LOST:
+            // No GPS lock - running on internal oscillator
+            quality.time_source = 0xA0;   // INTERNAL_OSCILLATOR (IEEE Table 8-2)
+            quality.clock_class = 248;    // Default (not traceable, IEEE Table 5)
+            quality.clock_accuracy = 0xFE; // Unknown (IEEE Table 6)
+            quality.offset_scaled_log_variance = 0xFFFF; // Maximum variance (worst)
+            break;
+            
+        case NMEA::GPSFixStatus::TIME_ONLY:
+            // Time-only fix - GPS available but no position
+            quality.time_source = 0x20;   // GPS (IEEE Table 8-2)
+            quality.clock_class = 248;    // Default (time-only not fully traceable)
+            
+            // Accuracy depends on PPS availability
+            if (pps_state == 2) {  // Locked (DetectionState::Locked)
+                quality.clock_accuracy = 0x21;  // 100ns (PPS + NMEA, IEEE Table 6)
+                quality.offset_scaled_log_variance = 0x4E5D;  // Good stability
+            } else {
+                quality.clock_accuracy = 0x31;  // 10ms (NMEA only, IEEE Table 6)
+                quality.offset_scaled_log_variance = 0x8000;  // Moderate stability
+            }
+            break;
+            
+        case NMEA::GPSFixStatus::AUTONOMOUS_FIX:
+            // Standard GPS fix (3D fix, 4+ satellites)
+            quality.time_source = 0x20;   // GPS (IEEE Table 8-2)
+            quality.clock_class = 6;      // Primary reference (traceable to primary time source)
+            
+            // Accuracy depends on PPS availability
+            if (pps_state == 2) {  // Locked (DetectionState::Locked)
+                quality.clock_accuracy = 0x21;  // 100ns (PPS hardware timestamping)
+                quality.offset_scaled_log_variance = 0x4E5D;  // Good stability
+            } else {
+                quality.clock_accuracy = 0x31;  // 10ms (NMEA only)
+                quality.offset_scaled_log_variance = 0x8000;  // Moderate stability
+            }
+            break;
+            
+        case NMEA::GPSFixStatus::DGPS_FIX:
+            // Differential GPS fix - excellent accuracy
+            quality.time_source = 0x20;   // GPS (IEEE Table 8-2)
+            quality.clock_class = 6;      // Primary reference (traceable)
+            
+            // Accuracy depends on PPS availability
+            if (pps_state == 2) {  // Locked (DetectionState::Locked)
+                quality.clock_accuracy = 0x20;  // 25ns (DGPS + PPS, best case)
+                quality.offset_scaled_log_variance = 0x4000;  // Excellent stability
+            } else {
+                quality.clock_accuracy = 0x22;  // 250ns (DGPS without PPS)
+                quality.offset_scaled_log_variance = 0x6000;  // Good stability
+            }
+            break;
+    }
+    
+    // Priority values - typically static, but could be adjusted based on quality
+    // Higher quality GPS could use lower priority1 (higher priority in BMCA)
+    if (quality.clock_class == 6 && pps_state == 2) {
+        quality.priority1 = 100;  // High priority for GPS-locked with PPS
+    } else {
+        quality.priority1 = 128;  // Default priority
+    }
+    quality.priority2 = 128;  // Default (typically not changed)
+    
+    // Store updated quality
+    clock_quality_ = quality;
+    
+    return quality;
+}
+
 } // namespace Time
 } // namespace GPS

@@ -194,6 +194,81 @@ public:
      */
     int64_t estimate_time_uncertainty(const NMEA::GPSTimeData& gps_data);
     
+    /**
+     * @brief IEEE 1588-2019 Clock Quality Attributes
+     * 
+     * These attributes are used in BMCA (Best Master Clock Algorithm)
+     * to select the best Grandmaster in a PTP network.
+     * 
+     * @see IEEE 1588-2019, Section 8.6.2 "Clock quality attributes"
+     * @see IEEE 1588-2019, Section 9.3 "Best master clock algorithm"
+     */
+    struct ClockQualityAttributes {
+        uint8_t  clock_class;                   ///< Clock class (6=GPS-locked, 248=default)
+        uint8_t  clock_accuracy;                ///< Accuracy (0x21=100ns, 0x31=10ms, 0xFE=unknown)
+        uint16_t offset_scaled_log_variance;    ///< Stability measure (0x4E5D=typical, 0xFFFF=worst)
+        uint8_t  time_source;                   ///< Time source (0x20=GPS, 0xA0=internal oscillator)
+        uint8_t  priority1;                     ///< BMCA priority 1 (0-255, default 128)
+        uint8_t  priority2;                     ///< BMCA priority 2 (0-255, default 128)
+        
+        /**
+         * @brief Constructor - initializes to default (no GPS lock)
+         */
+        ClockQualityAttributes()
+            : clock_class(248)                      // Default (not traceable)
+            , clock_accuracy(0xFE)                  // Unknown
+            , offset_scaled_log_variance(0xFFFF)    // Maximum variance
+            , time_source(0xA0)                     // Internal oscillator
+            , priority1(128)                        // Default
+            , priority2(128)                        // Default
+        {}
+    };
+    
+    /**
+     * @brief Update PTP clock quality attributes based on GPS fix status and PPS detection
+     * 
+     * Dynamically adjusts clock quality attributes to accurately reflect the current
+     * timing performance:
+     * 
+     * | GPS Fix Status | PPS State  | clockClass | clockAccuracy | timeSource |
+     * |----------------|------------|------------|---------------|------------|
+     * | NO_FIX         | Any        | 248        | 0xFE          | 0xA0 (INT) |
+     * | TIME_ONLY      | Failed     | 248        | 0x31 (10ms)   | 0x20 (GPS) |
+     * | GPS_FIX        | Failed     | 6          | 0x31 (10ms)   | 0x20 (GPS) |
+     * | GPS_FIX        | Locked     | 6          | 0x21 (100ns)  | 0x20 (GPS) |
+     * | DGPS_FIX       | Locked     | 6          | 0x20 (25ns)   | 0x20 (GPS) |
+     * 
+     * This method should be called whenever:
+     * - GPS fix status changes
+     * - PPS detection state changes
+     * - Periodically during operation to reflect degradation
+     * 
+     * @param gps_fix_status Current GPS fix status from NMEA parser
+     * @param pps_state Current PPS detection state (Idle, Detecting, Locked, Failed)
+     * @return Updated clock quality attributes
+     * 
+     * @note These attributes are used in BMCA to select the best Grandmaster
+     * @note Attributes must accurately reflect actual clock performance per IEEE 1588-2019
+     * 
+     * @see IEEE 1588-2019, Section 8.6.2 "Clock quality attributes"
+     * @see IEEE 802.1AS-2021, Section 8.6.2 "PTP Instance characterization"
+     */
+    ClockQualityAttributes update_clock_quality(
+        NMEA::GPSFixStatus gps_fix_status,
+        uint8_t pps_state  // 0=Idle, 1=Detecting, 2=Locked, 3=Failed (from DetectionState)
+    );
+    
+    /**
+     * @brief Get current clock quality attributes
+     * 
+     * Returns the most recently calculated clock quality attributes.
+     * 
+     * @return Current clock quality attributes
+     */
+    const ClockQualityAttributes& get_clock_quality() const {
+        return clock_quality_;
+    }
+    
 private:
     /**
      * @brief Convert calendar date/time to Unix timestamp (seconds since epoch)
@@ -227,6 +302,7 @@ private:
     uint8_t days_in_month(uint8_t month, uint16_t year);
     
     int32_t gps_utc_offset_;  ///< Current GPS-UTC leap second offset
+    ClockQualityAttributes clock_quality_;  ///< Current PTP clock quality attributes
 };
 
 } // namespace Time

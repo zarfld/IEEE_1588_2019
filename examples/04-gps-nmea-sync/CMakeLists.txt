@@ -226,6 +226,28 @@ if(BUILD_TESTING)
         TIMEOUT 30  # Realistic timeout for hardware detection
     )
     
+    # Test 5: IEEE 1588-2019 Clock Quality Management
+    add_executable(test_clock_quality
+        tests/test_clock_quality.cpp
+    )
+    
+    target_include_directories(test_clock_quality
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_clock_quality
+        PRIVATE
+            gps_nmea_parser
+    )
+    
+    add_test(NAME test_clock_quality COMMAND test_clock_quality)
+    set_tests_properties(test_clock_quality PROPERTIES
+        LABELS "gps;clock;quality;bmca;fast"
+        TIMEOUT 5  # Fast test, no hardware required
+    )
+    
     # Copy real GPS log files for testing
     file(COPY ${CMAKE_SOURCE_DIR}/docs/Serial_NMEA_example/Log1.log
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
