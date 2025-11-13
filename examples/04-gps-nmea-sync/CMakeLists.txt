@@ -182,6 +182,28 @@ if(BUILD_TESTING)
         TIMEOUT 60
     )
     
+    # PPS Detector Unit Tests
+    add_executable(test_pps_detector
+        tests/test_pps_detector.cpp
+    )
+    
+    target_include_directories(test_pps_detector
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_pps_detector
+        PRIVATE
+            gps_nmea_parser
+    )
+    
+    add_test(NAME test_pps_detector COMMAND test_pps_detector)
+    set_tests_properties(test_pps_detector PROPERTIES
+        LABELS "gps;pps;detector;unit"
+        TIMEOUT 30
+    )
+    
     # Copy real GPS log files for testing
     file(COPY ${CMAKE_SOURCE_DIR}/docs/Serial_NMEA_example/Log1.log
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
@@ -191,6 +213,7 @@ if(BUILD_TESTING)
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
     
     message(STATUS "GPS NMEA tests configured with real log files")
+    message(STATUS "PPS detector tests configured")
 endif()
 
 # ============================================================================
