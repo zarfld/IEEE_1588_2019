@@ -182,7 +182,7 @@ if(BUILD_TESTING)
         TIMEOUT 60
     )
     
-    # PPS Detector Unit Tests
+    # PPS Detector Unit Tests (API tests, no hardware)
     add_executable(test_pps_detector
         tests/test_pps_detector.cpp
     )
@@ -200,8 +200,30 @@ if(BUILD_TESTING)
     
     add_test(NAME test_pps_detector COMMAND test_pps_detector)
     set_tests_properties(test_pps_detector PROPERTIES
-        LABELS "gps;pps;detector;unit"
-        TIMEOUT 30
+        LABELS "gps;pps;detector;unit;fast"
+        TIMEOUT 5  # Fast API test
+    )
+    
+    # PPS Hardware Validation Tests (requires GPS hardware)
+    add_executable(test_pps_hardware
+        tests/test_pps_hardware.cpp
+    )
+    
+    target_include_directories(test_pps_hardware
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_pps_hardware
+        PRIVATE
+            gps_nmea_parser
+    )
+    
+    add_test(NAME test_pps_hardware COMMAND test_pps_hardware)
+    set_tests_properties(test_pps_hardware PROPERTIES
+        LABELS "gps;pps;hardware;slow"
+        TIMEOUT 30  # Realistic timeout for hardware detection
     )
     
     # Copy real GPS log files for testing
@@ -213,7 +235,11 @@ if(BUILD_TESTING)
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
     
     message(STATUS "GPS NMEA tests configured with real log files")
-    message(STATUS "PPS detector tests configured")
+    message(STATUS "PPS detector tests configured:")
+    message(STATUS "  - test_pps_detector (API tests, fast, no hardware)")
+    message(STATUS "  - test_pps_hardware (Hardware tests, slow, requires GPS)")
+    message(STATUS "  Run fast tests: ctest -L fast")
+    message(STATUS "  Run hardware tests: ctest -L hardware")
 endif()
 
 # ============================================================================
