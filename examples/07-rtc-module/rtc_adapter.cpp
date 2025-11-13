@@ -9,41 +9,255 @@
 #include <ctime>
 
 // Platform-specific I2C access
-// NOTE: This is a simplified example - real implementation would use
-// ESP32 I2C HAL, Arduino Wire library, or platform-specific APIs
+// REAL ESP32 IMPLEMENTATION - Works with ESP-IDF and Arduino/PlatformIO
+
+// ====================================================================
+// Platform Detection and Configuration
+// ====================================================================
+#if defined(ESP32) || defined(ESP_PLATFORM)
+    // ESP32 detected - use native ESP-IDF I2C driver
+    #ifdef ARDUINO
+        // Arduino framework on ESP32
+        #include <Wire.h>
+        #define USE_ARDUINO_WIRE
+    #else
+        // Native ESP-IDF
+        #include "driver/i2c.h"
+        #define USE_ESP_IDF_I2C
+    #endif
+    
+    // ESP32 I2C Configuration
+    #define I2C_MASTER_NUM          I2C_NUM_0       // I2C port number
+    #define I2C_MASTER_SDA_IO       21              // GPIO21 for SDA (default)
+    #define I2C_MASTER_SCL_IO       22              // GPIO22 for SCL (default)
+    #define I2C_MASTER_FREQ_HZ      100000          // 100kHz standard mode
+    #define I2C_MASTER_TX_BUF_LEN   0               // No TX buffer (master mode)
+    #define I2C_MASTER_RX_BUF_LEN   0               // No RX buffer (master mode)
+    #define I2C_MASTER_TIMEOUT_MS   1000            // Timeout in milliseconds
+    
+    #define PLATFORM_ESP32
+#else
+    // Generic platform - placeholder for porting
+    #define USE_GENERIC_PLACEHOLDER
+    #warning "ESP32 not detected - using placeholder I2C (will not work with real hardware)"
+#endif
+
+// ====================================================================
+// ESP32 I2C Hardware Abstraction Layer
+// ====================================================================
 namespace I2C {
+    static bool initialized = false;
+    
+    // ----------------------------------------------------------------
+    // Initialize I2C bus (ESP32-specific)
+    // ----------------------------------------------------------------
     bool begin() {
-        // Platform-specific I2C initialization
-        // ESP32: i2c_driver_install()
-        // Arduino: Wire.begin()
-        return true;  // Placeholder
+        if (initialized) {
+            return true;  // Already initialized
+        }
+        
+#ifdef USE_ESP_IDF_I2C
+        // ESP-IDF Native I2C Initialization
+        i2c_config_t conf;
+        conf.mode = I2C_MODE_MASTER;
+        conf.sda_io_num = static_cast<gpio_num_t>(I2C_MASTER_SDA_IO);
+        conf.scl_io_num = static_cast<gpio_num_t>(I2C_MASTER_SCL_IO);
+        conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+        conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+        conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+        
+        esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
+        if (err != ESP_OK) {
+            return false;
+        }
+        
+        err = i2c_driver_install(I2C_MASTER_NUM, conf.mode, 
+                                I2C_MASTER_RX_BUF_LEN, 
+                                I2C_MASTER_TX_BUF_LEN, 0);
+        if (err != ESP_OK) {
+            return false;
+        }
+        
+        initialized = true;
+        return true;
+        
+#elif defined(USE_ARDUINO_WIRE)
+        // Arduino Wire Library (ESP32)
+        Wire.begin(I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO);
+        Wire.setClock(I2C_MASTER_FREQ_HZ);
+        initialized = true;
+        return true;
+        
+#else
+        // Generic placeholder
+        initialized = true;
+        return true;  // Placeholder - no real hardware access
+#endif
     }
     
+    // ----------------------------------------------------------------
+    // Write single byte to I2C device register
+    // ----------------------------------------------------------------
     bool write_byte(uint8_t address, uint8_t reg, uint8_t value) {
-        // Platform-specific I2C write
-        // ESP32: i2c_master_write_to_device()
-        // Arduino: Wire.beginTransmission(), Wire.write(), Wire.endTransmission()
-        return true;  // Placeholder
+        if (!initialized) {
+            return false;
+        }
+        
+#ifdef USE_ESP_IDF_I2C
+        // ESP-IDF I2C Write
+        uint8_t write_buf[2] = {reg, value};
+        esp_err_t err = i2c_master_write_to_device(
+            I2C_MASTER_NUM,
+            address,
+            write_buf,
+            2,
+            pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS)
+        );
+        return (err == ESP_OK);
+        
+#elif defined(USE_ARDUINO_WIRE)
+        // Arduino Wire Write
+        Wire.beginTransmission(address);
+        Wire.write(reg);
+        Wire.write(value);
+        uint8_t error = Wire.endTransmission();
+        return (error == 0);  // 0 = success
+        
+#else
+        // Generic placeholder
+        return true;  // Placeholder - no real I2C transaction
+#endif
     }
     
+    // ----------------------------------------------------------------
+    // Read single byte from I2C device register
+    // ----------------------------------------------------------------
     bool read_byte(uint8_t address, uint8_t reg, uint8_t& value) {
-        // Platform-specific I2C read
-        // ESP32: i2c_master_write_read_device()
-        // Arduino: Wire.beginTransmission(), Wire.write(), Wire.requestFrom(), Wire.read()
+        if (!initialized) {
+            value = 0;
+            return false;
+        }
+        
+#ifdef USE_ESP_IDF_I2C
+        // ESP-IDF I2C Read (write register address, then read data)
+        esp_err_t err = i2c_master_write_read_device(
+            I2C_MASTER_NUM,
+            address,
+            &reg,           // Write register address
+            1,
+            &value,         // Read data into value
+            1,
+            pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS)
+        );
+        return (err == ESP_OK);
+        
+#elif defined(USE_ARDUINO_WIRE)
+        // Arduino Wire Read
+        Wire.beginTransmission(address);
+        Wire.write(reg);
+        uint8_t error = Wire.endTransmission(false);  // false = repeated start
+        if (error != 0) {
+            value = 0;
+            return false;
+        }
+        
+        uint8_t bytes_received = Wire.requestFrom(address, (uint8_t)1);
+        if (bytes_received != 1) {
+            value = 0;
+            return false;
+        }
+        
+        value = Wire.read();
+        return true;
+        
+#else
+        // Generic placeholder
         value = 0;
-        return true;  // Placeholder
+        return true;  // Placeholder - returns dummy zero data
+#endif
     }
     
+    // ----------------------------------------------------------------
+    // Read multiple bytes from I2C device (burst read)
+    // ----------------------------------------------------------------
     bool read_bytes(uint8_t address, uint8_t reg, uint8_t* buffer, size_t length) {
-        // Platform-specific I2C burst read
+        if (!initialized || buffer == nullptr || length == 0) {
+            return false;
+        }
+        
+#ifdef USE_ESP_IDF_I2C
+        // ESP-IDF I2C Burst Read
+        esp_err_t err = i2c_master_write_read_device(
+            I2C_MASTER_NUM,
+            address,
+            &reg,           // Write starting register address
+            1,
+            buffer,         // Read data into buffer
+            length,
+            pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS)
+        );
+        return (err == ESP_OK);
+        
+#elif defined(USE_ARDUINO_WIRE)
+        // Arduino Wire Burst Read
+        Wire.beginTransmission(address);
+        Wire.write(reg);
+        uint8_t error = Wire.endTransmission(false);  // Repeated start
+        if (error != 0) {
+            return false;
+        }
+        
+        uint8_t bytes_received = Wire.requestFrom(address, (uint8_t)length);
+        if (bytes_received != length) {
+            return false;
+        }
+        
+        for (size_t i = 0; i < length; i++) {
+            buffer[i] = Wire.read();
+        }
+        return true;
+        
+#else
+        // Generic placeholder - byte-by-byte fallback
         for (size_t i = 0; i < length; i++) {
             if (!read_byte(address, reg + i, buffer[i])) {
                 return false;
             }
         }
         return true;
+#endif
     }
-}
+    
+    // ----------------------------------------------------------------
+    // Check if I2C device is present on bus (scan)
+    // ----------------------------------------------------------------
+    bool device_present(uint8_t address) {
+        if (!initialized) {
+            return false;
+        }
+        
+#ifdef USE_ESP_IDF_I2C
+        // ESP-IDF: Try to write to device (0 bytes)
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+        i2c_master_stop(cmd);
+        esp_err_t err = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(100));
+        i2c_cmd_link_delete(cmd);
+        return (err == ESP_OK);
+        
+#elif defined(USE_ARDUINO_WIRE)
+        // Arduino: Try to begin transmission
+        Wire.beginTransmission(address);
+        uint8_t error = Wire.endTransmission();
+        return (error == 0);
+        
+#else
+        // Generic placeholder
+        return true;  // Placeholder - assumes device present
+#endif
+    }
+} // namespace I2C
 
 namespace Examples {
 namespace RTC {
