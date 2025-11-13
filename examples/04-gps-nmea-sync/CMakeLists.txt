@@ -248,6 +248,28 @@ if(BUILD_TESTING)
         TIMEOUT 5  # Fast test, no hardware required
     )
     
+    # Test 6: Automated Quality Transition Tests
+    add_executable(test_quality_transitions
+        tests/test_quality_transitions.cpp
+    )
+    
+    target_include_directories(test_quality_transitions
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_quality_transitions
+        PRIVATE
+            gps_nmea_parser
+    )
+    
+    add_test(NAME test_quality_transitions COMMAND test_quality_transitions)
+    set_tests_properties(test_quality_transitions PROPERTIES
+        LABELS "gps;clock;quality;transitions;bmca;fast"
+        TIMEOUT 5  # Fast test, no hardware required
+    )
+    
     # Copy real GPS log files for testing
     file(COPY ${CMAKE_SOURCE_DIR}/docs/Serial_NMEA_example/Log1.log
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
@@ -263,6 +285,29 @@ if(BUILD_TESTING)
     message(STATUS "  Run fast tests: ctest -L fast")
     message(STATUS "  Run hardware tests: ctest -L hardware")
 endif()
+
+# ============================================================================
+# Example: GPS + PPS + PTP Clock Quality Integration
+# ============================================================================
+
+add_executable(gps_ptp_sync_example
+    gps_ptp_sync_example.cpp
+)
+
+target_include_directories(gps_ptp_sync_example
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(gps_ptp_sync_example
+    PRIVATE
+        gps_nmea_parser
+)
+
+message(STATUS "GPS + PPS + PTP Clock Quality Integration example configured")
+message(STATUS "  Run: ./gps_ptp_sync_example")
+message(STATUS "  This demonstrates dynamic clock quality management")
 
 # ============================================================================
 # Installation
