@@ -158,6 +158,29 @@ if(BUILD_TESTING)
         TIMEOUT 60
     )
     
+    # GPS + BMCA + State Machine Integration Tests
+    add_executable(test_gps_bmca_integration
+        tests/test_gps_bmca_integration.cpp
+    )
+    
+    target_include_directories(test_gps_bmca_integration
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(test_gps_bmca_integration
+        PRIVATE
+            gps_nmea_parser
+            IEEE1588_2019
+    )
+    
+    add_test(NAME test_gps_bmca_integration COMMAND test_gps_bmca_integration)
+    set_tests_properties(test_gps_bmca_integration PROPERTIES
+        LABELS "gps;bmca;state_machine;integration"
+        TIMEOUT 60
+    )
+    
     # Copy real GPS log files for testing
     file(COPY ${CMAKE_SOURCE_DIR}/docs/Serial_NMEA_example/Log1.log
          DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test_data)
