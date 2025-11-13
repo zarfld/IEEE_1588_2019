@@ -7,6 +7,13 @@ add_subdirectory(01-basic-ptp-slave)
 add_subdirectory(02-bmca-integration)
 add_subdirectory(03-hal-implementation-template)
 
+# Time Source Examples - External synchronization
+add_subdirectory(04-gps-nmea-sync)             # GPS time source (NMEA + PPS)
+add_subdirectory(05-ntp-sntp-sync)             # NTP time source (network)
+add_subdirectory(06-dcf77-terrestrial-radio)   # DCF77 time source (radio, Europe)
+add_subdirectory(07-rtc-module)                # RTC time source (I2C, fallback)
+add_subdirectory(08-multi-source-bmca)         # Multi-source BMCA selection
+
 # Time-sensitive types example
 add_executable(time_sensitive_types_example
     time_sensitive_types_example.cpp
