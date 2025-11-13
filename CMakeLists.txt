@@ -287,6 +287,10 @@ if(IEEE1588_2019_BUILD_EXAMPLES)
     if(BUILD_TESTING)
         add_test(NAME simple_example_smoke COMMAND $<TARGET_FILE:ieee1588_2019_simple_test>)
     endif()
+    
+    # GPS NMEA Synchronization Example (Phase 06-07: Real-world validation)
+    message(STATUS "Configuring GPS NMEA Synchronization Example")
+    add_subdirectory(examples/04-gps-nmea-sync)
 endif()
 
 # Export configuration
