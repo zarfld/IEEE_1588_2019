@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(gps_nmea_parser STATIC
     nmea_parser.cpp
     gps_time_converter.cpp
+    pps_detector.cpp
 )
 
 target_include_directories(gps_nmea_parser
