@@ -42,18 +42,21 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <Wire.h>
 
 // GPS components
-#include "../04-gps-nmea-sync/serial_hal_esp32.cpp"
-#include "../04-gps-nmea-sync/nmea_parser.hpp"
-#include "../04-gps-nmea-sync/gps_time_converter.hpp"
 #include "pps_handler_esp32.hpp"
+#include "nmea_parser.hpp"
+#include "gps_time_converter.hpp"
+#include "serial_hal_interface.hpp"
+#include "serial_hal_esp32.hpp"  // ESP32 UART implementation
 
-// RTC components
-#include "../07-rtc-module/rtc_adapter.hpp"
-
-// IEEE 1588-2019 PTP types
+// RTC components  
+// Note: Must include IEEE types BEFORE rtc_adapter.hpp
+#include "IEEE/1588/PTP/2019/types.hpp"
 namespace Types = IEEE::_1588::PTP::_2019::Types;
+
+#include "rtc_adapter.hpp"
 
 // ====================================================================
 // Configuration
@@ -61,7 +64,7 @@ namespace Types = IEEE::_1588::PTP::_2019::Types;
 
 // WiFi Configuration
 const char* WIFI_SSID = "YOUR_WIFI_SSID";      // ⚠ CHANGE THIS!
-const char* WIFI_PASSWORD = "YOUR_PASSWORD";    // ⚠ CHANGE THIS!
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";    // ⚠ CHANGE THIS!
 
 // GPS Configuration
 const int GPS_UART_NUM = 2;          // UART2
@@ -85,17 +88,19 @@ const uint32_t ANNOUNCE_INTERVAL_MS = 1000;  // 1 second (2^0)
 const uint32_t SYNC_INTERVAL_MS = 125;       // 125ms (8 Hz, 2^-3)
 const uint32_t DISPLAY_INTERVAL_MS = 5000;   // Status update every 5s
 
+// No stub classes needed - using real implementations!
+
 // ====================================================================
 // Global Objects
 // ====================================================================
 
-// GPS hardware
+// GPS hardware - REAL implementations
 HAL::Serial::ESP32SerialPort gps_serial(GPS_UART_NUM, GPS_RX_PIN, GPS_TX_PIN);
-GPS::NMEAParser nmea_parser;
+GPS::NMEA::NMEAParser nmea_parser;
 GPS::PPS::PPSHandler pps_handler(static_cast<gpio_num_t>(GPS_PPS_PIN));
 
-// RTC hardware
-RTCAdapter* rtc_adapter = nullptr;
+// RTC hardware - REAL implementation
+Examples::RTC::RTCAdapter* rtc_adapter = nullptr;
 
 // WiFi networking
 WiFiUDP udp_event;    // For Sync, Delay_Req, Pdelay_Req/Resp
@@ -125,10 +130,12 @@ struct TimeSourceStatus {
         : type(TimeSourceType::NONE), satellites(0), 
           pps_healthy(false), holdover_seconds(0) {
         quality.clock_class = 248;  // Default/unconfigured
-        quality.clock_accuracy = Types::ClockAccuracy::Unknown;
+        quality.clock_accuracy = static_cast<uint8_t>(0xFE);  // Unknown
         quality.offset_scaled_log_variance = 0xFFFF;
-        last_sync_time.seconds_field = 0;
-        last_sync_time.nanoseconds_field = 0;
+        // Direct field assignment instead of setTotalSeconds() due to C++11 constexpr const issue
+        last_sync_time.seconds_high = 0;
+        last_sync_time.seconds_low = 0;
+        last_sync_time.nanoseconds = 0;
     }
 };
 
@@ -139,8 +146,8 @@ static TimeSourceStatus current_source;
  */
 void update_time_source() {
     // Check GPS status
-    bool gps_has_fix = nmea_parser.has_valid_fix();
-    current_source.satellites = nmea_parser.get_satellite_count();
+    bool gps_has_fix = (nmea_parser.get_fix_status() != GPS::NMEA::GPSFixStatus::NO_FIX);
+    // Satellite count is updated in process_gps_data() from parsed GPS data
     current_source.pps_healthy = pps_handler.is_signal_healthy();
     
     // Determine best time source
@@ -148,34 +155,34 @@ void update_time_source() {
         // Best: GPS with 1PPS locked
         current_source.type = TimeSourceType::GPS_PPS;
         current_source.quality.clock_class = 6;  // Primary reference
-        current_source.quality.clock_accuracy = Types::ClockAccuracy::Within_100ns;
+        current_source.quality.clock_accuracy = 0x21;  // Within_100ns
         current_source.quality.offset_scaled_log_variance = 0x4E00;  // ~25μs variance
         
     } else if (gps_has_fix && current_source.satellites >= 3) {
         // Good: GPS NMEA without PPS
         current_source.type = TimeSourceType::GPS_NMEA;
         current_source.quality.clock_class = 7;  // Degraded primary reference
-        current_source.quality.clock_accuracy = Types::ClockAccuracy::Within_1ms;
+        current_source.quality.clock_accuracy = 0x27;  // Within_1ms
         current_source.quality.offset_scaled_log_variance = 0x5A00;  // ~100ms variance
         
     } else {
         // Fallback to RTC
         uint64_t now_sec = millis() / 1000;
-        uint64_t last_sync_sec = current_source.last_sync_time.seconds_field;
+        uint64_t last_sync_sec = current_source.last_sync_time.getTotalSeconds();
         current_source.holdover_seconds = (last_sync_sec > 0) ? (now_sec - last_sync_sec) : 0xFFFFFFFF;
         
         if (current_source.holdover_seconds < 3600) {
             // RTC synced recently (<1 hour)
             current_source.type = TimeSourceType::RTC_SYNCED;
             current_source.quality.clock_class = 52;  // Degraded by holdover
-            current_source.quality.clock_accuracy = Types::ClockAccuracy::Within_250ms;
+            current_source.quality.clock_accuracy = 0x31;  // Within_250ms
             current_source.quality.offset_scaled_log_variance = 0x7000;
             
         } else {
             // RTC in long-term holdover
             current_source.type = TimeSourceType::RTC_HOLDOVER;
-            current_source.quality.clock_class = 187;  // Free-running
-            current_source.quality.clock_accuracy = Types::ClockAccuracy::Within_1s;
+            current_source.quality.clock_class = 187;  // Degraded by holdover
+            current_source.quality.clock_accuracy = 0x32;  // Within_1s
             current_source.quality.offset_scaled_log_variance = 0x8000;
         }
     }
@@ -188,22 +195,10 @@ Types::Timestamp get_current_time() {
     Types::Timestamp timestamp;
     
     switch (current_source.type) {
-        case TimeSourceType::GPS_PPS: {
-            // Best: Use GPS time + PPS correction
-            if (pps_handler.has_event()) {
-                GPS::PPS::PPSEvent pps = pps_handler.get_event();
-                // TODO: Combine GPS NMEA time with PPS microsecond precision
-                // For now, use GPS NMEA time
-                timestamp = nmea_parser.get_utc_timestamp();
-            } else {
-                timestamp = nmea_parser.get_utc_timestamp();
-            }
-            break;
-        }
-        
+        case TimeSourceType::GPS_PPS:
         case TimeSourceType::GPS_NMEA:
-            // Good: GPS NMEA time only
-            timestamp = nmea_parser.get_utc_timestamp();
+            // GPS time source - use last synchronized time from GPS
+            timestamp = current_source.last_sync_time;
             break;
             
         case TimeSourceType::RTC_SYNCED:
@@ -211,13 +206,16 @@ Types::Timestamp get_current_time() {
             // Fallback: RTC time
             if (rtc_adapter) {
                 timestamp = rtc_adapter->get_current_time();
+            } else {
+                timestamp = current_source.last_sync_time;
             }
             break;
             
         default:
             // No valid source
-            timestamp.seconds_field = 0;
-            timestamp.nanoseconds_field = 0;
+            timestamp.seconds_high = 0;
+            timestamp.seconds_low = 0;
+            timestamp.nanoseconds = 0;
             break;
     }
     
@@ -252,7 +250,7 @@ void send_ptp_sync() {
     // - Follow with Follow_Up message containing correctionField
     
     Types::Timestamp sync_time = get_current_time();
-    Serial.println("→ Sending PTP Sync (" + String(sync_time.seconds_field) + "s)");
+    Serial.println("→ Sending PTP Sync (" + String(sync_time.getTotalSeconds()) + "s)");
 }
 
 // ====================================================================
@@ -260,23 +258,97 @@ void send_ptp_sync() {
 // ====================================================================
 
 void process_gps_data() {
+    // Static buffer for accumulating NMEA sentences
+    static char nmea_buffer[128];
+    static size_t nmea_pos = 0;
+    static unsigned long last_debug_print = 0;
+    static uint32_t total_bytes_received = 0;
+    static uint32_t total_sentences_parsed = 0;
+    static uint32_t total_sentences_failed = 0;
+    
     // Read available NMEA data from GPS
-    uint8_t buffer[256];
+    uint8_t buffer[128];
     size_t bytes_read;
     
-    HAL::Serial::SerialError err = gps_serial.read(buffer, sizeof(buffer) - 1, bytes_read);
+    HAL::Serial::SerialError err = gps_serial.read(buffer, sizeof(buffer), bytes_read);
     
-    if (err == HAL::Serial::SerialError::Success && bytes_read > 0) {
-        buffer[bytes_read] = '\0';  // Null terminate
+    if (err == HAL::Serial::SerialError::SUCCESS && bytes_read > 0) {
+        total_bytes_received += bytes_read;
         
-        // Parse NMEA sentences
+        // DEBUG: Show raw bytes received (every 5 seconds)
+        unsigned long now = millis();
+        if (now - last_debug_print >= 5000) {
+            Serial.printf("\n[GPS DEBUG] Received %u bytes (Total: %u bytes, %u OK sentences, %u failed)\n",
+                         bytes_read, total_bytes_received, total_sentences_parsed, total_sentences_failed);
+            Serial.print("  Raw data: ");
+            for (size_t i = 0; i < min(bytes_read, (size_t)32); i++) {
+                if (buffer[i] >= 32 && buffer[i] <= 126) {
+                    Serial.write(buffer[i]);  // Printable ASCII
+                } else {
+                    Serial.printf("[0x%02X]", buffer[i]);  // Non-printable hex
+                }
+            }
+            if (bytes_read > 32) Serial.print("...");
+            Serial.println();
+            last_debug_print = now;
+        }
+        
+        // Accumulate bytes into NMEA sentence buffer
         for (size_t i = 0; i < bytes_read; i++) {
-            if (nmea_parser.parse_byte(buffer[i])) {
-                // Complete NMEA sentence parsed
-                Serial.print("GPS: ");
-                Serial.print(nmea_parser.get_satellite_count());
-                Serial.print(" sats, Fix: ");
-                Serial.println(nmea_parser.has_valid_fix() ? "YES" : "NO");
+            char c = static_cast<char>(buffer[i]);
+            
+            // Start of new sentence
+            if (c == '$') {
+                nmea_pos = 0;
+                nmea_buffer[nmea_pos++] = c;
+            }
+            // End of sentence (CR/LF)
+            else if (c == '\n' && nmea_pos > 0) {
+                nmea_buffer[nmea_pos] = '\0';  // Null terminate
+                
+                // DEBUG: Show complete NMEA sentence
+                Serial.printf("[GPS NMEA] %s\n", nmea_buffer);
+                
+                // Parse complete NMEA sentence
+                GPS::NMEA::GPSTimeData gps_data;
+                if (nmea_parser.parse_sentence(nmea_buffer, gps_data)) {
+                    total_sentences_parsed++;
+                    
+                    // DEBUG: Show parsed data
+                    Serial.printf("  ✓ Parsed: %02d:%02d:%02d UTC, %d sats, Valid=%d\n",
+                                 gps_data.hours, gps_data.minutes, gps_data.seconds,
+                                 gps_data.satellites, gps_data.is_valid_for_ptp() ? 1 : 0);
+                    
+                    // Update satellite count and fix status
+                    current_source.satellites = gps_data.satellites;
+                    
+                    if (gps_data.is_valid_for_ptp()) {
+                        // Valid GPS time available - convert to PTP timestamp
+                        static GPS::Time::GPSTimeConverter time_converter;
+                        GPS::Time::PTPTimestamp ptp_ts;
+                        
+                        if (time_converter.convert_to_ptp(gps_data, ptp_ts)) {
+                            // Direct field assignment due to C++11 constexpr const issue
+                            current_source.last_sync_time.seconds_high = static_cast<uint16_t>(ptp_ts.seconds >> 32);
+                            current_source.last_sync_time.seconds_low = static_cast<uint32_t>(ptp_ts.seconds & 0xFFFFFFFF);
+                            current_source.last_sync_time.nanoseconds = ptp_ts.nanoseconds;
+                            
+                            // DEBUG: Show PTP timestamp
+                            Serial.printf("  → PTP Time: %llu.%09u\n", 
+                                         (unsigned long long)ptp_ts.seconds, ptp_ts.nanoseconds);
+                        }
+                    }
+                } else {
+                    total_sentences_failed++;
+                    // DEBUG: Show parse failure
+                    Serial.printf("  ✗ Parse failed for: %s\n", nmea_buffer);
+                }
+                
+                nmea_pos = 0;  // Reset for next sentence
+            }
+            // Accumulate characters (ignore CR)
+            else if (c != '\r' && nmea_pos < sizeof(nmea_buffer) - 1) {
+                nmea_buffer[nmea_pos++] = c;
             }
         }
     }
@@ -293,11 +365,12 @@ void process_gps_data() {
         Serial.println(" μs");
         
         // Synchronize RTC to GPS when we have good fix
-        if (nmea_parser.has_valid_fix() && rtc_adapter) {
-            Types::Timestamp gps_time = nmea_parser.get_utc_timestamp();
-            rtc_adapter->set_time(gps_time);
-            current_source.last_sync_time = gps_time;
-            Serial.println("✓ RTC synchronized to GPS");
+        if (nmea_parser.get_fix_status() != GPS::NMEA::GPSFixStatus::NO_FIX && rtc_adapter) {
+            // Use the last valid GPS time from current_source
+            if (current_source.last_sync_time.getTotalSeconds() > 0) {
+                rtc_adapter->set_time(current_source.last_sync_time);
+                Serial.println("✓ RTC synchronized to GPS");
+            }
         }
     }
 }
@@ -351,7 +424,7 @@ void display_status() {
     Serial.print("GPS: ");
     Serial.print(current_source.satellites);
     Serial.print(" satellites, Fix: ");
-    Serial.print(nmea_parser.has_valid_fix() ? "YES" : "NO");
+    Serial.print((nmea_parser.get_fix_status() != GPS::NMEA::GPSFixStatus::NO_FIX) ? "YES" : "NO");
     Serial.print(", PPS: ");
     Serial.println(current_source.pps_healthy ? "Healthy" : "Unhealthy");
     
@@ -367,9 +440,9 @@ void display_status() {
     // Current time
     Types::Timestamp now = get_current_time();
     Serial.print("\nCurrent Time: ");
-    Serial.print(now.seconds_field);
+    Serial.print(now.getTotalSeconds());
     Serial.print(".");
-    Serial.print(now.nanoseconds_field);
+    Serial.print(now.nanoseconds);
     Serial.println(" (Unix epoch)");
     
     // PPS statistics
@@ -400,20 +473,55 @@ void setup() {
     
     // Initialize I2C for RTC
     Serial.println("Initializing RTC (DS3231)...");
-    rtc_adapter = new RTCAdapter(RTC_I2C_ADDRESS, RTCModuleType::DS3231);
+    Wire.begin(RTC_SDA_PIN, RTC_SCL_PIN);
+    rtc_adapter = new Examples::RTC::RTCAdapter(RTC_I2C_ADDRESS, Examples::RTC::RTCModuleType::DS3231);
     if (rtc_adapter->initialize()) {
         Serial.println("✓ RTC initialized");
     } else {
-        Serial.println("✗ RTC initialization failed");
+        Serial.println("✗ RTC initialization failed - check I2C wiring");
     }
     
     // Initialize GPS UART
     Serial.println("Initializing GPS UART...");
     HAL::Serial::SerialConfig gps_config = HAL::Serial::SerialConfig::gps_nmea_default();
-    if (gps_serial.open("", gps_config)) {
+    HAL::Serial::SerialError gps_err = gps_serial.open("GPS", gps_config);
+    if (gps_err == HAL::Serial::SerialError::SUCCESS) {
         Serial.println("✓ GPS UART initialized (9600 baud, 8N1)");
+        Serial.println("  Pins: RX=GPIO16, TX=GPIO17");
+        
+        // Wait a moment for GPS to start sending data
+        Serial.print("  Testing GPS connection (waiting for data)");
+        delay(2000);
+        
+        uint8_t test_buffer[128];
+        size_t test_bytes;
+        HAL::Serial::SerialError test_err = gps_serial.read(test_buffer, sizeof(test_buffer), test_bytes);
+        
+        if (test_err == HAL::Serial::SerialError::SUCCESS && test_bytes > 0) {
+            Serial.printf("\n  ✓ Received %u bytes from GPS:\n    ", test_bytes);
+            for (size_t i = 0; i < min(test_bytes, (size_t)64); i++) {
+                if (test_buffer[i] >= 32 && test_buffer[i] <= 126) {
+                    Serial.write(test_buffer[i]);
+                } else if (test_buffer[i] == '\r') {
+                    Serial.print("<CR>");
+                } else if (test_buffer[i] == '\n') {
+                    Serial.print("<LF>\n    ");
+                } else {
+                    Serial.printf("[0x%02X]", test_buffer[i]);
+                }
+            }
+            Serial.println("\n  → GPS UART is working! (RX/TX wired correctly)");
+        } else {
+            Serial.println("\n  ✗ No data from GPS - Check wiring:");
+            Serial.println("    - GPS TX → ESP32 GPIO16 (RX2)");
+            Serial.println("    - GPS RX → ESP32 GPIO17 (TX2)");
+            Serial.println("    - If still no data, try swapping TX/RX");
+            Serial.println("    - Verify GPS has power and LED is blinking");
+        }
     } else {
-        Serial.println("✗ GPS UART initialization failed");
+        Serial.print("✗ GPS UART initialization failed (error ");
+        Serial.print(static_cast<int>(gps_err));
+        Serial.println(")");
     }
     
     // Initialize GPS 1PPS interrupt

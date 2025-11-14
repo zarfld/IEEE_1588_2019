@@ -50,6 +50,9 @@
 namespace Examples {
 namespace RTC {
 
+// Namespace alias for IEEE 1588-2019 Types
+namespace Types = IEEE::_1588::PTP::_2019::Types;
+
 /**
  * @brief RTC Module Type
  */

@@ -86,19 +86,19 @@ private:
      * - Variable assignments: ~50ns
      * - Total: <500ns typical, <2μs worst case
      */
-    static void IRAM_ATTR pps_isr_handler(void* arg) {
-        PPSHandler* handler = static_cast<PPSHandler*>(arg);
+    static void ARDUINO_ISR_ATTR pps_isr_handler(void* arg) {
+        PPSHandler* handler = reinterpret_cast<PPSHandler*>(arg);
+        if (handler == nullptr) return;
         
         // Capture timestamp IMMEDIATELY (highest priority)
         uint64_t timestamp_us = esp_timer_get_time();
         uint32_t millis_now = millis();
         
         // Calculate interval since last PPS
-        int64_t interval = 0;
-        if (handler->last_pps_us != 0) {
-            interval = static_cast<int64_t>(timestamp_us - handler->last_pps_us);
+        uint64_t last = handler->last_pps_us;
+        if (last != 0) {
+            handler->last_interval_us = (int64_t)(timestamp_us - last);
         }
-        handler->last_interval_us = interval;
         handler->last_pps_us = timestamp_us;
         
         // Check if previous event was processed
@@ -178,7 +178,10 @@ public:
         
         // Disable interrupts briefly to safely copy event
         portENTER_CRITICAL(&mux);
-        event = current_event;
+        // Manually copy fields to avoid issues with volatile assignment
+        event.timestamp_us = current_event.timestamp_us;
+        event.millis_at_pps = current_event.millis_at_pps;
+        event.valid = current_event.valid;
         current_event.valid = false;  // Mark as consumed
         portEXIT_CRITICAL(&mux);
         

@@ -15,6 +15,7 @@
 #define GPS_NMEA_PARSER_HPP
 
 #include <cstdint>
+#include <cstddef>  // for size_t
 
 namespace GPS {
 namespace NMEA {
