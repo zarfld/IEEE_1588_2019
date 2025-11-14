@@ -306,18 +306,24 @@ void process_gps_data() {
             else if (c == '\n' && nmea_pos > 0) {
                 nmea_buffer[nmea_pos] = '\0';  // Null terminate
                 
-                // DEBUG: Show complete NMEA sentence
-                Serial.printf("[GPS NMEA] %s\n", nmea_buffer);
+                // Check sentence type - only log relevant ones (RMC, GGA)
+                bool is_relevant = (strncmp(nmea_buffer, "$GPRMC", 6) == 0 || 
+                                   strncmp(nmea_buffer, "$GPGGA", 6) == 0 ||
+                                   strncmp(nmea_buffer, "$GNRMC", 6) == 0 ||
+                                   strncmp(nmea_buffer, "$GNGGA", 6) == 0);
                 
                 // Parse complete NMEA sentence
                 GPS::NMEA::GPSTimeData gps_data;
                 if (nmea_parser.parse_sentence(nmea_buffer, gps_data)) {
                     total_sentences_parsed++;
                     
-                    // DEBUG: Show parsed data
-                    Serial.printf("  ✓ Parsed: %02d:%02d:%02d UTC, %d sats, Valid=%d\n",
-                                 gps_data.hours, gps_data.minutes, gps_data.seconds,
-                                 gps_data.satellites, gps_data.is_valid_for_ptp() ? 1 : 0);
+                    // DEBUG: Show relevant parsed sentences only
+                    if (is_relevant) {
+                        Serial.printf("[GPS] %s\n", nmea_buffer);
+                        Serial.printf("  ✓ %02d:%02d:%02d UTC, %d sats, Valid=%d\n",
+                                     gps_data.hours, gps_data.minutes, gps_data.seconds,
+                                     gps_data.satellites, gps_data.is_valid_for_ptp() ? 1 : 0);
+                    }
                     
                     // Update satellite count and fix status
                     current_source.satellites = gps_data.satellites;
@@ -333,15 +339,21 @@ void process_gps_data() {
                             current_source.last_sync_time.seconds_low = static_cast<uint32_t>(ptp_ts.seconds & 0xFFFFFFFF);
                             current_source.last_sync_time.nanoseconds = ptp_ts.nanoseconds;
                             
-                            // DEBUG: Show PTP timestamp
-                            Serial.printf("  → PTP Time: %llu.%09u\n", 
-                                         (unsigned long long)ptp_ts.seconds, ptp_ts.nanoseconds);
+                            // DEBUG: Show PTP timestamp for relevant sentences
+                            if (is_relevant) {
+                                Serial.printf("  → PTP Time: %llu.%09u\n", 
+                                             (unsigned long long)ptp_ts.seconds, ptp_ts.nanoseconds);
+                            }
                         }
                     }
                 } else {
-                    total_sentences_failed++;
-                    // DEBUG: Show parse failure
-                    Serial.printf("  ✗ Parse failed for: %s\n", nmea_buffer);
+                    // Only count failures for relevant sentences (RMC/GGA)
+                    if (is_relevant) {
+                        total_sentences_failed++;
+                        Serial.printf("[GPS] %s\n", nmea_buffer);
+                        Serial.printf("  ✗ Parse failed\n");
+                    }
+                    // Silently ignore irrelevant sentences (GSV, GLL, VTG, GSA, etc.)
                 }
                 
                 nmea_pos = 0;  // Reset for next sentence
