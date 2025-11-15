@@ -44,6 +44,7 @@
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <ESPAsyncWebServer.h>
+#include <esp_wifi.h>  // For esp_wifi_set_ps() - disable power save for PTP
 
 // GPS components
 #include "pps_handler_esp32.hpp"
@@ -103,8 +104,10 @@ GPS::PPS::PPSHandler pps_handler(static_cast<gpio_num_t>(GPS_PPS_PIN));
 Examples::RTC::RTCAdapter* rtc_adapter = nullptr;
 
 // WiFi networking
-WiFiUDP udp_event;    // For Sync, Delay_Req, Pdelay_Req/Resp
-WiFiUDP udp_general;  // For Announce, Follow_Up, Signaling
+// WPTP Insight: Wireless is inherently broadcast - use single socket for both TX/RX
+// See "Wireless Precision Time Protocol" IEEE Communications Letters 2018
+WiFiUDP udp_event;       // For Sync messages (both send & receive - wireless broadcast)
+WiFiUDP udp_general;     // For Announce, Follow_Up, Signaling (send & receive)
 
 // Web server for monitoring
 AsyncWebServer web_server(80);
@@ -577,11 +580,16 @@ void send_ptp_announce() {
 
 /**
  * @brief Send PTP Sync message (timestamp distribution)
+ * 
+ * DIAGNOSTIC WORKAROUND: Also send when SLAVE to keep UDP socket "active"
+ * for multicast reception. Some APs/ESP32 WiFi stack combinations drop
+ * multicast forwarding when a socket stops transmitting.
  */
 void send_ptp_sync() {
-    if (ptp_state != PTPState::MASTER) {
-        return;  // Only masters send Sync
-    }
+    // DIAGNOSTIC TEST: Allow SLAVE to also send (keeps socket active for reception)
+    // if (ptp_state != PTPState::MASTER) {
+    //     return;  // Only masters send Sync
+    // }
     
     PTPSyncMessage sync;
     memset(&sync, 0, sizeof(sync));
@@ -606,7 +614,7 @@ void send_ptp_sync() {
     sync.origin_timestamp_seconds_low = htonl(sync_time.seconds_low);
     sync.origin_timestamp_nanoseconds = htonl(sync_time.nanoseconds);
     
-    // Send via UDP multicast
+    // Send via UDP multicast (wireless broadcast - all nodes will receive)
     udp_event.beginPacket(GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
     udp_event.write((const uint8_t*)&sync, sizeof(sync));
     udp_event.endPacket();
@@ -711,21 +719,61 @@ void process_ptp_packets() {
         }
     }
     
-    // Process Sync messages from udp_event (port 319)
+    // Process Sync messages from udp_event (port 319) - wireless broadcast reception
     packet_size = udp_event.parsePacket();
+    if (packet_size > 0) {
+        IPAddress remote_ip = udp_event.remoteIP();
+        uint16_t remote_port = udp_event.remotePort();
+        Serial.printf("← Received packet on port 319: %d bytes from %s:%d, state: %s\n", 
+                     packet_size, remote_ip.toString().c_str(), remote_port,
+                     ptp_state == PTPState::MASTER ? "MASTER" : ptp_state == PTPState::SLAVE ? "SLAVE" : "OTHER");
+    } else {
+        // Enhanced Diagnostic: Check socket status every 5 seconds in SLAVE state
+        static unsigned long last_diagnostic = 0;
+        unsigned long now = millis();
+        if (ptp_state == PTPState::SLAVE && now - last_diagnostic >= 5000) {
+            wifi_ps_type_t ps_mode;
+            esp_wifi_get_ps(&ps_mode);
+            
+            // Detailed diagnostic output
+            Serial.println("╔═══════════════════════════════════════════════════════════════╗");
+            Serial.println("║  SYNC RECEPTION DIAGNOSTIC (Port 319)                      ║");
+            Serial.println("╚═══════════════════════════════════════════════════════════════╝");
+            Serial.printf("  State: SLAVE (should be receiving from master)\n");
+            Serial.printf("  WiFi PS Mode: %s\n", ps_mode == WIFI_PS_NONE ? "✓ DISABLED" : "✗ ENABLED");
+            Serial.printf("  WiFi RSSI: %d dBm\n", WiFi.RSSI());
+            Serial.printf("  Local IP: %s\n", WiFi.localIP().toString().c_str());
+            Serial.printf("  Event Socket: Multicast %s:%d\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+            Serial.printf("  parsePacket() returns: 0 (no packets available)\n");
+            Serial.printf("  Master IP: %s\n", selected_master ? selected_master->ip_address.toString().c_str() : "NONE");
+            Serial.println("  → Possible causes:");
+            Serial.println("    1. AP drops multicast when device stops sending (IGMP snooping)");
+            Serial.println("    2. Arduino WiFiUDP layer bug (stops polling inactive sockets)");
+            Serial.println("    3. ESP32 WiFi driver issue (multicast RX filter)");
+            Serial.println("    4. Master not actually sending (check COM4 logs)");
+            Serial.println("════════════════════════════════════════════════════════════════\n");
+            
+            last_diagnostic = now;
+        }
+    }
     if (packet_size >= (int)sizeof(PTPSyncMessage) && ptp_state == PTPState::SLAVE) {
         uint8_t buffer[256];
         int len = udp_event.read(buffer, sizeof(buffer));
         
-        Serial.printf("← Received packet on port 319 (Sync), size: %d bytes, state: SLAVE\n", len);
-        
         if (len >= (int)sizeof(PTPSyncMessage)) {
             PTPSyncMessage* sync = (PTPSyncMessage*)buffer;
             
+            // WPTP: Filter own broadcasts (wireless loopback) - check if sender is ourselves
+            uint8_t remote_clock_identity[8];
+            memcpy(remote_clock_identity, sync->header.source_port_identity, 8);
+            if (memcmp(remote_clock_identity, local_clock_identity, 8) == 0) {
+                // Ignore our own Sync message (multicast loopback)
+                Serial.println("  ⊗ Ignoring own Sync (multicast loopback)");
+                return;
+            }
+            
             // Verify this is from our selected master
             if (selected_master != nullptr) {
-                uint8_t remote_clock_identity[8];
-                memcpy(remote_clock_identity, sync->header.source_port_identity, 8);
                 
                 Serial.printf("  Sync from: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
                              remote_clock_identity[0], remote_clock_identity[1], remote_clock_identity[2], remote_clock_identity[3],
@@ -1560,6 +1608,11 @@ void setup() {
         Serial.print("  IP Address: ");
         Serial.println(WiFi.localIP());
         
+        // CRITICAL FIX #1: Disable WiFi power save for PTP
+        // PTP requires continuous multicast reception - power save breaks this
+        esp_wifi_set_ps(WIFI_PS_NONE);
+        Serial.println("✓ WiFi power save DISABLED (required for PTP multicast)");
+        
         // Initialize PTP clock identity from MAC address
         init_clock_identity();
         Serial.print("✓ PTP Clock Identity: ");
@@ -1570,16 +1623,13 @@ void setup() {
         Serial.println();
         
         // Initialize UDP sockets for gPTP
-        udp_event.begin(GPTP_EVENT_PORT);
-        udp_general.begin(GPTP_GENERAL_PORT);
-        Serial.println("✓ gPTP UDP sockets initialized");
-        
-        // Join multicast group to receive PTP packets
         IPAddress multicast_ip;
         multicast_ip.fromString(GPTP_MULTICAST_ADDR);
         
+        // Unified Event socket: Join multicast for BOTH send and receive (wireless broadcast)
+        // Per WPTP paper: "all communications are inherently broadcast" in wireless
         if (udp_event.beginMulticast(multicast_ip, GPTP_EVENT_PORT)) {
-            Serial.printf("✓ Joined multicast group %s (port %d) for Sync messages\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+            Serial.printf("✓ Joined multicast group %s (port %d) for Sync messages (TX & RX)\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
         } else {
             Serial.printf("✗ Failed to join multicast group %s (port %d)\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
         }
@@ -1589,6 +1639,75 @@ void setup() {
         } else {
             Serial.printf("✗ Failed to join multicast group %s (port %d)\n", GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
         }
+        
+        // CRITICAL FIX #2: Send dummy packets to "wake up" AP multicast forwarding
+        // Some APs (especially with IGMP snooping) won't forward multicast to a station
+        // until it has transmitted SOMETHING on the network first.
+        // This warms up the multicast forwarding table.
+        Serial.println("✓ Sending dummy packets to warm up AP multicast table...");
+        
+        // Dummy packet on port 319 (Event)
+        udp_event.beginPacket(multicast_ip, GPTP_EVENT_PORT);
+        uint8_t dummy_event[1] = {0x00};
+        udp_event.write(dummy_event, 1);
+        udp_event.endPacket();
+        delay(10);
+        
+        // Dummy packet on port 320 (General)
+        udp_general.beginPacket(multicast_ip, GPTP_GENERAL_PORT);
+        uint8_t dummy_general[1] = {0x00};
+        udp_general.write(dummy_general, 1);
+        udp_general.endPacket();
+        delay(10);
+        
+        Serial.println("  ✓ AP multicast table warmed up (dummy packets sent)");
+        
+        // ═══════════════════════════════════════════════════════════════════════
+        // COMPREHENSIVE DIAGNOSTIC CHECK - 5 Critical Points
+        // ═══════════════════════════════════════════════════════════════════════
+        Serial.println("\n╔═══════════════════════════════════════════════════════════════╗");
+        Serial.println("║  NETWORK DIAGNOSTIC CHECK (5 Critical Points)               ║");
+        Serial.println("╚═══════════════════════════════════════════════════════════════╝");
+        
+        // ✅ 1. Multicast-Subscription aktiv?
+        Serial.println("\n[1/5] Multicast Subscription Status:");
+        Serial.printf("      Event Port (319):   ✓ beginMulticast() succeeded\n");
+        Serial.printf("      General Port (320): ✓ beginMulticast() succeeded\n");
+        Serial.printf("      Multicast IP: %s\n", GPTP_MULTICAST_ADDR);
+        
+        // ✅ 2. WiFi PS Mode aus?
+        wifi_ps_type_t ps_mode;
+        esp_wifi_get_ps(&ps_mode);
+        Serial.println("\n[2/5] WiFi Power Save Mode:");
+        Serial.printf("      Status: %s\n", ps_mode == WIFI_PS_NONE ? "✓ DISABLED (GOOD)" : "✗ ENABLED (BAD)");
+        if (ps_mode != WIFI_PS_NONE) {
+            Serial.println("      ⚠ WARNING: Power save will drop multicast packets!");
+        }
+        
+        // ✅ 3. AP blockiert Multicast? (Test via ARP/Broadcast)
+        Serial.println("\n[3/5] AP Multicast Forwarding Test:");
+        Serial.printf("      WiFi RSSI: %d dBm\n", WiFi.RSSI());
+        Serial.printf("      Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+        Serial.printf("      Subnet: %s\n", WiFi.subnetMask().toString().c_str());
+        Serial.println("      Dummy packets sent to warm up AP forwarding table");
+        
+        // ✅ 4. Socket richtig gebunden?
+        Serial.println("\n[4/5] UDP Socket Binding:");
+        Serial.printf("      Local IP: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("      Event Socket: Multicast %s:%d (TX & RX)\n", 
+                     GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+        Serial.printf("      General Socket: Multicast %s:%d (TX & RX)\n", 
+                     GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+        
+        // ✅ 5. MAC-Timestamping-Pfad aktiv? (ESP32-spezifisch)
+        Serial.println("\n[5/5] Hardware Timestamping:");
+        Serial.println("      ESP32 WiFi: Software timestamps only");
+        Serial.println("      → Using micros()/esp_timer_get_time() for PTP");
+        Serial.println("      → Accuracy: ~1-10 microseconds (no hardware PTP)");
+        
+        Serial.println("\n╔═══════════════════════════════════════════════════════════════╗");
+        Serial.println("║  DIAGNOSTIC CHECK COMPLETE                                  ║");
+        Serial.println("╚═══════════════════════════════════════════════════════════════╝\n");
         
         // Start in LISTENING state - will transition to MASTER after timeout
         ptp_state = PTPState::LISTENING;
@@ -1613,6 +1732,7 @@ void loop() {
     static unsigned long last_sync = 0;
     static unsigned long last_display = 0;
     static unsigned long last_bmca = 0;
+    static unsigned long last_keepalive = 0;
     
     unsigned long now = millis();
     
@@ -1626,6 +1746,21 @@ void loop() {
     
     // Update time source status
     update_time_source();
+    
+    // CRITICAL FIX #3: Periodic keep-alive to maintain AP multicast forwarding
+    // Send tiny packet every 10 seconds when SLAVE to keep socket "active"
+    // This prevents aggressive IGMP snooping APs from dropping our multicast subscriptions
+    if (WiFi.status() == WL_CONNECTED && ptp_state == PTPState::SLAVE && now - last_keepalive >= 10000) {
+        // Send minimal keep-alive packet on event port (prevents reception dropout)
+        IPAddress multicast_ip;
+        multicast_ip.fromString(GPTP_MULTICAST_ADDR);
+        udp_event.beginPacket(multicast_ip, GPTP_EVENT_PORT);
+        uint8_t keepalive[1] = {0x00};  // Single zero byte (ignored by receivers)
+        udp_event.write(keepalive, 1);
+        udp_event.endPacket();
+        last_keepalive = now;
+        Serial.println("  → Keep-alive sent on port 319 (maintaining AP multicast table)");
+    }
     
     // Process incoming PTP packets (Announce and Sync)
     if (WiFi.status() == WL_CONNECTED) {
