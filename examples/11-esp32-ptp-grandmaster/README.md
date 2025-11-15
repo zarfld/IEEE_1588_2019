@@ -6,8 +6,125 @@ Build a **portable IEEE 1588-2019 PTP Grandmaster Clock** using ESP32 with:
 - **GT-U7 GPS** for primary time reference (NMEA + 1PPS)
 - **DS3231 RTC** for holdover during GPS outages
 - **WiFi gPTP** for time distribution to network
+- **Web interface** for real-time monitoring
 
 **Result**: Sub-microsecond accurate time server, battery-powered, WiFi-enabled!
+
+---
+
+## 🔐 WiFi Credentials Setup
+
+**IMPORTANT**: Do NOT commit WiFi credentials to GitHub!
+
+### First-Time Setup
+
+1. **Copy the template**:
+   ```bash
+   cd src
+   cp credentials.example.h credentials.h
+   ```
+
+2. **Edit `credentials.h`** with your WiFi details:
+   ```cpp
+   const char* WIFI_SSID = "YourNetworkName";
+   const char* WIFI_PASSWORD = "YourPassword123";
+   ```
+
+3. **Verify gitignore**:
+   ```bash
+   git check-ignore src/credentials.h
+   # Should output: src/credentials.h (means it's ignored)
+   ```
+
+### Files Overview
+
+- ✅ **`credentials.example.h`** - Template (SAFE for GitHub)
+- ❌ **`credentials.h`** - Your actual credentials (GITIGNORED)
+- 📝 **`.gitignore`** - Contains `**/credentials.h` rule
+
+**Security**: `credentials.h` is gitignored and will NEVER be committed to GitHub!
+
+---
+
+## 🌐 Web Interface
+
+Once WiFi is configured and firmware uploaded, access the real-time monitoring interface:
+
+### Accessing the Web Interface
+
+1. **Upload firmware** (see Build & Upload section below)
+
+2. **Watch serial monitor** for connection:
+   ```bash
+   pio device monitor
+   ```
+   
+   Look for output:
+   ```
+   ✓ WiFi connected: YourNetworkName
+   ✓ IP Address: 192.168.1.100
+   ✓ Web interface started at http://192.168.1.100
+   ```
+
+3. **Open browser** to the IP address shown
+
+### Web Interface Features
+
+- **Real-time updates** every 2 seconds
+- **GPS Status**:
+  - Satellite count and fix quality
+  - Current UTC time
+  - Position (latitude/longitude)
+  - 1PPS jitter monitoring
+- **PTP Clock Quality**:
+  - Clock Class (6 = GPS locked, 7 = holdover <1h, 187 = holdover >1h)
+  - Clock Accuracy (timing precision)
+  - Time Source (GPS, INTERNAL, ATOMIC, etc.)
+  - Holdover duration (seconds since GPS loss)
+- **Network Status**:
+  - WiFi SSID and signal strength
+  - MAC address and IP address
+  - Uptime tracking
+
+### JSON API
+
+**Endpoint**: `http://[ESP32_IP]/status`
+
+**Response** (example):
+```json
+{
+  "time": {
+    "hours": 14,
+    "minutes": 30,
+    "seconds": 45,
+    "utc": "14:30:45"
+  },
+  "gps": {
+    "satellites": 8,
+    "fix_quality": 1,
+    "latitude": "37.7749",
+    "longitude": "-122.4194",
+    "valid": true
+  },
+  "ptp": {
+    "clock_class": 6,
+    "clock_accuracy": 33,
+    "time_source": 32,
+    "holdover_seconds": 0
+  },
+  "network": {
+    "ssid": "YourNetwork",
+    "ip": "192.168.1.100",
+    "rssi": -45,
+    "mac": "30:AE:A4:3B:ED:28"
+  },
+  "system": {
+    "uptime": 3600
+  }
+}
+```
+
+**Usage**: Poll this endpoint for integration with monitoring systems, dashboards, or custom applications.
 
 ---
 

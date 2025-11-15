@@ -24,6 +24,9 @@ Doxyfile.bak
 .env.local
 .env.*.local
 
+# WiFi credentials (ESP32 examples)
+**/credentials.h
+
 # IDE
 .vscode/settings.json
 .vscode/launch.json
