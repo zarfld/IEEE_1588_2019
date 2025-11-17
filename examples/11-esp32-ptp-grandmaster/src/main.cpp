@@ -103,11 +103,24 @@ GPS::PPS::PPSHandler pps_handler(static_cast<gpio_num_t>(GPS_PPS_PIN));
 // RTC hardware - REAL implementation
 Examples::RTC::RTCAdapter* rtc_adapter = nullptr;
 
-// WiFi networking
-// WPTP Insight: Wireless is inherently broadcast - use single socket for both TX/RX
-// See "Wireless Precision Time Protocol" IEEE Communications Letters 2018
-WiFiUDP udp_event;       // For Sync messages (both send & receive - wireless broadcast)
-WiFiUDP udp_general;     // For Announce, Follow_Up, Signaling (send & receive)
+// WiFi networking - 3-Socket Architecture for ESP32 WiFiUDP multicast bug
+// 
+// ESP32 WiFiUDP BUG: Sending on a multicast-subscribed socket breaks RX
+// → Solution: Separate RX and TX sockets to avoid state conflicts
+// 
+// Socket Architecture (PTP-safe):
+// ┌─────────────────┬──────────┬──────┬───────┬─────────┬──────────────────────┐
+// │ Socket          │ Function │ Port │ Bind? │ RX/TX   │ Purpose              │
+// ├─────────────────┼──────────┼──────┼───────┼─────────┼──────────────────────┤
+// │ udp_event_rx    │ Event RX │ 319  │ ✔️    │ RX-only │ Receive Sync         │
+// │ udp_general     │ Gen. RX  │ 320  │ ✔️    │ RX-only │ Receive Announce     │
+// │ udp_tx          │ PTP TX   │ auto │ ❌    │ TX-only │ Send Sync/Announce   │
+// └─────────────────┴──────────┴──────┴───────┴─────────┴──────────────────────┘
+//
+// IEEE 1588-2019 Annex D.2: Event messages CAN use unicast (compliant)
+WiFiUDP udp_event_rx;   // RX-only: Receive Sync on port 319 (multicast)
+WiFiUDP udp_general;    // RX-only: Receive Announce on port 320 (multicast)
+WiFiUDP udp_tx;         // TX-only: Send all PTP messages (unbound, auto port)
 
 // Web server for monitoring
 AsyncWebServer web_server(80);
@@ -406,6 +419,16 @@ const int MAX_FOREIGN_MASTERS = 4;
 uint16_t ptp_sequence_id = 0;
 uint8_t local_clock_identity[8] = {0};
 
+// Packet statistics for monitoring
+struct PacketStatistics {
+    unsigned long announce_received;
+    unsigned long announce_sent;
+    unsigned long sync_received;
+    unsigned long sync_sent;
+    unsigned long last_announce_received_ms;
+    unsigned long last_sync_received_ms;
+} packet_stats = {0, 0, 0, 0, 0, 0};
+
 // Master selection (BMCA result)
 ForeignMaster* selected_master = nullptr;
 int64_t offset_from_master_ns = 0;
@@ -570,11 +593,13 @@ void send_ptp_announce() {
     announce.steps_removed = htons(0);
     announce.time_source = 0x20;  // GPS
     
-    // Send via UDP multicast
-    udp_general.beginPacket(GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
-    udp_general.write((const uint8_t*)&announce, sizeof(announce));
-    udp_general.endPacket();
+    // Send via TX-only socket (Socket 3) to multicast address
+    // Prevents ESP32 WiFiUDP bug where TX on RX socket causes packet loss
+    udp_tx.beginPacket(GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+    udp_tx.write((const uint8_t*)&announce, sizeof(announce));
+    udp_tx.endPacket();
     
+    packet_stats.announce_sent++;
     Serial.println("→ Sending PTP Announce (clockClass " + String(current_source.quality.clock_class) + ")");
 }
 
@@ -586,10 +611,10 @@ void send_ptp_announce() {
  * multicast forwarding when a socket stops transmitting.
  */
 void send_ptp_sync() {
-    // DIAGNOSTIC TEST: Allow SLAVE to also send (keeps socket active for reception)
-    // if (ptp_state != PTPState::MASTER) {
-    //     return;  // Only masters send Sync
-    // }
+    // IEEE 1588-2019: Only MASTER state sends Sync messages
+    if (ptp_state != PTPState::MASTER) {
+        return;  // Only masters send Sync - slaves receive
+    }
     
     PTPSyncMessage sync;
     memset(&sync, 0, sizeof(sync));
@@ -614,12 +639,67 @@ void send_ptp_sync() {
     sync.origin_timestamp_seconds_low = htonl(sync_time.seconds_low);
     sync.origin_timestamp_nanoseconds = htonl(sync_time.nanoseconds);
     
-    // Send via UDP multicast (wireless broadcast - all nodes will receive)
-    udp_event.beginPacket(GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
-    udp_event.write((const uint8_t*)&sync, sizeof(sync));
-    udp_event.endPacket();
+    // IEEE 1588-2019 Annex D.2: Send Sync via UNICAST to all known foreign masters
+    // This is IEEE compliant and works around ESP32 WiFi multicast issues
+    int unicast_count = 0;
     
-    Serial.println("→ Sending PTP Sync (" + String(sync_time.getTotalSeconds()) + "s)");
+    // DEBUG: Show foreign masters state before sending unicast
+    static unsigned long last_debug_ms = 0;
+    if (millis() - last_debug_ms > 5000) {
+        Serial.printf("[UNICAST DEBUG] Checking %d foreign master slots:\n", MAX_FOREIGN_MASTERS);
+        for (int i = 0; i < MAX_FOREIGN_MASTERS; i++) {
+            Serial.printf("  [%d] valid=%d, IP=%s, class=%d\n", 
+                         i, foreign_masters[i].valid ? 1 : 0,
+                         foreign_masters[i].ip_address.toString().c_str(),
+                         foreign_masters[i].clock_class);
+        }
+        last_debug_ms = millis();
+    }
+    
+    for (int i = 0; i < MAX_FOREIGN_MASTERS; i++) {
+        if (foreign_masters[i].valid) {
+            // Use TX-only socket (Socket 3) to avoid ESP32 WiFiUDP multicast bug
+            udp_tx.beginPacket(foreign_masters[i].ip_address, GPTP_EVENT_PORT);
+            udp_tx.write((const uint8_t*)&sync, sizeof(sync));
+            int result = udp_tx.endPacket();
+            
+            // CRITICAL FIX: ESP32 WiFi stack needs time to process UDP buffers
+            // Error 12 (NO_MEM) means TX buffers exhausted - wait for buffer to free
+            if (result == 0) {
+                Serial.printf("[UNICAST TX ERROR] Failed to send to %s (WiFi buffer full)\n", 
+                             foreign_masters[i].ip_address.toString().c_str());
+            } else {
+                unicast_count++;
+                Serial.printf("[UNICAST TX] Sent to %s\n", foreign_masters[i].ip_address.toString().c_str());
+            }
+            
+            // Give WiFi stack 5ms to process buffer before next transmission
+            delay(5);
+        }
+    }
+    
+    packet_stats.sync_sent += unicast_count;
+    
+    if (unicast_count > 0) {
+        Serial.printf("→ Sent PTP Sync (%us) [%d unicast transmissions]\n", 
+                     sync_time.getTotalSeconds(), unicast_count);
+    } else {
+        Serial.println("→ No foreign masters to send Sync to (waiting for Announce)");
+    }
+}
+
+/**
+ * @brief Count valid foreign masters
+ * @return Number of active foreign master entries
+ */
+int count_foreign_masters() {
+    int count = 0;
+    for (int i = 0; i < MAX_FOREIGN_MASTERS; i++) {
+        if (foreign_masters[i].valid) {
+            count++;
+        }
+    }
+    return count;
 }
 
 /**
@@ -667,8 +747,47 @@ int find_foreign_master_slot(const uint8_t* clock_identity) {
  * @see IEEE 1588-2019, Section 13.6 "Sync message"
  */
 void process_ptp_packets() {
+    // Enhanced Diagnostic: Log ALL port 320 activity
+    static unsigned long last_port320_diagnostic = 0;
+    static unsigned long port320_packet_count = 0;
+    unsigned long now = millis();
+    
     // Process Announce messages from udp_general (port 320)
     int packet_size = udp_general.parsePacket();
+    
+    // DIAGNOSTIC: Log every packet received on port 320
+    if (packet_size > 0) {
+        port320_packet_count++;
+        IPAddress remote_ip = udp_general.remoteIP();
+        uint16_t remote_port = udp_general.remotePort();
+        Serial.printf("🔍 [PORT 320] Packet #%lu: %d bytes from %s:%d\n", 
+                     port320_packet_count, packet_size, 
+                     remote_ip.toString().c_str(), remote_port);
+    }
+    
+    // DIAGNOSTIC: Every 10 seconds, report port 320 status
+    if (now - last_port320_diagnostic >= 10000) {
+        Serial.println("\n╔═══════════════════════════════════════════════════════════════╗");
+        Serial.println("║  PORT 320 (ANNOUNCE) DIAGNOSTIC                            ║");
+        Serial.println("╚═══════════════════════════════════════════════════════════════╝");
+        Serial.printf("  Total packets received on port 320: %lu\n", port320_packet_count);
+        Serial.printf("  Last parsePacket() result: %d\n", packet_size);
+        
+        wifi_ps_type_t ps_mode;
+        esp_wifi_get_ps(&ps_mode);
+        Serial.printf("  WiFi PS Mode: %s\n", ps_mode == WIFI_PS_NONE ? "✓ DISABLED" : "✗ ENABLED");
+        Serial.printf("  WiFi RSSI: %d dBm\n", WiFi.RSSI());
+        Serial.printf("  Local IP: %s\n", WiFi.localIP().toString().c_str());
+        Serial.printf("  General Socket: Multicast %s:%d\n", GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+        Serial.printf("  PTP State: %s\n", 
+                     ptp_state == PTPState::MASTER ? "MASTER" : 
+                     ptp_state == PTPState::SLAVE ? "SLAVE" : "OTHER");
+        Serial.printf("  Foreign Masters Tracked: %d\n", count_foreign_masters());
+        Serial.println("════════════════════════════════════════════════════════════════\n");
+        
+        last_port320_diagnostic = now;
+    }
+    
     if (packet_size >= (int)sizeof(PTPHeader)) {
         uint8_t buffer[256];
         int len = udp_general.read(buffer, sizeof(buffer));
@@ -711,6 +830,9 @@ void process_ptp_packets() {
                 foreign_masters[slot].last_sequence_id = ntohs(announce->header.sequence_id);
                 foreign_masters[slot].valid = true;
                 
+                packet_stats.announce_received++;
+                packet_stats.last_announce_received_ms = millis();
+                
                 Serial.printf("← Received PTP Announce from %s (class %d, accuracy 0x%02X)\n",
                              foreign_masters[slot].ip_address.toString().c_str(),
                              foreign_masters[slot].clock_class,
@@ -719,15 +841,23 @@ void process_ptp_packets() {
         }
     }
     
-    // Process Sync messages from udp_event (port 319) - wireless broadcast reception
-    packet_size = udp_event.parsePacket();
+    // Process Sync messages from udp_event_rx (Socket 1 - port 319 multicast RX)
+    // 3-Socket architecture: This socket is RX-only to avoid ESP32 WiFiUDP bug
+    packet_size = udp_event_rx.parsePacket();
     if (packet_size > 0) {
-        IPAddress remote_ip = udp_event.remoteIP();
-        uint16_t remote_port = udp_event.remotePort();
-        Serial.printf("← Received packet on port 319: %d bytes from %s:%d, state: %s\n", 
+        IPAddress remote_ip = udp_event_rx.remoteIP();
+        uint16_t remote_port = udp_event_rx.remotePort();
+        
+        packet_stats.sync_received++;
+        packet_stats.last_sync_received_ms = millis();
+        
+        // Unicast reception (IEEE 1588-2019 compliant)
+        Serial.printf("← Received Sync on port 319: %d bytes from %s:%d [UNICAST], state: %s\n", 
                      packet_size, remote_ip.toString().c_str(), remote_port,
                      ptp_state == PTPState::MASTER ? "MASTER" : ptp_state == PTPState::SLAVE ? "SLAVE" : "OTHER");
-    } else {
+    }
+    
+    if (packet_size == 0) {
         // Enhanced Diagnostic: Check socket status every 5 seconds in SLAVE state
         static unsigned long last_diagnostic = 0;
         unsigned long now = millis();
@@ -743,14 +873,14 @@ void process_ptp_packets() {
             Serial.printf("  WiFi PS Mode: %s\n", ps_mode == WIFI_PS_NONE ? "✓ DISABLED" : "✗ ENABLED");
             Serial.printf("  WiFi RSSI: %d dBm\n", WiFi.RSSI());
             Serial.printf("  Local IP: %s\n", WiFi.localIP().toString().c_str());
-            Serial.printf("  Event Socket: Multicast %s:%d\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+            Serial.printf("  Event Socket: UNICAST binding on port %d\n", GPTP_EVENT_PORT);
             Serial.printf("  parsePacket() returns: 0 (no packets available)\n");
             Serial.printf("  Master IP: %s\n", selected_master ? selected_master->ip_address.toString().c_str() : "NONE");
             Serial.println("  → Possible causes:");
-            Serial.println("    1. AP drops multicast when device stops sending (IGMP snooping)");
-            Serial.println("    2. Arduino WiFiUDP layer bug (stops polling inactive sockets)");
-            Serial.println("    3. ESP32 WiFi driver issue (multicast RX filter)");
-            Serial.println("    4. Master not actually sending (check COM4 logs)");
+            Serial.println("    1. Master not sending unicast Sync to this IP");
+            Serial.println("    2. UDP socket not receiving unicast packets");
+            Serial.println("    3. Firewall/AP blocking unicast UDP traffic");
+            Serial.println("    4. Master sending to wrong IP address");
             Serial.println("════════════════════════════════════════════════════════════════\n");
             
             last_diagnostic = now;
@@ -758,7 +888,8 @@ void process_ptp_packets() {
     }
     if (packet_size >= (int)sizeof(PTPSyncMessage) && ptp_state == PTPState::SLAVE) {
         uint8_t buffer[256];
-        int len = udp_event.read(buffer, sizeof(buffer));
+        // Read from event RX socket (Socket 1 - RX-only)
+        int len = udp_event_rx.read(buffer, sizeof(buffer));
         
         if (len >= (int)sizeof(PTPSyncMessage)) {
             PTPSyncMessage* sync = (PTPSyncMessage*)buffer;
@@ -1379,10 +1510,32 @@ const char* web_interface_html = R"rawliteral(
     <script>
         function updateStatus() {
             fetch('/status')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', response.headers);
+                    if (!response.ok) {
+                        throw new Error('HTTP error ' + response.status);
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    console.log('Response text length:', text.length);
+                    console.log('Response text (first 200 chars):', text.substring(0, 200));
+                    return JSON.parse(text);
+                })
                 .then(data => {
-                    // Update time
-                    const date = new Date(data.unix_time * 1000);
+                    console.log('Parsed data successfully');
+                    // Update time - parse string to number for 64-bit timestamp support
+                    let unixTime = typeof data.unix_time === 'string' ? parseInt(data.unix_time) : data.unix_time;
+                    
+                    // Fallback to RTC time if unix_time is 0 (no GPS/PTP sync yet)
+                    if (unixTime === 0 && data.rtc && data.rtc.current_time) {
+                        unixTime = typeof data.rtc.current_time.unix_seconds === 'string' ? 
+                            parseInt(data.rtc.current_time.unix_seconds) : data.rtc.current_time.unix_seconds;
+                        console.log('Using RTC time as fallback:', unixTime);
+                    }
+                    
+                    const date = new Date(unixTime * 1000);
                     document.getElementById('current-time').textContent = date.toUTCString();
                     document.getElementById('update-time').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
                     
@@ -1407,13 +1560,13 @@ const char* web_interface_html = R"rawliteral(
                         ppsBadge.className = 'status-badge status-warning';
                     }
                     
-                    document.getElementById('pps-jitter').innerHTML = data.gps.pps_jitter + '<span class="stat-unit">μs</span>';
+                    document.getElementById('pps-jitter').innerHTML = data.gps.pps_jitter_us + '<span class="stat-unit">μs</span>';
                     
                     // Update PTP clock quality
-                    document.getElementById('clock-class').textContent = data.ptp.clock_class;
-                    document.getElementById('clock-accuracy').textContent = '0x' + data.ptp.clock_accuracy.toString(16).toUpperCase();
+                    document.getElementById('clock-class').textContent = data.ptp.local_clock_quality.clock_class;
+                    document.getElementById('clock-accuracy').textContent = data.ptp.local_clock_quality.clock_accuracy;
                     document.getElementById('time-source').textContent = data.ptp.time_source;
-                    document.getElementById('variance').textContent = '0x' + data.ptp.variance.toString(16).toUpperCase();
+                    document.getElementById('variance').textContent = data.ptp.local_clock_quality.variance;
                     
                     // Update network status
                     const wifiBadge = document.getElementById('wifi-status').querySelector('.status-badge');
@@ -1452,55 +1605,238 @@ const char* web_interface_html = R"rawliteral(
 )rawliteral";
 
 void setup_web_interface() {
+    // Helper function to format 64-bit integers for JSON (Arduino String() doesn't handle uint64_t correctly)
+    // CRITICAL: Must use manual conversion because snprintf %llu is unreliable on ESP32
+    auto uint64ToString = [](uint64_t value) -> String {
+        if (value == 0) return "0";
+        
+        char buffer[21];  // Max 20 digits for uint64_t + null terminator
+        int pos = 20;
+        buffer[pos] = '\0';
+        
+        while (value > 0 && pos > 0) {
+            pos--;
+            buffer[pos] = '0' + (value % 10);
+            value /= 10;
+        }
+        
+        return String(&buffer[pos]);
+    };
+
     // Serve main page
     web_server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
         request->send(200, "text/html", web_interface_html);
     });
     
     // JSON status endpoint
-    web_server.on("/status", HTTP_GET, [](AsyncWebServerRequest *request){
+    web_server.on("/status", HTTP_GET, [&uint64ToString](AsyncWebServerRequest *request){
         Types::Timestamp now = get_current_time();
+        unsigned long current_ms = millis();
         
         // Build JSON response
         String json = "{";
         
-        // Time
-        json += "\"unix_time\":" + String(now.getTotalSeconds()) + ",";
+        // Time - CRITICAL: Wrap 64-bit integers in quotes for JavaScript compatibility
+        json += "\"unix_time\":\"" + uint64ToString(now.getTotalSeconds()) + "\",";
         json += "\"nanoseconds\":" + String(now.nanoseconds) + ",";
         
         // GPS status
         json += "\"gps\":{";
         json += "\"satellites\":" + String(current_source.satellites) + ",";
-        json += "\"has_fix\":" + String(nmea_parser.get_fix_status() != GPS::NMEA::GPSFixStatus::NO_FIX ? "true" : "false") + ",";
-        json += "\"pps_healthy\":" + String(current_source.pps_healthy ? "true" : "false") + ",";
-        json += "\"pps_jitter\":" + String(pps_handler.get_jitter_us());
+        json += "\"has_fix\":";
+        json += nmea_parser.get_fix_status() != GPS::NMEA::GPSFixStatus::NO_FIX ? "true" : "false";
+        json += ",\"pps_healthy\":";
+        json += current_source.pps_healthy ? "true" : "false";
+        json += ",\"pps_jitter_us\":" + String(pps_handler.get_jitter_us());
         json += "},";
         
-        // PTP clock quality
-        json += "\"ptp\":{";
-        json += "\"clock_class\":" + String(current_source.quality.clock_class) + ",";
-        json += "\"clock_accuracy\":" + String(static_cast<uint8_t>(current_source.quality.clock_accuracy)) + ",";
-        json += "\"variance\":" + String(current_source.quality.offset_scaled_log_variance) + ",";
-        json += "\"holdover_seconds\":" + String(current_source.holdover_seconds) + ",";
+        // RTC module status
+        json += "\"rtc\":{";
+        if (rtc_adapter != nullptr) {
+            json += "\"connected\":true,";
+            json += "\"i2c_address\":\"0x68\",";
+            
+            // Get RTC current time
+            Types::Timestamp rtc_time = rtc_adapter->get_current_time();
+            Types::UInteger64 rtc_seconds = rtc_time.getTotalSeconds();
+            
+            // CRITICAL: JavaScript Number.MAX_SAFE_INTEGER = 2^53-1
+            // 64-bit timestamps must be strings, not numbers, to avoid JSON parse errors
+            if (rtc_seconds > 0) {
+                json += "\"current_time\":{";
+                // Use proper uint64 formatting (Arduino String() mangles 64-bit integers)
+                json += "\"unix_seconds\":\"" + uint64ToString(rtc_seconds) + "\",";
+                json += "\"nanoseconds\":" + String(rtc_time.nanoseconds);
+                json += "},";
+            } else {
+                json += "\"current_time\":null,";
+                json += "\"last_error\":\"not_set\",";
+            }
+            
+            // RTC sync information
+            json += "\"last_sync\":{";
+            int32_t seconds_since_sync = rtc_adapter->get_seconds_since_sync();
+            if (rtc_adapter->is_synchronized() && seconds_since_sync >= 0) {
+                json += "\"seconds_ago\":" + String(seconds_since_sync) + ",";
+                
+                // Determine sync source
+                const char* sync_src = "UNKNOWN";
+                if (current_source.type == TimeSourceType::GPS_PPS || current_source.type == TimeSourceType::GPS_NMEA) {
+                    sync_src = "GPS";
+                } else if (current_source.type == TimeSourceType::PTP_SLAVE) {
+                    sync_src = "PTP";
+                }
+                json += "\"source\":\"" + String(sync_src) + "\",";
+                json += "\"synchronized\":true";
+            } else {
+                json += "\"seconds_ago\":null,";
+                json += "\"source\":\"NEVER\",";
+                json += "\"synchronized\":false";
+            }
+            json += "},";
+            
+            // RTC temperature (DS3231 feature)
+            float temperature = rtc_adapter->get_temperature_celsius();
+            if (!isnan(temperature)) {
+                json += "\"temperature_celsius\":" + String(temperature, 2) + ",";
+            } else {
+                json += "\"temperature_celsius\":null,";
+            }
+            
+            // RTC drift information (offset in nanoseconds)
+            int64_t offset_ns = rtc_adapter->get_estimated_offset_ns();
+            json += "\"estimated_offset_ns\":" + String((long)offset_ns);  // Full nanosecond precision
+        } else {
+            json += "\"connected\":false,\"error\":\"not_initialized\"";
+        }
+        json += "},";
         
-        // Time source string with IEEE 1588-2019 context
+        // PTP comprehensive status
+        json += "\"ptp\":{";
+        
+        // PTP state
+        const char* state_str = "UNKNOWN";
+        switch (ptp_state) {
+            case PTPState::INITIALIZING: state_str = "INITIALIZING"; break;
+            case PTPState::LISTENING: state_str = "LISTENING"; break;
+            case PTPState::MASTER: state_str = "MASTER"; break;
+            case PTPState::SLAVE: state_str = "SLAVE"; break;
+        }
+        json += "\"state\":\"" + String(state_str) + "\",";
+        
+        // Local clock identity
+        json += "\"local_clock_identity\":\"";
+        for (int i = 0; i < 8; i++) {
+            char hex[3];
+            sprintf(hex, "%02X", local_clock_identity[i]);
+            json += String(hex);
+            if (i < 7) json += ":";
+        }
+        json += "\",";
+        
+        // Local clock quality
+        json += "\"local_clock_quality\":{";
+        json += "\"clock_class\":" + String(current_source.quality.clock_class) + ",";
+        json += "\"clock_accuracy\":\"0x" + String(static_cast<uint8_t>(current_source.quality.clock_accuracy), HEX) + "\",";
+        json += "\"variance\":\"0x" + String(current_source.quality.offset_scaled_log_variance, HEX) + "\",";
+        json += "\"holdover_seconds\":" + String(current_source.holdover_seconds);
+        json += "},";
+        
+        // Time source with IEEE 1588-2019 context
         const char* source_str = "UNKNOWN";
         switch (current_source.type) {
-            case TimeSourceType::GPS_PPS: source_str = "GPS + 1PPS (Primary Ref)"; break;
-            case TimeSourceType::GPS_NMEA: source_str = "GPS NMEA (Primary Ref)"; break;
-            case TimeSourceType::RTC_SYNCED: source_str = "HOLDOVER (Designated)"; break;
-            case TimeSourceType::RTC_HOLDOVER: source_str = "HOLDOVER (Degraded)"; break;
-            case TimeSourceType::PTP_SLAVE: source_str = "PTP SLAVE (Network Sync)"; break;
-            case TimeSourceType::NONE: source_str = "UNCONFIGURED"; break;
+            case TimeSourceType::GPS_PPS: source_str = "GPS + 1PPS (Primary Reference)"; break;
+            case TimeSourceType::GPS_NMEA: source_str = "GPS NMEA (Primary Reference)"; break;
+            case TimeSourceType::RTC_SYNCED: source_str = "RTC Holdover (Recently Synced)"; break;
+            case TimeSourceType::RTC_HOLDOVER: source_str = "RTC Holdover (Degraded)"; break;
+            case TimeSourceType::PTP_SLAVE: source_str = "PTP Synchronized to Network Master"; break;
+            case TimeSourceType::NONE: source_str = "Unconfigured (No Valid Source)"; break;
         }
-        json += "\"time_source\":\"" + String(source_str) + "\"";
+        json += "\"time_source\":\"" + String(source_str) + "\",";
+        
+        // Foreign masters list
+        json += "\"foreign_masters\":[";
+        bool first_master = true;
+        for (int i = 0; i < MAX_FOREIGN_MASTERS; i++) {
+            if (foreign_masters[i].valid) {
+                if (!first_master) json += ",";
+                first_master = false;
+                
+                json += "{";
+                json += "\"clock_identity\":\"";
+                for (int j = 0; j < 8; j++) {
+                    char hex[3];
+                    sprintf(hex, "%02X", foreign_masters[i].clock_identity[j]);
+                    json += String(hex);
+                    if (j < 7) json += ":";
+                }
+                json += "\",";
+                json += "\"ip_address\":\"" + foreign_masters[i].ip_address.toString() + "\",";
+                json += "\"clock_class\":" + String(foreign_masters[i].clock_class) + ",";
+                json += "\"clock_accuracy\":\"0x" + String(foreign_masters[i].clock_accuracy, HEX) + "\",";
+                json += "\"variance\":\"0x" + String(foreign_masters[i].variance, HEX) + "\",";
+                json += "\"priority1\":" + String(foreign_masters[i].priority1) + ",";
+                json += "\"priority2\":" + String(foreign_masters[i].priority2) + ",";
+                json += "\"steps_removed\":" + String(foreign_masters[i].steps_removed) + ",";
+                json += "\"time_source\":\"0x" + String(foreign_masters[i].time_source, HEX) + "\",";
+                
+                uint32_t ms_ago = (current_ms > foreign_masters[i].last_announce_time) ? 
+                                 (current_ms - foreign_masters[i].last_announce_time) : 0;
+                json += "\"last_announce_ms_ago\":" + String(ms_ago) + ",";
+                json += "\"sequence_id\":" + String(foreign_masters[i].last_sequence_id);
+                json += "}";
+            }
+        }
+        json += "],";
+        
+        // Selected master (if in SLAVE mode)
+        json += "\"selected_master\":";
+        if (selected_master != nullptr && ptp_state == PTPState::SLAVE) {
+            json += "{";
+            json += "\"clock_identity\":\"";
+            for (int j = 0; j < 8; j++) {
+                char hex[3];
+                sprintf(hex, "%02X", selected_master->clock_identity[j]);
+                json += String(hex);
+                if (j < 7) json += ":";
+            }
+            json += "\",";
+            json += "\"ip_address\":\"" + selected_master->ip_address.toString() + "\",";
+            json += "\"offset_ns\":" + String(offset_from_master_ns);
+            json += "}";
+        } else {
+            json += "null";
+        }
+        json += ",";
+        
+        // Packet statistics
+        json += "\"packet_stats\":{";
+        json += "\"announce_received\":" + String(packet_stats.announce_received) + ",";
+        json += "\"announce_sent\":" + String(packet_stats.announce_sent) + ",";
+        json += "\"sync_received\":" + String(packet_stats.sync_received) + ",";
+        json += "\"sync_sent\":" + String(packet_stats.sync_sent) + ",";
+        
+        uint32_t announce_ms_ago = (packet_stats.last_announce_received_ms > 0 && current_ms > packet_stats.last_announce_received_ms) ? 
+                                   (current_ms - packet_stats.last_announce_received_ms) : 0;
+        uint32_t sync_ms_ago = (packet_stats.last_sync_received_ms > 0 && current_ms > packet_stats.last_sync_received_ms) ? 
+                              (current_ms - packet_stats.last_sync_received_ms) : 0;
+        
+        json += "\"last_announce_received_ms_ago\":";
+        json += (packet_stats.last_announce_received_ms > 0) ? String(announce_ms_ago) : "null";
+        json += ",";
+        json += "\"last_sync_received_ms_ago\":";
+        json += (packet_stats.last_sync_received_ms > 0) ? String(sync_ms_ago) : "null";
+        json += "}";
+        
         json += "},";
         
         // Network status
         json += "\"network\":{";
-        json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
-        json += "\"ip_address\":\"" + WiFi.localIP().toString() + "\",";
-        json += "\"rssi\":" + String(WiFi.RSSI());
+        json += "\"wifi_connected\":";
+        json += WiFi.status() == WL_CONNECTED ? "true" : "false";
+        json += ",\"ip_address\":\"" + WiFi.localIP().toString() + "\",";
+        json += "\"rssi\":" + String(WiFi.RSSI()) + ",";
+        json += "\"mac_address\":\"" + WiFi.macAddress() + "\"";
         json += "},";
         
         // Uptime
@@ -1508,7 +1844,11 @@ void setup_web_interface() {
         
         json += "}";
         
-        request->send(200, "application/json", json);
+        // Send response with CORS headers
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        request->send(response);
     });
     
     web_server.begin();
@@ -1622,45 +1962,69 @@ void setup() {
         }
         Serial.println();
         
-        // Initialize UDP sockets for gPTP
+        // ═══════════════════════════════════════════════════════════════════
+        // 3-Socket Architecture for ESP32 WiFiUDP Multicast Bug Workaround
+        // ═══════════════════════════════════════════════════════════════════
+        // 
+        // ESP32 WiFiUDP BUG: Sending on a multicast RX socket causes packet loss
+        // → Solution: Separate RX-only and TX-only sockets
+        // 
+        // Socket 1: udp_event_rx   - RX-only multicast on port 319 (Sync reception)
+        // Socket 2: udp_general    - RX-only multicast on port 320 (Announce reception)
+        // Socket 3: udp_tx         - TX-only unbound (all PTP transmissions)
+        //
+        // This architecture prevents the WiFiUDP state machine bug that drops
+        // timing-critical Sync messages when TX and RX share the same socket.
+        // ═══════════════════════════════════════════════════════════════════
+        
         IPAddress multicast_ip;
         multicast_ip.fromString(GPTP_MULTICAST_ADDR);
         
-        // Unified Event socket: Join multicast for BOTH send and receive (wireless broadcast)
-        // Per WPTP paper: "all communications are inherently broadcast" in wireless
-        if (udp_event.beginMulticast(multicast_ip, GPTP_EVENT_PORT)) {
-            Serial.printf("✓ Joined multicast group %s (port %d) for Sync messages (TX & RX)\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+        Serial.println("\n╔═══════════════════════════════════════════════════════════════╗");
+        Serial.println("║  Initializing 3-Socket PTP Architecture                    ║");
+        Serial.println("╚═══════════════════════════════════════════════════════════════╝");
+        
+        // Socket 1: Event RX (port 319) - UNICAST for Sync reception
+        // CRITICAL: Must use unicast binding to receive unicast Sync packets from master
+        // beginMulticast() doesn't receive unicast packets on ESP32 WiFiUDP
+        if (udp_event_rx.begin(GPTP_EVENT_PORT)) {
+            Serial.printf("✓ [Socket 1] Event RX: UNICAST %s:%d (Sync RX)\n", 
+                         WiFi.localIP().toString().c_str(), GPTP_EVENT_PORT);
         } else {
-            Serial.printf("✗ Failed to join multicast group %s (port %d)\n", GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
+            Serial.printf("✗ [Socket 1] Failed to bind to port %d\n", GPTP_EVENT_PORT);
         }
         
+        // Socket 2: General RX (port 320) - Multicast for Announce reception
         if (udp_general.beginMulticast(multicast_ip, GPTP_GENERAL_PORT)) {
-            Serial.printf("✓ Joined multicast group %s (port %d) for Announce messages\n", GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+            Serial.printf("✓ [Socket 2] General RX: Multicast %s:%d (Announce RX)\n", 
+                         GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
         } else {
-            Serial.printf("✗ Failed to join multicast group %s (port %d)\n", GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+            Serial.printf("✗ [Socket 2] Failed to join multicast on port %d\n", GPTP_GENERAL_PORT);
         }
         
-        // CRITICAL FIX #2: Send dummy packets to "wake up" AP multicast forwarding
-        // Some APs (especially with IGMP snooping) won't forward multicast to a station
-        // until it has transmitted SOMETHING on the network first.
-        // This warms up the multicast forwarding table.
-        Serial.println("✓ Sending dummy packets to warm up AP multicast table...");
+        // Socket 3: TX-only (unbound) - All PTP transmissions
+        // Note: No .begin() call - unbound socket for TX-only operation
+        Serial.printf("✓ [Socket 3] TX-only: Unbound (All PTP TX)\n");
+        Serial.println("  → Prevents ESP32 WiFiUDP multicast RX/TX state bug");
         
-        // Dummy packet on port 319 (Event)
-        udp_event.beginPacket(multicast_ip, GPTP_EVENT_PORT);
+        // Send dummy packets to wake up AP multicast forwarding
+        Serial.println("\n✓ Sending dummy packets to warm up AP multicast table...");
+        
+        // Dummy for port 319 (Event)
+        udp_tx.beginPacket(multicast_ip, GPTP_EVENT_PORT);
         uint8_t dummy_event[1] = {0x00};
-        udp_event.write(dummy_event, 1);
-        udp_event.endPacket();
+        udp_tx.write(dummy_event, 1);
+        udp_tx.endPacket();
         delay(10);
         
-        // Dummy packet on port 320 (General)
-        udp_general.beginPacket(multicast_ip, GPTP_GENERAL_PORT);
+        // Dummy for port 320 (General)
+        udp_tx.beginPacket(multicast_ip, GPTP_GENERAL_PORT);
         uint8_t dummy_general[1] = {0x00};
-        udp_general.write(dummy_general, 1);
-        udp_general.endPacket();
+        udp_tx.write(dummy_general, 1);
+        udp_tx.endPacket();
         delay(10);
         
-        Serial.println("  ✓ AP multicast table warmed up (dummy packets sent)");
+        Serial.println("  ✓ AP multicast table warmed up (ports 319 & 320)");
         
         // ═══════════════════════════════════════════════════════════════════════
         // COMPREHENSIVE DIAGNOSTIC CHECK - 5 Critical Points
@@ -1694,10 +2058,9 @@ void setup() {
         // ✅ 4. Socket richtig gebunden?
         Serial.println("\n[4/5] UDP Socket Binding:");
         Serial.printf("      Local IP: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("      Event Socket: Multicast %s:%d (TX & RX)\n", 
-                     GPTP_MULTICAST_ADDR, GPTP_EVENT_PORT);
-        Serial.printf("      General Socket: Multicast %s:%d (TX & RX)\n", 
-                     GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+        Serial.printf("      Event Socket (319): UNICAST binding (RX unicast Sync from masters)\n");
+        Serial.printf("      General Socket (320): Multicast binding (RX Announce multicast)\n");
+        Serial.printf("      TX Socket: Unbound (all PTP TX - multicast & unicast)\n");
         
         // ✅ 5. MAC-Timestamping-Pfad aktiv? (ESP32-spezifisch)
         Serial.println("\n[5/5] Hardware Timestamping:");
@@ -1747,20 +2110,7 @@ void loop() {
     // Update time source status
     update_time_source();
     
-    // CRITICAL FIX #3: Periodic keep-alive to maintain AP multicast forwarding
-    // Send tiny packet every 10 seconds when SLAVE to keep socket "active"
-    // This prevents aggressive IGMP snooping APs from dropping our multicast subscriptions
-    if (WiFi.status() == WL_CONNECTED && ptp_state == PTPState::SLAVE && now - last_keepalive >= 10000) {
-        // Send minimal keep-alive packet on event port (prevents reception dropout)
-        IPAddress multicast_ip;
-        multicast_ip.fromString(GPTP_MULTICAST_ADDR);
-        udp_event.beginPacket(multicast_ip, GPTP_EVENT_PORT);
-        uint8_t keepalive[1] = {0x00};  // Single zero byte (ignored by receivers)
-        udp_event.write(keepalive, 1);
-        udp_event.endPacket();
-        last_keepalive = now;
-        Serial.println("  → Keep-alive sent on port 319 (maintaining AP multicast table)");
-    }
+    // No keep-alive needed for unicast - direct point-to-point communication
     
     // Process incoming PTP packets (Announce and Sync)
     if (WiFi.status() == WL_CONNECTED) {

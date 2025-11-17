@@ -322,7 +322,10 @@ Types::Timestamp RTCAdapter::get_current_time() const {
     RTCTime rtc_time;
     if (!read_rtc_time(rtc_time)) {
         // Return zero timestamp if read fails
-        return Types::Timestamp{0, 0};
+        Types::Timestamp zero_ts{};
+        zero_ts.setTotalSeconds(0);
+        zero_ts.nanoseconds = 0;
+        return zero_ts;
     }
     
     return rtc_time_to_timestamp(rtc_time);
@@ -473,7 +476,12 @@ Types::Timestamp RTCAdapter::rtc_time_to_timestamp(const RTCTime& rtc_time) cons
     uint64_t seconds = static_cast<uint64_t>(unix_time);
     uint32_t nanoseconds = 0;  // RTC has 1-second resolution
     
-    return Types::Timestamp{seconds, nanoseconds};
+    // CRITICAL FIX: Timestamp has 3 fields (seconds_high, seconds_low, nanoseconds)
+    // Must use setTotalSeconds() to properly split 64-bit value
+    Types::Timestamp ts{};
+    ts.setTotalSeconds(seconds);
+    ts.nanoseconds = nanoseconds;
+    return ts;
 }
 
 RTCTime RTCAdapter::timestamp_to_rtc_time(const Types::Timestamp& timestamp) const {
