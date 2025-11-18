@@ -31,7 +31,7 @@ Reverse engineer formal requirements specifications from existing code:
 5. **Produce ISO 29148 compliant** requirements specification
 
 ## Known Standards which were base for implementation
-- in folder D:\SyncDrive\SynologyDrive\MCP\Standards\IEEE\
+- in folder %MCP_DOCUMENT_ROOT%\Standards\IEEE\
   - IEEE 1588-2019-en.pdf
   - ISO-IEC-IEEE 8802-1BA-2016-en.pdf
   - ISO-IEC-IEEE 8802-1Q-2020-en.pdf
@@ -59,7 +59,7 @@ Reverse engineer formal requirements specifications from existing code:
   - ieee-1016-2009.pdf
   - iso12207-2017-pdf-free.pdf
   - iso-iec-ieee-42010-2011.pdf
-- in folder "D:\SyncDrive\SynologyDrive\MCP\Standards\AES"
+- in folder "%MCP_DOCUMENT_ROOT%\Standards\AES"
   - AES67-2018.pdf
   - AES-70-1-2018-en.pdf
   - AES-70-2-2018-en.pdf
@@ -75,7 +75,7 @@ Reverse engineer formal requirements specifications from existing code:
   - AES 3-2-2009 (R2014)-en.pdf
   - AES 3-3-2009 (R2014)-en.pdf
   - AES 3-4-2009 (R2014)-en.pdf
-in folder "D:\SyncDrive\SynologyDrive\MCP\Standards\AVnu"
+in folder "%MCP_DOCUMENT_ROOT%\Standards\AVnu"
  - Auto-Ethernet-AVB-Func-Interop-Spec_v1.6.pdf
  - Automotive-Ethernet-AVB-Func-Interop-Spec-v1.5-Public.pdf
  - Avnu_Base-and-ProAV_Functional_Interop_Specification_1.1.pdf
