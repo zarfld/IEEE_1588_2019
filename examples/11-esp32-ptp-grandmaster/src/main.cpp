@@ -103,24 +103,30 @@ GPS::PPS::PPSHandler pps_handler(static_cast<gpio_num_t>(GPS_PPS_PIN));
 // RTC hardware - REAL implementation
 Examples::RTC::RTCAdapter* rtc_adapter = nullptr;
 
-// WiFi networking - 3-Socket Architecture for ESP32 WiFiUDP multicast bug
+// WiFi networking - 4-Socket Architecture for IEEE 1588-2019 Unicast Compliance
 // 
 // ESP32 WiFiUDP BUG: Sending on a multicast-subscribed socket breaks RX
 // → Solution: Separate RX and TX sockets to avoid state conflicts
 // 
-// Socket Architecture (PTP-safe):
-// ┌─────────────────┬──────────┬──────┬───────┬─────────┬──────────────────────┐
-// │ Socket          │ Function │ Port │ Bind? │ RX/TX   │ Purpose              │
-// ├─────────────────┼──────────┼──────┼───────┼─────────┼──────────────────────┤
-// │ udp_event_rx    │ Event RX │ 319  │ ✔️    │ RX-only │ Receive Sync         │
-// │ udp_general     │ Gen. RX  │ 320  │ ✔️    │ RX-only │ Receive Announce     │
-// │ udp_tx          │ PTP TX   │ auto │ ❌    │ TX-only │ Send Sync/Announce   │
-// └─────────────────┴──────────┴──────┴───────┴─────────┴──────────────────────┘
+// IEEE 1588-2019 UNICAST REQUIREMENT: Slaves expect Sync from source port 319
+// → Solution: Bind TX socket to port 319 so unicast messages have correct source
+// 
+// Socket Architecture (IEEE 1588-2019 Compliant):
+// ┌─────────────────┬──────────┬──────┬───────┬─────────┬───────────────────────────┐
+// │ Socket          │ Function │ Port │ Bind? │ RX/TX   │ Purpose                   │
+// ├─────────────────┼──────────┼──────┼───────┼─────────┼───────────────────────────┤
+// │ udp_event_rx    │ Event RX │ 319  │ ✔️    │ RX-only │ Receive Sync (mcast)      │
+// │ udp_event_tx    │ Event TX │ 319  │ ✔️    │ TX-only │ Send Sync FROM port 319   │
+// │ udp_general_rx  │ Gen. RX  │ 320  │ ✔️    │ RX-only │ Receive Announce (mcast)  │
+// │ udp_general_tx  │ Gen. TX  │ 320  │ ✔️    │ TX-only │ Send Announce FROM 320    │
+// └─────────────────┴──────────┴──────┴───────┴─────────┴───────────────────────────┘
 //
-// IEEE 1588-2019 Annex D.2: Event messages CAN use unicast (compliant)
-WiFiUDP udp_event_rx;   // RX-only: Receive Sync on port 319 (multicast)
-WiFiUDP udp_general;    // RX-only: Receive Announce on port 320 (multicast)
-WiFiUDP udp_tx;         // TX-only: Send all PTP messages (unbound, auto port)
+// IEEE 1588-2019 Annex D.2: Event messages (Sync) use unicast transmission
+// The source port MUST be 319 so slaves can filter and receive correctly
+WiFiUDP udp_event_rx;    // RX-only: Receive Sync on port 319 (multicast)
+WiFiUDP udp_event_tx;    // TX-only: Send Sync FROM port 319 (unicast) - CRITICAL!
+WiFiUDP udp_general_rx;  // RX-only: Receive Announce on port 320 (multicast)
+WiFiUDP udp_general_tx;  // TX-only: Send Announce FROM port 320 (multicast)
 
 // Web server for monitoring
 AsyncWebServer web_server(80);
@@ -593,11 +599,11 @@ void send_ptp_announce() {
     announce.steps_removed = htons(0);
     announce.time_source = 0x20;  // GPS
     
-    // Send via TX-only socket (Socket 3) to multicast address
-    // Prevents ESP32 WiFiUDP bug where TX on RX socket causes packet loss
-    udp_tx.beginPacket(GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
-    udp_tx.write((const uint8_t*)&announce, sizeof(announce));
-    udp_tx.endPacket();
+    // Send via General TX socket (Socket 4) FROM port 320 to multicast address
+    // IEEE 1588-2019 requires Announce messages sent FROM port 320
+    udp_general_tx.beginPacket(GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
+    udp_general_tx.write((const uint8_t*)&announce, sizeof(announce));
+    udp_general_tx.endPacket();
     
     packet_stats.announce_sent++;
     Serial.println("→ Sending PTP Announce (clockClass " + String(current_source.quality.clock_class) + ")");
@@ -658,10 +664,11 @@ void send_ptp_sync() {
     
     for (int i = 0; i < MAX_FOREIGN_MASTERS; i++) {
         if (foreign_masters[i].valid) {
-            // Use TX-only socket (Socket 3) to avoid ESP32 WiFiUDP multicast bug
-            udp_tx.beginPacket(foreign_masters[i].ip_address, GPTP_EVENT_PORT);
-            udp_tx.write((const uint8_t*)&sync, sizeof(sync));
-            int result = udp_tx.endPacket();
+            // Use Event TX socket (Socket 2) to send FROM port 319 to port 319
+            // CRITICAL: IEEE 1588-2019 requires Sync sent FROM port 319 (unicast)
+            udp_event_tx.beginPacket(foreign_masters[i].ip_address, GPTP_EVENT_PORT);
+            udp_event_tx.write((const uint8_t*)&sync, sizeof(sync));
+            int result = udp_event_tx.endPacket();
             
             // CRITICAL FIX: ESP32 WiFi stack needs time to process UDP buffers
             // Error 12 (NO_MEM) means TX buffers exhausted - wait for buffer to free
@@ -752,14 +759,14 @@ void process_ptp_packets() {
     static unsigned long port320_packet_count = 0;
     unsigned long now = millis();
     
-    // Process Announce messages from udp_general (port 320)
-    int packet_size = udp_general.parsePacket();
+    // Process Announce messages from udp_general_rx (port 320)
+    int packet_size = udp_general_rx.parsePacket();
     
     // DIAGNOSTIC: Log every packet received on port 320
     if (packet_size > 0) {
         port320_packet_count++;
-        IPAddress remote_ip = udp_general.remoteIP();
-        uint16_t remote_port = udp_general.remotePort();
+        IPAddress remote_ip = udp_general_rx.remoteIP();
+        uint16_t remote_port = udp_general_rx.remotePort();
         Serial.printf("🔍 [PORT 320] Packet #%lu: %d bytes from %s:%d\n", 
                      port320_packet_count, packet_size, 
                      remote_ip.toString().c_str(), remote_port);
@@ -790,7 +797,7 @@ void process_ptp_packets() {
     
     if (packet_size >= (int)sizeof(PTPHeader)) {
         uint8_t buffer[256];
-        int len = udp_general.read(buffer, sizeof(buffer));
+        int len = udp_general_rx.read(buffer, sizeof(buffer));
         
         if (len >= (int)sizeof(PTPHeader)) {
             PTPHeader* header = (PTPHeader*)buffer;
@@ -818,7 +825,7 @@ void process_ptp_packets() {
                 
                 // Populate foreign master data (convert network byte order)
                 memcpy(foreign_masters[slot].clock_identity, remote_clock_identity, 8);
-                foreign_masters[slot].ip_address = udp_general.remoteIP();
+                foreign_masters[slot].ip_address = udp_general_rx.remoteIP();
                 foreign_masters[slot].clock_class = announce->grandmaster_clock_quality_class;
                 foreign_masters[slot].clock_accuracy = announce->grandmaster_clock_quality_accuracy;
                 foreign_masters[slot].variance = ntohs(announce->grandmaster_clock_quality_variance);
@@ -1981,47 +1988,59 @@ void setup() {
         multicast_ip.fromString(GPTP_MULTICAST_ADDR);
         
         Serial.println("\n╔═══════════════════════════════════════════════════════════════╗");
-        Serial.println("║  Initializing 3-Socket PTP Architecture                    ║");
+        Serial.println("║  Initializing 4-Socket PTP Architecture (IEEE 1588-2019)   ║");
         Serial.println("╚═══════════════════════════════════════════════════════════════╝");
         
         // Socket 1: Event RX (port 319) - UNICAST for Sync reception
         // CRITICAL: Must use unicast binding to receive unicast Sync packets from master
         // beginMulticast() doesn't receive unicast packets on ESP32 WiFiUDP
         if (udp_event_rx.begin(GPTP_EVENT_PORT)) {
-            Serial.printf("✓ [Socket 1] Event RX: UNICAST %s:%d (Sync RX)\n", 
+            Serial.printf("✓ [Socket 1] Event RX: UNICAST %s:%d (Sync/Delay_Req RX)\n", 
                          WiFi.localIP().toString().c_str(), GPTP_EVENT_PORT);
         } else {
-            Serial.printf("✗ [Socket 1] Failed to bind to port %d\n", GPTP_EVENT_PORT);
+            Serial.printf("✗ [Socket 1] Failed to bind RX to port %d\n", GPTP_EVENT_PORT);
         }
         
-        // Socket 2: General RX (port 320) - Multicast for Announce reception
-        if (udp_general.beginMulticast(multicast_ip, GPTP_GENERAL_PORT)) {
-            Serial.printf("✓ [Socket 2] General RX: Multicast %s:%d (Announce RX)\n", 
+        // Socket 2: Event TX (port 319) - Transmit FROM port 319
+        // CRITICAL: IEEE 1588-2019 requires Sync messages sent FROM port 319 to port 319
+        // ESP32 WiFiUDP limitation: Cannot bind same socket for RX and TX
+        if (udp_event_tx.begin(GPTP_EVENT_PORT)) {
+            Serial.printf("✓ [Socket 2] Event TX: Bound to port %d (Sync TX FROM 319)\n", GPTP_EVENT_PORT);
+        } else {
+            Serial.printf("✗ [Socket 2] Failed to bind TX to port %d\n", GPTP_EVENT_PORT);
+        }
+        
+        // Socket 3: General RX (port 320) - Multicast for Announce reception
+        if (udp_general_rx.beginMulticast(multicast_ip, GPTP_GENERAL_PORT)) {
+            Serial.printf("✓ [Socket 3] General RX: Multicast %s:%d (Announce RX)\n", 
                          GPTP_MULTICAST_ADDR, GPTP_GENERAL_PORT);
         } else {
-            Serial.printf("✗ [Socket 2] Failed to join multicast on port %d\n", GPTP_GENERAL_PORT);
+            Serial.printf("✗ [Socket 3] Failed to join multicast on port %d\n", GPTP_GENERAL_PORT);
         }
         
-        // Socket 3: TX-only (unbound) - All PTP transmissions
-        // Note: No .begin() call - unbound socket for TX-only operation
-        Serial.printf("✓ [Socket 3] TX-only: Unbound (All PTP TX)\n");
-        Serial.println("  → Prevents ESP32 WiFiUDP multicast RX/TX state bug");
+        // Socket 4: General TX (port 320) - Transmit FROM port 320
+        // Send Announce/Signaling messages FROM port 320
+        if (udp_general_tx.begin(GPTP_GENERAL_PORT)) {
+            Serial.printf("✓ [Socket 4] General TX: Bound to port %d (Announce TX FROM 320)\n", GPTP_GENERAL_PORT);
+        } else {
+            Serial.printf("✗ [Socket 4] Failed to bind TX to port %d\n", GPTP_GENERAL_PORT);
+        }
         
         // Send dummy packets to wake up AP multicast forwarding
         Serial.println("\n✓ Sending dummy packets to warm up AP multicast table...");
         
-        // Dummy for port 319 (Event)
-        udp_tx.beginPacket(multicast_ip, GPTP_EVENT_PORT);
+        // Dummy for port 319 (Event) - Send FROM port 319
+        udp_event_tx.beginPacket(multicast_ip, GPTP_EVENT_PORT);
         uint8_t dummy_event[1] = {0x00};
-        udp_tx.write(dummy_event, 1);
-        udp_tx.endPacket();
+        udp_event_tx.write(dummy_event, 1);
+        udp_event_tx.endPacket();
         delay(10);
         
-        // Dummy for port 320 (General)
-        udp_tx.beginPacket(multicast_ip, GPTP_GENERAL_PORT);
+        // Dummy for port 320 (General) - Send FROM port 320
+        udp_general_tx.beginPacket(multicast_ip, GPTP_GENERAL_PORT);
         uint8_t dummy_general[1] = {0x00};
-        udp_tx.write(dummy_general, 1);
-        udp_tx.endPacket();
+        udp_general_tx.write(dummy_general, 1);
+        udp_general_tx.endPacket();
         delay(10);
         
         Serial.println("  ✓ AP multicast table warmed up (ports 319 & 320)");
@@ -2058,9 +2077,10 @@ void setup() {
         // ✅ 4. Socket richtig gebunden?
         Serial.println("\n[4/5] UDP Socket Binding:");
         Serial.printf("      Local IP: %s\n", WiFi.localIP().toString().c_str());
-        Serial.printf("      Event Socket (319): UNICAST binding (RX unicast Sync from masters)\n");
-        Serial.printf("      General Socket (320): Multicast binding (RX Announce multicast)\n");
-        Serial.printf("      TX Socket: Unbound (all PTP TX - multicast & unicast)\n");
+        Serial.printf("      Event RX Socket (319): UNICAST binding (RX unicast Sync from masters)\n");
+        Serial.printf("      Event TX Socket (319): Bound to port 319 (TX Sync FROM port 319)\n");
+        Serial.printf("      General RX Socket (320): Multicast binding (RX Announce multicast)\n");
+        Serial.printf("      General TX Socket (320): Bound to port 320 (TX Announce FROM port 320)\n");
         
         // ✅ 5. MAC-Timestamping-Pfad aktiv? (ESP32-spezifisch)
         Serial.println("\n[5/5] Hardware Timestamping:");
