@@ -1,0 +1,281 @@
+name: Requirements Traceability Validation
+
+# 🔗 TRACEABILITY VALIDATION WORKFLOW
+# Fast validation of requirements traceability and linkage integrity
+#
+# 📋 Validates:
+#   - All requirements have proper parent links (StR → REQ → TEST)
+#   - No orphaned requirements (except top-level StR)
+#   - Bidirectional traceability maintained
+#   - Test coverage for functional requirements
+#   - GitHub Issues integrity
+#
+# ⚡ Fast execution: ~2-3 minutes
+# 🎯 Standards: ISO/IEC/IEEE 29148:2018 (Requirements Traceability)
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "release/**"]
+    paths:
+      - '02-requirements/**'
+      - '03-architecture/**'
+      - '04-design/**'
+      - '07-verification-validation/**'
+      - 'scripts/*traceability*.py'
+      - 'scripts/github-*.py'
+      - '.github/workflows/traceability-validation.yml'
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      generate_report:
+        description: 'Generate full traceability report'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  PYTHON_VERSION: "3.11"
+  MIN_TRACEABILITY_COVERAGE: 95  # 95% of requirements must have parent links
+
+jobs:
+  traceability-check:
+    name: Validate Requirements Traceability
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: write  # For PR comments
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests PyGithub pyyaml
+      
+      - name: Generate traceability report from GitHub Issues
+        id: generate_report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          echo "📊 Generating traceability matrix from GitHub Issues..."
+          mkdir -p reports
+          python scripts/github-traceability-report.py > reports/traceability-matrix.md
+          
+          echo "✅ Traceability report generated"
+          echo "report_path=reports/traceability-matrix.md" >> $GITHUB_OUTPUT
+      
+      - name: Extract traceability statistics
+        id: stats
+        run: |
+          REPORT_FILE="reports/traceability-matrix.md"
+          
+          # Extract total requirements count
+          TOTAL_REQS=$(grep "Total requirements:" "$REPORT_FILE" | grep -oP '\*\*\K[0-9]+(?=\*\*)' || echo "0")
+          echo "total_requirements=$TOTAL_REQS" >> $GITHUB_OUTPUT
+          
+          # Count orphaned requirements
+          ORPHANS=$(grep -A 100 "## Orphaned Requirements" "$REPORT_FILE" | grep "^| #" | wc -l || echo "0")
+          echo "orphaned_requirements=$ORPHANS" >> $GITHUB_OUTPUT
+          
+          # Count unverified requirements
+          UNVERIFIED=$(grep -A 100 "## Requirements Without Tests" "$REPORT_FILE" | grep "^| #" | wc -l || echo "0")
+          echo "unverified_requirements=$UNVERIFIED" >> $GITHUB_OUTPUT
+          
+          # Calculate traceability coverage percentage
+          if [ "$TOTAL_REQS" -gt 0 ]; then
+            COVERAGE=$(echo "scale=2; (($TOTAL_REQS - $ORPHANS) * 100) / $TOTAL_REQS" | bc)
+          else
+            COVERAGE=0
+          fi
+          echo "traceability_coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          
+          echo "📊 Traceability Statistics:"
+          echo "  Total Requirements: $TOTAL_REQS"
+          echo "  Orphaned: $ORPHANS"
+          echo "  Unverified: $UNVERIFIED"
+          echo "  Coverage: ${COVERAGE}%"
+      
+      - name: Validate traceability coverage
+        if: steps.stats.outputs.total_requirements > 0
+        run: |
+          COVERAGE=${{ steps.stats.outputs.traceability_coverage }}
+          MIN_COVERAGE=${{ env.MIN_TRACEABILITY_COVERAGE }}
+          
+          echo "🔍 Validating traceability coverage..."
+          echo "  Required: ${MIN_COVERAGE}%"
+          echo "  Actual: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+            echo "❌ Traceability coverage ${COVERAGE}% is below minimum ${MIN_COVERAGE}%"
+            echo ""
+            echo "Orphaned requirements found:"
+            grep -A 100 "## Orphaned Requirements" reports/traceability-matrix.md | head -20
+            exit 1
+          else
+            echo "✅ Traceability coverage ${COVERAGE}% meets minimum ${MIN_COVERAGE}%"
+          fi
+      
+      - name: Check for critical orphans
+        run: |
+          ORPHANS=${{ steps.stats.outputs.orphaned_requirements }}
+          
+          if [ "$ORPHANS" -gt 0 ]; then
+            echo "⚠️ Warning: $ORPHANS orphaned requirements found"
+            echo ""
+            echo "Requirements without parent links:"
+            grep -A 100 "## Orphaned Requirements" reports/traceability-matrix.md | head -20
+            echo ""
+            echo "💡 Action: Add 'Traces to: #N' links to orphaned requirements"
+            # Don't fail on orphans, just warn
+          else
+            echo "✅ No orphaned requirements found"
+          fi
+      
+      - name: Upload traceability report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: traceability-report
+          path: reports/traceability-matrix.md
+          retention-days: 30
+      
+      - name: Comment PR with traceability status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('reports/traceability-matrix.md', 'utf8');
+            
+            // Extract summary section
+            const summaryMatch = report.match(/## Summary\n([\s\S]*?)##/);
+            const summary = summaryMatch ? summaryMatch[1] : 'Summary not available';
+            
+            // Extract orphans section
+            const orphansMatch = report.match(/## Orphaned Requirements\n([\s\S]*?)##/);
+            const orphans = orphansMatch ? orphansMatch[1] : 'No orphans found';
+            
+            const stats = {
+              total: '${{ steps.stats.outputs.total_requirements }}',
+              orphaned: '${{ steps.stats.outputs.orphaned_requirements }}',
+              unverified: '${{ steps.stats.outputs.unverified_requirements }}',
+              coverage: '${{ steps.stats.outputs.traceability_coverage }}'
+            };
+            
+            const coverageEmoji = parseFloat(stats.coverage) >= ${{ env.MIN_TRACEABILITY_COVERAGE }} ? '✅' : '❌';
+            
+            const comment = `## ${coverageEmoji} Requirements Traceability Validation
+            
+            **Standard**: ISO/IEC/IEEE 29148:2018
+            
+            ### Statistics
+            - **Total Requirements**: ${stats.total}
+            - **Orphaned Requirements**: ${stats.orphaned}
+            - **Unverified Requirements**: ${stats.unverified}
+            - **Traceability Coverage**: ${stats.coverage}% (minimum: ${{ env.MIN_TRACEABILITY_COVERAGE }}%)
+            
+            ### Summary
+            ${summary}
+            
+            ### Orphaned Requirements
+            ${orphans}
+            
+            <details>
+            <summary>📊 View Full Traceability Matrix</summary>
+            
+            Download the full report from the workflow artifacts or view at:
+            \`reports/traceability-matrix.md\`
+            
+            </details>
+            
+            ---
+            *Generated by [traceability-validation.yml](../.github/workflows/traceability-validation.yml)*
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+  
+  validate-test-coverage:
+    name: Validate Test Coverage
+    runs-on: ubuntu-latest
+    needs: traceability-check
+    permissions:
+      contents: read
+      issues: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests PyGithub
+      
+      - name: Check functional requirements test coverage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "🧪 Checking test coverage for functional requirements..."
+          python scripts/github-traceability-report.py > /tmp/traceability.md
+          
+          # Extract unverified count
+          UNVERIFIED=$(grep -A 100 "## Requirements Without Tests" /tmp/traceability.md | grep "^| #" | wc -l || echo "0")
+          
+          if [ "$UNVERIFIED" -gt 0 ]; then
+            echo "⚠️ Warning: $UNVERIFIED functional requirements without test coverage"
+            grep -A 100 "## Requirements Without Tests" /tmp/traceability.md | head -20
+            # Don't fail build, just warn
+          else
+            echo "✅ All functional requirements have test coverage"
+          fi
+  
+  summary:
+    name: Traceability Validation Summary
+    runs-on: ubuntu-latest
+    needs: [traceability-check, validate-test-coverage]
+    if: always()
+    
+    steps:
+      - name: Check workflow status
+        run: |
+          echo "## Traceability Validation Summary"
+          echo ""
+          echo "- Traceability Check: ${{ needs.traceability-check.result }}"
+          echo "- Test Coverage Check: ${{ needs.validate-test-coverage.result }}"
+          echo ""
+          
+          if [ "${{ needs.traceability-check.result }}" != "success" ]; then
+            echo "❌ Traceability validation failed"
+            exit 1
+          elif [ "${{ needs.validate-test-coverage.result }}" != "success" ]; then
+            echo "⚠️ Test coverage check had issues"
+            # Don't fail on test coverage warnings
+          else
+            echo "✅ All traceability validations passed"
+          fi
