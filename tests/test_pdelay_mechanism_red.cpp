@@ -89,6 +89,7 @@ int main() {
         (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         TimeInterval correction{0}; // No correction field
+        (void)correction;  // Will be used when implementation is added
         
         // Expected result: 50 ns peer delay
         const int64_t expected_delay_ns = 50;
@@ -125,11 +126,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1030);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 2070);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_delay_ns = 50;
         
         std::printf("  TEST 2: FAIL - asymmetric path not handled\n");
-        std::printf("        Expected peer delay: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay: %ld ns\n", (long)expected_delay_ns);
         std::printf("        (Average of 30ns + 70ns paths)\n\n");
         failures++;
     }
