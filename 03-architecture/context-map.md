@@ -1,3 +1,15 @@
+---
+specType: architecture-spec
+title: Context Map - Bounded Context Relationships
+phase: "03"
+status: draft
+relatedStandards:
+  - id: ISO/IEC/IEEE 42010:2011
+    section: "Architecture viewpoints and views"
+  - id: ISO/IEC/IEEE 12207:2017
+    section: "Architecture definition process"
+---
+
 # Context Map
 
 **Phase**: 03-Architecture  
