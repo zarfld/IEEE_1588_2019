@@ -604,6 +604,41 @@ Scenario: Graceful demotion from MASTER to SLAVE
 
 ---
 
+#### REQ-S-002: Fault Recovery and Graceful Degradation
+
+**Trace to**: STR-PERF-001, REQ-PPS-004  
+**Priority**: P1 (High)  
+**Category**: System Behavior
+
+**Description**: The system SHALL detect and recover gracefully from fault conditions including loss of timing reference (GPS PPS signal loss, master clock failure), degrading to fallback timing modes without crashes or synchronization hangs.
+
+**Rationale**: Real-time systems require continuous operation despite component failures. Graceful degradation maintains service at reduced accuracy rather than complete failure.
+
+**Acceptance Criteria**:
+
+```gherkin
+Scenario: GPS PPS signal loss with NMEA fallback
+  Given the node is synchronized using GPS PPS (sub-microsecond accuracy)
+  When GPS PPS signal is lost or becomes invalid
+  Then the system SHALL detect loss within 2 seconds
+  And fall back to NMEA-only time synchronization (10ms accuracy)
+  And continue PTP operation with degraded timing accuracy
+  And log "timing_reference_degraded" event
+  And automatically re-enable PPS if signal recovers
+
+Scenario: Master clock failure recovery
+  Given the node is SLAVE synchronized to a PTP master
+  When master stops transmitting Sync messages (ANNOUNCE_RECEIPT_TIMEOUT)
+  Then BMCA SHALL select next best available master
+  And state transition SHALL occur per REQ-S-001
+  And synchronization SHALL resume within 4 announce intervals
+  And log "master_timeout_recovery" with old/new master identities
+```
+
+**Dependencies**: REQ-S-001 (Graceful Transitions), REQ-PPS-004 (PPS Fallback), REQ-F-002 (BMCA)
+
+---
+
 #### REQ-S-004: Interoperability and Configuration Compatibility
 
 **Trace to**: STR-STD-004, UC-002, ADR-003  
