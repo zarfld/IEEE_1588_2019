@@ -92,6 +92,7 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1150);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 1950);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         TimeInterval correction{0}; // No correction field
         
@@ -130,11 +131,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1230);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 1870);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_offset_ns = 180; // Average with asymmetric delays
         
         std::printf("  TEST 2: FAIL - offset calculation not implemented\n");
-        std::printf("        Expected offset: %lld ns\n", expected_offset_ns);
+        std::printf("        Expected offset: %ld ns\n", (long)expected_offset_ns);
         std::printf("        (Asymmetry affects accuracy as per IEEE spec)\n\n");
         failures++;
     }
@@ -153,17 +155,19 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1150);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 1950);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         // CorrectionField in scaled nanoseconds (2^-16 ns units)
         // -20 ns = -20 * 2^16 = -1310720
         TimeInterval correction{};
         correction.scaled_nanoseconds = -1310720;
+        (void)correction;  // Will be used when implementation is added
         
         // Expected: base_offset + correction = 100 + (-20) = 80 ns
         const int64_t expected_offset_ns = 80;
         
         std::printf("  TEST 3: FAIL - correctionField not applied\n");
-        std::printf("        Expected offset with correction: %lld ns\n", expected_offset_ns);
+        std::printf("        Expected offset with correction: %ld ns\n", (long)expected_offset_ns);
         std::printf("        Base offset: 100ns, Correction: -20ns\n\n");
         failures++;
     }
@@ -187,11 +191,12 @@ int main() {
         Timestamp t2 = make_timestamp(10, 500000000);
         Timestamp t3 = make_timestamp(11, 0);
         Timestamp t4 = make_timestamp(10, 500000000);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_offset_ns = 500000000; // 500ms
         
         std::printf("  TEST 4: FAIL - timestamp arithmetic not implemented\n");
-        std::printf("        Expected offset: %lld ns (500ms)\n", expected_offset_ns);
+        std::printf("        Expected offset: %ld ns (500ms)\n", (long)expected_offset_ns);
         std::printf("        (Must handle seconds component correctly)\n\n");
         failures++;
     }
@@ -211,6 +216,7 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1151); // Odd difference
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 1950);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         // offset = ((151) - (-50)) / 2 = 201 / 2 = 100.5 ns
         // Should round to 100 or 101 ns (implementation-defined)
@@ -218,7 +224,7 @@ int main() {
         const int64_t expected_offset_ns = 100; // Or 101, depending on rounding
         
         std::printf("  TEST 5: FAIL - rounding not implemented\n");
-        std::printf("        Expected offset: ~%lld ns (rounding required)\n", expected_offset_ns);
+        std::printf("        Expected offset: ~%ld ns (rounding required)\n", (long)expected_offset_ns);
         std::printf("        (201 / 2 = 100.5 ns, must round)\n\n");
         failures++;
     }
@@ -248,11 +254,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 900);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 2100);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_offset_ns = -100;
         
         std::printf("  TEST 6: FAIL - negative offset not handled\n");
-        std::printf("        Expected offset: %lld ns\n", expected_offset_ns);
+        std::printf("        Expected offset: %ld ns\n", (long)expected_offset_ns);
         std::printf("        (Slave ahead, negative correction needed)\n\n");
         failures++;
     }
@@ -281,11 +288,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1050);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 2050);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_offset_ns = 0;
         
         std::printf("  TEST 7: FAIL - zero offset case not handled\n");
-        std::printf("        Expected offset: %lld ns\n", expected_offset_ns);
+        std::printf("        Expected offset: %ld ns\n", (long)expected_offset_ns);
         std::printf("        (Perfect synchronization)\n\n");
         failures++;
     }
