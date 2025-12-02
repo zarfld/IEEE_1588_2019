@@ -17,10 +17,15 @@ int main() {
     
     // Exercise getter APIs to increase coverage
     auto identity = port.get_identity();
+    (void)identity;  // Coverage test - verify API compiles
     auto config = port.get_configuration();
+    (void)config;  // Coverage test - verify API compiles
     const auto& portDS = port.get_port_data_set();
+    (void)portDS;  // Coverage test - verify API compiles
     const auto& currentDS = port.get_current_data_set();
+    (void)currentDS;  // Coverage test - verify API compiles
     const auto& parentDS = port.get_parent_data_set();
+    (void)parentDS;  // Coverage test - verify API compiles
     
     // Test state query methods
     auto state = port.get_state();

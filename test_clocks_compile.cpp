@@ -54,10 +54,10 @@ int main() {
     };
     auto stub_get_timestamp = []() -> Types::Timestamp {
         // zero timestamp is fine for compile/runtime smoke
-        return Types::Timestamp{0, 0};
+        return Types::Timestamp{0, 0, 0};
     };
     auto stub_get_tx_timestamp = [](std::uint16_t, Types::Timestamp* ts) -> Types::PTPError {
-        if (ts) { *ts = Types::Timestamp{0, 0}; }
+        if (ts) { *ts = Types::Timestamp{0, 0, 0}; }
         return Types::PTPError::Success;
     };
     auto stub_adjust_clock = [](std::int64_t) -> Types::PTPError { return Types::PTPError::Success; };
@@ -82,7 +82,7 @@ int main() {
     Clocks::OrdinaryClock oc(config, cbs);
     auto r_init = oc.initialize();
     auto r_start = oc.start();
-    auto r_tick = oc.tick(Types::Timestamp{0});
+    auto r_tick = oc.tick(Types::Timestamp{0, 0, 0});
     auto r_stop = oc.stop();
     if (r_init.hasValue() && r_start.hasValue() && r_tick.hasValue() && r_stop.hasValue()) {
         std::cout << "✅ StateCallbacks + OrdinaryClock lifecycle: PASS (TEST-CLOCKS-LIFECYCLE-001)" << std::endl;
@@ -96,17 +96,19 @@ int main() {
     PortState state1 = PortState::Initializing;  // PascalCase
     PortState state2 = PortState::Master;
     PortState state3 = PortState::Slave;
+    (void)state1; (void)state2; (void)state3;  // Verify enum values compile
     std::cout << "✅ PortState Enums: PASS (Initializing, Master, Slave) (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     using MessageType = IEEE::_1588::PTP::_2019::Types::MessageType;
     MessageType msg1 = MessageType::Sync;        // PascalCase 
     MessageType msg2 = MessageType::Announce;
     MessageType msg3 = MessageType::Delay_Req;
+    (void)msg1; (void)msg2; (void)msg3;  // Verify enum values compile
     std::cout << "✅ MessageType Enums: PASS (Sync, Announce, Delay_Req) (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     // Test 4: Message Type Aliases
-    using AnnounceMessage = IEEE::_1588::PTP::_2019::Clocks::AnnounceMessage;
-    using SyncMessage = IEEE::_1588::PTP::_2019::Clocks::SyncMessage;
+    [[maybe_unused]] using AnnounceMessage = IEEE::_1588::PTP::_2019::Clocks::AnnounceMessage;
+    [[maybe_unused]] using SyncMessage = IEEE::_1588::PTP::_2019::Clocks::SyncMessage;
     std::cout << "✅ Message Type Aliases: PASS (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     // Test 5: PTPResult Usage

@@ -296,7 +296,7 @@ int main() {
         callbacks.send_follow_up = [](const FollowUpMessage&) { return Types::PTPError::Success; };
         callbacks.send_delay_req = [](const DelayReqMessage&) { return Types::PTPError::Success; };
         callbacks.send_delay_resp = [](const DelayRespMessage&) { return Types::PTPError::Success; };
-        callbacks.get_timestamp = []() { return Types::Timestamp{0, 0}; };
+        callbacks.get_timestamp = []() { return Types::Timestamp{0, 0, 0}; };
         callbacks.get_tx_timestamp = [](std::uint16_t, Types::Timestamp*) { return Types::PTPError::Success; };
         callbacks.adjust_clock = [](std::int64_t) { return Types::PTPError::Success; };
         callbacks.adjust_frequency = [](double) { return Types::PTPError::Success; };
