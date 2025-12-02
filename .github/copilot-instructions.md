@@ -240,6 +240,12 @@ A well-executed task should:
 - Standards checklists: `standards-compliance/checklists/`
 - Lifecycle guide: `docs/lifecycle-guide.md`
 - XP practices guide: `docs/xp-practices.md`
+- **GitHub Issue Workflow**: `docs/github-issue-workflow.md` - Status management and automation
+- **DDD Resources**:
+  - Ubiquitous Language: `02-requirements/ubiquitous-language.md` - Domain terminology glossary
+  - Context Map: `03-architecture/context-map.md` - Bounded Context relationships
+  - Tactical Patterns: `04-design/patterns/ddd-tactical-patterns.md` - Entity, Value Object, Aggregate, Repository, etc.
+  - Design by Contract: `04-design/patterns/design-by-contract.md` - Preconditions, postconditions, invariants
 
 ---
 
