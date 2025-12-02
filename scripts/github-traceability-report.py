@@ -32,7 +32,7 @@ if GITHUB_REPOSITORY and '/' in GITHUB_REPOSITORY:
     REPO_OWNER, REPO_NAME = GITHUB_REPOSITORY.split('/', 1)
 else:
     REPO_OWNER = os.environ.get('REPO_OWNER', 'zarfld')
-    REPO_NAME = os.environ.get('REPO_NAME', 'copilot-instructions-template')
+    REPO_NAME = os.environ.get('REPO_NAME', 'IEEE_1588_2019')
 
 API_BASE = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}'
 

@@ -204,7 +204,7 @@ python scripts/spec-cli.py report --format markdown
 ```
 # Specification Compliance Report
 
-**Generated**: D:\Repos\copilot-instructions-template
+**Generated**: D:\Repos\IEEE_1588_2019
 
 ## Validation Summary
 

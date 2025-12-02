@@ -927,7 +927,7 @@ Small Releases + Customer Involvement:
 
 ```bash
 # Clone template
-git clone https://github.com/yourorg/copilot-instructions-template.git my-project
+git clone https://github.com/yourorg/IEEE_1588_2019.git my-project
 cd my-project
 
 # Start with requirements (Phase 02)
