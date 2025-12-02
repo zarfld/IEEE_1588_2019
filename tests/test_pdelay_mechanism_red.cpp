@@ -266,6 +266,7 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1000); // Invalid: t2 < t1
         Timestamp t3 = make_timestamp(0, 3000);
         Timestamp t4 = make_timestamp(0, 2500); // Invalid: t4 < t3
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         std::printf("  TEST 6: FAIL - negative delay validation not implemented\n");
         std::printf("        Expected: Reject with error (negative delay impossible)\n");
