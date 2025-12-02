@@ -39,6 +39,7 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#include <cstring>  // for strerror()
 
 #ifdef _WIN32
     #include <windows.h>
