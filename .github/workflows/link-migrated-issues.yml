@@ -1,0 +1,75 @@
+name: Link Migrated Issues (One-Time Conversion)
+
+# This workflow converts text-based requirement references to GitHub issue numbers
+# Example: "REQ-F-001" → "#215", "StR-022" → "#193"
+#
+# This is a ONE-TIME operation to fix the missing linkage after requirements migration.
+# Once completed, this workflow can be disabled.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show changes without updating)'
+        required: false
+        default: 'false'
+        type: boolean
+      batch_size:
+        description: 'Number of issues to process in parallel'
+        required: false
+        default: '10'
+        type: string
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  link-issues:
+    name: Convert Text References to Issue Links
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write  # Required to update issue bodies
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install PyGithub
+      
+      - name: Run link migration script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "🔗 Starting link migration..."
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Dry run: $DRY_RUN"
+          
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "⚠️  DRY RUN MODE - No issues will be updated"
+            python scripts/link-migrated-issues.py issue-mapping-2025-12-02.json --dry-run
+          else
+            echo "▶️  LIVE MODE - Issues will be updated"
+            python scripts/link-migrated-issues.py issue-mapping-2025-12-02.json
+          fi
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Link Migration Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** $([ "${{ job.status }}" = "success" ] && echo "✅ Complete" || echo "❌ Failed")" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** $([ "${{ inputs.dry_run }}" = "true" ] && echo "Dry Run" || echo "Live Update")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check logs above for detailed replacement statistics." >> $GITHUB_STEP_SUMMARY
