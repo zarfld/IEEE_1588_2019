@@ -7,34 +7,53 @@
 # IEEE 1588-2019 – Precision Time Protocol (PTPv2) Core Library
 
 [![Standard](https://img.shields.io/badge/IEEE-1588--2019-blue)](https://standards.ieee.org/standard/1588-2019.html)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow)](#roadmap)
+[![Version](https://img.shields.io/badge/Version-0.1.0--alpha-orange)](./RELEASE_NOTES.md)
+[![Status](https://img.shields.io/badge/Status-Preview%20Release-yellow)](#roadmap)
 [![License](https://img.shields.io/badge/License-See%20Repository-lightgrey)](#license)
 [![Build](https://img.shields.io/badge/Build-CMake-informational)](#getting-started)
-[![Tests](https://img.shields.io/badge/Quality-Traceability%20Enforced-success)](./VERIFICATION_EVIDENCE.md)
+[![Tests](https://img.shields.io/badge/Tests-88%20passing-success)](#testing--traceability)
+[![Coverage](https://img.shields.io/badge/Coverage-90.2%25-brightgreen)](./VERIFICATION_EVIDENCE.md)
+
+> **⚠️ PREVIEW RELEASE v0.1.0** - This is an **alpha/preview release** for early feedback and community validation. **NOT PRODUCTION READY**. API stability not guaranteed. See [Release Notes](./RELEASE_NOTES.md) for details.
 
 Hardware & OS agnostic implementation of core **IEEE 1588-2019 Precision Time Protocol (PTPv2)** logic: message formats, BMCA, dataset management, delay mechanisms, and deterministic clock servo primitives. This repository focuses on the pure protocol layer – no vendor drivers, no OS calls – enabling reuse across embedded, desktop, and data‑center environments.
 
 > Implementation is based on understanding of IEEE 1588-2019. For authoritative requirements consult the official standard. Section numbers are referenced without reproducing copyrighted text.
 
+## 🎉 Release v0.1.0 (December 2, 2025)
+
+**First public preview release!** This alpha release includes:
+- ✅ Core IEEE 1588-2019 protocol implementation (BMCA, datasets, messages)
+- ✅ Hardware Abstraction Layer (HAL) for platform independence
+- ✅ 88 test cases passing (100% pass rate, 90.2% coverage)
+- ✅ Standards-compliant architecture and documentation
+- ⚠️ API may change - feedback welcome!
+- ⚠️ Not production-ready - see [limitations](./RELEASE_NOTES.md#known-issues)
+
+**👉 Read the full [Release Notes](./RELEASE_NOTES.md) for details and [CHANGELOG](./CHANGELOG.md) for version history.**
+
+**Roadmap to v1.0.0**: Target May 2026 (production-ready with certification support)
+
 ---
 
 ## Table of Contents
 
-1. [Purpose & Scope](#purpose--scope)
-2. [Design Principles](#design-principles)
-3. [Architecture Overview](#architecture-overview)
-4. [Feature Summary](#feature-summary)
-5. [Repository Layout](#repository-layout)
-6. [Getting Started](#getting-started)
-7. [Building](#building)
-8. [Usage Examples](#usage-examples)
-9. [Testing & Traceability](#testing--traceability)
-10. [Roadmap](#roadmap)
-11. [Contributing](#contributing)
-12. [Compliance & References](#compliance--references)
-13. [FAQ](#faq)
-14. [License](#license)
-15. [Last Updated](#last-updated)
+1. [Release Information](#-release-v010-december-2-2025)
+2. [Purpose & Scope](#purpose--scope)
+3. [Design Principles](#design-principles)
+4. [Architecture Overview](#architecture-overview)
+5. [Feature Summary](#feature-summary)
+6. [Repository Layout](#repository-layout)
+7. [Getting Started](#getting-started)
+8. [Building](#building)
+9. [Usage Examples](#usage-examples)
+10. [Testing & Traceability](#testing--traceability)
+11. [Roadmap](#roadmap)
+12. [Contributing](#contributing)
+13. [Compliance & References](#compliance--references)
+14. [FAQ](#faq)
+15. [License](#license)
+16. [Last Updated](#last-updated)
 
 ---
 

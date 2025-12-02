@@ -5,8 +5,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(IEEE1588_2019_PTP
-    VERSION 1.0.0
-    DESCRIPTION "IEEE 1588-2019 Precision Time Protocol v2.1 Implementation"
+    VERSION 0.1.0
+    DESCRIPTION "IEEE 1588-2019 Precision Time Protocol Implementation (Alpha Preview)"
     LANGUAGES CXX
 )
 
