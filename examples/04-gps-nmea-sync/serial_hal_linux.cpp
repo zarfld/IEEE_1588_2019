@@ -1,15 +1,15 @@
 /**
  * @file serial_hal_linux.cpp
- * @brief Linux Serial Port HAL Implementation using termios
+ * @brief Linux/macOS Serial Port HAL Implementation using termios
  * 
- * Implements serial port communication for Linux/Unix platforms using POSIX termios.
- * Supports GPS NMEA-0183 communication over /dev/ttyUSB*, /dev/ttyS*, etc.
+ * Implements serial port communication for Linux/Unix/macOS platforms using POSIX termios.
+ * Supports GPS NMEA-0183 communication over /dev/ttyUSB*, /dev/ttyS* (Linux), /dev/tty.* (macOS), etc.
  * 
- * @note Linux-specific implementation - uses POSIX termios API
+ * @note POSIX-compliant implementation - uses termios API on Linux, macOS, and Unix
  * @see serial_hal_interface.hpp for interface documentation
  */
 
-#if defined(__linux__) || defined(__unix__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 
 #include "serial_hal_interface.hpp"
 #include <unistd.h>
@@ -310,4 +310,4 @@ SerialInterface* create_serial_interface() {
 } // namespace Serial
 } // namespace HAL
 
-#endif // __linux__ || __unix__
+#endif // __linux__ || __unix__ || __APPLE__
