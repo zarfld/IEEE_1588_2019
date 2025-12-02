@@ -277,6 +277,7 @@ int main() {
         // Try to add 17th foreign master with best priority
         AnnounceMessage announce17 = make_announce(0x50, 50, cfg.domain_number);
         auto result17 = port.process_announce(announce17);
+        (void)result17;  // Result checked in RED phase, intentionally unused here
         
         std::printf("  TEST 5: Added 16+ foreign masters\n");
         std::printf("        (RED Phase: Cannot verify list full handling)\n");

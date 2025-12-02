@@ -164,9 +164,8 @@ struct PPSDetector::Impl {
         return true;
 #else
         // Linux: Wait for modem status change
-        int modem_bits = TIOCM_CAR |  // DCD (Pin 1)
-                         TIOCM_CTS |  // CTS (Pin 8)
-                         TIOCM_DSR;   // DSR (Pin 6)
+        // Note: modem_bits defined for reference but not used in current implementation
+        // int modem_bits = TIOCM_CAR | TIOCM_CTS | TIOCM_DSR;
         
         // Set up timeout using select()
         fd_set readfds;
@@ -176,6 +175,7 @@ struct PPSDetector::Impl {
         struct timeval tv;
         tv.tv_sec = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
+        (void)tv;  // May be used by select() in future implementation
         
         // Note: ioctl(TIOCMIWAIT) doesn't support timeout directly,
         // so we use a polling approach with short sleeps
