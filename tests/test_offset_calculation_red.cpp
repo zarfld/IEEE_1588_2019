@@ -99,7 +99,7 @@ int main() {
         const int64_t expected_offset_ns = 100;
         
         std::printf("  TEST 1: FAIL - offset calculation not implemented\n");
-        std::printf("        Expected offset: %lld ns\n", expected_offset_ns);
+        std::printf("        Expected offset: %ld ns\n", (long)expected_offset_ns);
         std::printf("        (RED Phase: Implementation needed)\n\n");
         failures++;
     }

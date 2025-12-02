@@ -39,11 +39,11 @@ static Timestamp make_timestamp(uint64_t seconds, uint32_t nanoseconds) {
     return ts;
 }
 
-static double time_interval_to_ns(const TimeInterval& ti) {
+[[maybe_unused]] static double time_interval_to_ns(const TimeInterval& ti) {
     return ti.toNanoseconds();
 }
 
-static bool delays_equal(double actual, double expected, double tolerance_ns = 1.0) {
+[[maybe_unused]] static bool delays_equal(double actual, double expected, double tolerance_ns = 1.0) {
     double diff = actual - expected;
     if (diff < 0) diff = -diff;
     return diff <= tolerance_ns;
