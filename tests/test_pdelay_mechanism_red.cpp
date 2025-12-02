@@ -163,14 +163,16 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1050);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 2050);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         // CorrectionField: +20ns = 20 * 2^16 scaled units = 1310720
         int64_t correction_scaled = 1310720;
+        (void)correction_scaled;  // Will be used when implementation is added
         
         const int64_t expected_delay_ns = 60; // 50ns base + 20ns correction / 2
         
         std::printf("  TEST 3: FAIL - correctionField not applied\n");
-        std::printf("        Expected peer delay with correction: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay with correction: %ld ns\n", (long)expected_delay_ns);
         std::printf("        Base: 50ns, Correction: +20ns\n\n");
         failures++;
     }
@@ -196,11 +198,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1050);
         Timestamp t3 = make_timestamp(0, 2000);
         Timestamp t4 = make_timestamp(0, 2050);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_delay_ns = 50;
         
         std::printf("  TEST 4: FAIL - two-step peer delay not handled\n");
-        std::printf("        Expected peer delay: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay: %ld ns\n", (long)expected_delay_ns);
         std::printf("        (Must wait for Follow_Up for precise t3)\n\n");
         failures++;
     }
@@ -232,11 +235,12 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1050);
         Timestamp t3 = make_timestamp(0, 1150); // After 100ns turnaround
         Timestamp t4 = make_timestamp(0, 1200);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_delay_ns = 50;
         
         std::printf("  TEST 5: FAIL - responder turnaround not accounted\n");
-        std::printf("        Expected peer delay: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay: %ld ns\n", (long)expected_delay_ns);
         std::printf("        (Formula cancels out processing time)\n\n");
         failures++;
     }
@@ -294,11 +298,12 @@ int main() {
         Timestamp t2 = make_timestamp(10, 50);
         Timestamp t3 = make_timestamp(11, 0);
         Timestamp t4 = make_timestamp(11, 50);
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         const int64_t expected_delay_ns = 50;
         
         std::printf("  TEST 7: FAIL - large timestamp arithmetic not implemented\n");
-        std::printf("        Expected peer delay: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay: %ld ns\n", (long)expected_delay_ns);
         std::printf("        (Must handle seconds component correctly)\n\n");
         failures++;
     }
