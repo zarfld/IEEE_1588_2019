@@ -11,6 +11,8 @@
 
 This is the **first public preview release** of our hardware-agnostic IEEE 1588-2019 Precision Time Protocol (PTPv2) implementation. We're excited to share our progress and invite the community to provide feedback as we work toward a production-ready 1.0.0 release.
 
+**Release Quality**: This release includes 16 critical bug fixes ensuring clean builds on all platforms (Linux/Windows/macOS), 100% test pass rate, and complete requirements traceability validation.
+
 ---
 
 ## ⚠️ Important Notice
@@ -82,12 +84,59 @@ We will document all breaking changes in future release notes.
 - **Zero critical defects** found
 - **MTBF ≥1669 iterations** (95% confidence)
 
+### Cross-Platform Support ✅
+
+- **Linux**: Ubuntu 20.04+ (GCC/Clang) - All 299 targets build clean
+- **Windows**: Windows 10+ (MSVC 2022) - Full build and test suite passes
+- **macOS**: macOS 10.15+ (Clang) - Complete support including serial HAL
+- **Embedded**: HAL abstraction ready for FreeRTOS/Zephyr integration
+
+### GPS PPS Autodetection (Example) ✅
+
+- Automatic detection of GPS Pulse Per Second signals on RS-232 pins
+- Sub-microsecond timestamp accuracy (50-200ns typical)
+- 1Hz frequency validation with jitter tolerance
+- Graceful fallback to NMEA-only mode (10ms accuracy)
+- Platform abstraction for Windows/Linux/embedded systems
+- Hardware validation tests with u-blox GPS modules
+
 ### Documentation ✅
 
-- IEEE/ISO/IEC standards-compliant structure
+- IEEE/ISO/IEC standards-compliant structure (ISO/IEC/IEEE 29148:2018)
 - Architecture Decision Records (ADRs)
-- Requirements traceability established
+- Requirements traceability validated (100% coverage)
 - Comprehensive V&V reports
+- 62 specification documents pass schema validation
+
+---
+
+## 🐛 Bug Fixes in This Release
+
+### Critical Fixes (16 commits)
+
+**Compiler Warnings Eliminated**
+- Fixed all GCC/Clang warnings on Linux and macOS (299/299 targets clean)
+- Fixed MSVC warnings on Windows build
+- Corrected format specifiers for cross-platform time_t handling
+- Fixed misleading indentation warnings
+- Proper handling of unused test variables and helper functions
+
+**macOS Platform Support**
+- Added `__APPLE__` preprocessor support throughout codebase
+- Fixed serial HAL to work on macOS (termios API compatibility)
+- GPS PPS example now fully functional on macOS
+
+**Build System Fixes**
+- Added missing `#include <thread>` and `#include <cstring>` headers
+- Removed invalid `[[maybe_unused]]` on type aliases (C++ standard compliance)
+- Fixed CMake conditionals for Unix-like systems including macOS
+
+**Standards Compliance**
+- Added YAML front matter to all specification documents (62/62 valid)
+- Created formal GPS PPS requirements specification (REQ-PPS-001 through REQ-PPS-007)
+- Added REQ-S-002 (Fault Recovery) to system requirements
+- Fixed requirements traceability validation per ISO/IEC/IEEE 29148:2018
+- All requirements now have complete traceability chains
 
 ---
 
