@@ -179,6 +179,7 @@ int main() {
         request_tlv.messageType = 0x0B;  // Announce message type
         request_tlv.logInterMessagePeriod = 1;  // 2 seconds
         request_tlv.durationField = detail::host_to_be32(300);  // 300 seconds
+        (void)request_tlv;  // Will be used when implementation is added
         
         static_assert(sizeof(RequestUnicastTransmissionTLV) >= 7,
                      "RequestUnicastTransmissionTLV must be at least 7 bytes");
@@ -188,6 +189,7 @@ int main() {
         grant_tlv.messageType = 0x0B;
         grant_tlv.logInterMessagePeriod = 1;
         grant_tlv.durationField = detail::host_to_be32(300);
+        (void)grant_tlv;  // Will be used when implementation is added
         grant_tlv.renewal = 1;  // Renewal allowed
         
         static_assert(sizeof(GrantUnicastTransmissionTLV) >= 9,
@@ -294,7 +296,7 @@ int main() {
         callbacks.send_follow_up = [](const FollowUpMessage&) { return Types::PTPError::Success; };
         callbacks.send_delay_req = [](const DelayReqMessage&) { return Types::PTPError::Success; };
         callbacks.send_delay_resp = [](const DelayRespMessage&) { return Types::PTPError::Success; };
-        callbacks.get_timestamp = []() { return Types::Timestamp{0}; };
+        callbacks.get_timestamp = []() { return Types::Timestamp{0, 0}; };
         callbacks.get_tx_timestamp = [](std::uint16_t, Types::Timestamp*) { return Types::PTPError::Success; };
         callbacks.adjust_clock = [](std::int64_t) { return Types::PTPError::Success; };
         callbacks.adjust_frequency = [](double) { return Types::PTPError::Success; };
@@ -315,6 +317,7 @@ int main() {
         // This should compile (function exists)
         // OrdinaryClock::get_port() takes no arguments (returns single port)
         auto result = clock.get_port().process_signaling(signaling_msg, response_buffer, response_size);
+        (void)result;  // Will be used when implementation is added
         
         std::cout << "✓ process_signaling() function signature exists" << std::endl;
         std::cout << "✓ OrdinaryClock can be created with proper configuration" << std::endl;

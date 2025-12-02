@@ -43,14 +43,14 @@ static Timestamp make_timestamp(uint64_t seconds, uint32_t nanoseconds) {
 }
 
 // Test helper: Convert TimeInterval (scaled nanoseconds) to nanoseconds
-static int64_t time_interval_to_ns(const TimeInterval& ti) {
+[[maybe_unused]] static int64_t time_interval_to_ns(const TimeInterval& ti) {
     // TimeInterval is in units of 2^-16 nanoseconds (scaled nanoseconds)
     // To convert to nanoseconds: value / 2^16
     return static_cast<int64_t>(ti.scaled_nanoseconds) >> 16;
 }
 
 // Test helper: Check if two offset values are within tolerance
-static bool offsets_equal(int64_t actual, int64_t expected, int64_t tolerance_ns = 1) {
+[[maybe_unused]] static bool offsets_equal(int64_t actual, int64_t expected, int64_t tolerance_ns = 1) {
     int64_t diff = actual > expected ? (actual - expected) : (expected - actual);
     return diff <= tolerance_ns;
 }
@@ -95,6 +95,7 @@ int main() {
         (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         TimeInterval correction{0}; // No correction field
+        (void)correction;  // Will be used when implementation is added
         
         // Expected result: 100 ns offset
         const int64_t expected_offset_ns = 100;

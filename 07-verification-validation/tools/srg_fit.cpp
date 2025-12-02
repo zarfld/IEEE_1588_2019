@@ -143,7 +143,7 @@ static ModelResult fit_musa_okumoto(const std::vector<Record>& recs){
     const size_t M = recs.size(); if(M<2) return r;
     const double T = recs.back().failureTime; if(T<=0) return r;
     // optimize beta ( = lambda0*theta ), alpha = M / ln(1+beta T)
-    double Slog = 0; // used per-beta
+    [[maybe_unused]] double Slog = 0; // used per-beta
     double best_beta=NAN, best_ll=-INFINITY;
     for(double l=-12; l<=4; l+=0.25){ // beta in [1e-12, 1e4]
         double beta = std::pow(10.0,l);
@@ -163,7 +163,9 @@ static ModelResult fit_musa_okumoto(const std::vector<Record>& recs){
         double cand[5] = { b*(1-2*scale), b*(1-scale), b, b*(1+scale), b*(1+2*scale) };
         for(double cb : cand){ if(!(cb>0)) continue; double ln1p=std::log1p(cb*T); if(!(ln1p>0)) continue; double alpha=M/ln1p; double ll=M*std::log(alpha)+M*std::log(cb); double sumln=0; for(const auto &x:recs){ sumln += std::log1p(cb*x.failureTime);} ll-=sumln; ll-=alpha*ln1p; if(ll>best_ll){best_ll=ll; best_beta=cb;} }
     }
-    if(!(best_beta>0)) return r; double beta = best_beta; double alpha = M / std::log1p(beta*T);
+    if(!(best_beta>0)) return r;
+    double beta = best_beta;
+    double alpha = M / std::log1p(beta*T);
     // predictions
     std::vector<double> mu; mu.reserve(M);
     for(size_t i=0;i<M;i++){ double t=recs[i].failureTime; mu.push_back(alpha*std::log1p(beta*t)); }
@@ -192,7 +194,9 @@ static ModelResult fit_crow_amsaa(const std::vector<Record>& recs){
         double cand[5] = { b-2*delta, b-delta, b, b+delta, b+2*delta };
         for(double cb : cand){ if(cb<=0) continue; double ll = M*std::log(M) - M*cb*std::log(T) + M*std::log(cb) + (cb-1.0)*Sln - M; if(ll>best_ll){best_ll=ll; best_beta=cb;} }
     }
-    if(!(best_beta>0)) return r; double beta = best_beta; double lambda = M/std::pow(T,beta);
+    if(!(best_beta>0)) return r;
+    double beta = best_beta;
+    double lambda = M/std::pow(T,beta);
     std::vector<double> mu; mu.reserve(M);
     for(size_t i=0;i<M;i++){ double t=recs[i].failureTime; t = std::max(t, 1e-12); mu.push_back(lambda*std::pow(t,beta)); }
     double lambdaT = lambda * beta * std::pow(T, beta-1.0);

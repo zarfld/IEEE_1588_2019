@@ -54,10 +54,10 @@ int main() {
     };
     auto stub_get_timestamp = []() -> Types::Timestamp {
         // zero timestamp is fine for compile/runtime smoke
-        return Types::Timestamp{0};
+        return Types::Timestamp{0, 0};
     };
     auto stub_get_tx_timestamp = [](std::uint16_t, Types::Timestamp* ts) -> Types::PTPError {
-        if (ts) { *ts = Types::Timestamp{0}; }
+        if (ts) { *ts = Types::Timestamp{0, 0}; }
         return Types::PTPError::Success;
     };
     auto stub_adjust_clock = [](std::int64_t) -> Types::PTPError { return Types::PTPError::Success; };
