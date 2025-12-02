@@ -46,8 +46,8 @@ if(WIN32)
     # No additional libraries needed (Win32 API is system)
 endif()
 
-# Linux Serial HAL
-if(UNIX AND NOT APPLE)
+# Linux/macOS Serial HAL (both use POSIX termios)
+if(UNIX)
     add_library(serial_hal_linux STATIC
         serial_hal_linux.cpp
     )
@@ -57,7 +57,7 @@ if(UNIX AND NOT APPLE)
             ${CMAKE_CURRENT_SOURCE_DIR}
     )
     
-    # No additional libraries needed (termios is system)
+    # No additional libraries needed (termios is system on both Linux and macOS)
 endif()
 
 # ============================================================================
@@ -83,7 +83,7 @@ target_link_libraries(gps_nmea_sync_example
 # Link platform-specific serial HAL
 if(WIN32)
     target_link_libraries(gps_nmea_sync_example PRIVATE serial_hal_windows)
-elseif(UNIX AND NOT APPLE)
+elseif(UNIX)
     target_link_libraries(gps_nmea_sync_example PRIVATE serial_hal_linux)
 endif()
 
@@ -333,8 +333,12 @@ install(FILES
 message(STATUS "GPS NMEA Synchronization Example configured")
 if(WIN32)
     message(STATUS "  Serial HAL: Windows (Win32 API)")
-elseif(UNIX AND NOT APPLE)
-    message(STATUS "  Serial HAL: Linux (termios)")
+elseif(UNIX)
+    if(APPLE)
+        message(STATUS "  Serial HAL: macOS (termios)")
+    else()
+        message(STATUS "  Serial HAL: Linux (termios)")
+    endif()
 else()
     message(WARNING "  Serial HAL: Not configured for this platform")
 endif()
