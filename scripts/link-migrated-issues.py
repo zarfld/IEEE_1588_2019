@@ -24,6 +24,14 @@ def load_mapping(mapping_file: Path) -> dict:
 def replace_text_refs_with_links(body: str, id_to_issue: dict) -> tuple[str, int]:
     """Replace text requirement IDs with GitHub issue links.
     
+    Handles patterns like:
+    - StR-001 (description)
+    - REQ-F-001, ADR-003
+    - **Traces to**: REQ-F-001
+    - - REQ-F-005 (Hardware...)
+    
+    Preserves descriptions in parentheses and doesn't break file paths.
+    
     Returns:
         tuple: (updated_body, replacement_count)
     """
@@ -37,15 +45,21 @@ def replace_text_refs_with_links(body: str, id_to_issue: dict) -> tuple[str, int
     for req_id in sorted_ids:
         issue_num = id_to_issue[req_id]
         
-        # Create regex pattern that matches the ID but not when already #N
-        # Negative lookbehind for # to avoid replacing already-linked refs
-        pattern = rf'(?<!#)\b{re.escape(req_id)}\b'
+        # Pattern that matches req_id in these contexts:
+        # - At word boundary followed by space, comma, or parenthesis
+        # - But NOT already preceded by # (negative lookbehind)
+        # - And NOT inside file paths (negative lookbehind for /)
+        pattern = rf'(?<!#)(?<!/)\b{re.escape(req_id)}\b(?=[\s,\(\)\n:*\-]|$)'
         
         # Count matches first
         matches = re.findall(pattern, updated_body)
         if matches:
-            # Replace with GitHub issue link
-            updated_body = re.sub(pattern, f'#{issue_num}', updated_body)
+            # Replace with GitHub issue link + preserve the following character
+            # Use a replacement function to preserve context
+            def replacement(match):
+                return f'#{issue_num}'
+            
+            updated_body = re.sub(pattern, replacement, updated_body)
             replacements += len(matches)
             print(f"  Replaced {req_id} → #{issue_num} ({len(matches)} occurrences)")
     
