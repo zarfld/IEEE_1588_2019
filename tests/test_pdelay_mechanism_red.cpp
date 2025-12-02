@@ -86,6 +86,7 @@ int main() {
         Timestamp t2 = make_timestamp(0, 1050);  // Pdelay_Req RX
         Timestamp t3 = make_timestamp(0, 2000);  // Pdelay_Resp TX
         Timestamp t4 = make_timestamp(0, 2050);  // Pdelay_Resp RX
+        (void)t1; (void)t2; (void)t3; (void)t4;  // Will be used when implementation is added
         
         TimeInterval correction{0}; // No correction field
         
@@ -93,7 +94,7 @@ int main() {
         const int64_t expected_delay_ns = 50;
         
         std::printf("  TEST 1: FAIL - peer delay calculation not implemented\n");
-        std::printf("        Expected peer delay: %lld ns\n", expected_delay_ns);
+        std::printf("        Expected peer delay: %ld ns\n", (long)expected_delay_ns);
         std::printf("        (RED Phase: Implementation needed)\n\n");
         failures++;
     }
