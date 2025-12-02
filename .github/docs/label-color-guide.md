@@ -317,16 +317,107 @@ gh label create --repo owner/repo --file labels.json
 
 ---
 
+## 🚨 Label Validation and Enforcement
+
+### Automated Validation Rules
+
+The repository enforces label requirements via **`.github/workflows/label-validation.yml`**:
+
+#### Required Labels (Errors - Must Fix)
+
+| Rule | Requirement | Auto-Fix |
+|------|-------------|----------|
+| **Type Label** | Every issue MUST have at least one `type:*` label | ❌ No (requires human judgment) |
+| **Single Priority** | Issues MUST have exactly one `priority:*` label (max 1) | ✅ Yes (removes duplicates) |
+| **Single Status** | Issues MUST have exactly one `status:*` label (max 1) | ✅ Yes (removes old status) |
+
+#### Recommended Labels (Warnings - Should Fix)
+
+| Rule | Requirement | Auto-Fix |
+|------|-------------|----------|
+| **Priority for Non-Bugs** | All non-bug/question issues should have priority | ✅ Yes (infers from type/title) |
+| **Test Type** | `type:test` issues should have `test-type:*` | ❌ No (requires human judgment) |
+| **Pattern Labels** | `pattern:*` only on design/implementation issues | ❌ No (context-dependent) |
+
+#### Auto-Applied Labels (Info - Automatic)
+
+| Rule | Behavior | When |
+|------|----------|------|
+| **New Issue Status** | Automatically adds `status:backlog` | Issue opened without status |
+| **Closed Issue Status** | Automatically updates to `status:closed` | Issue closed without correct status |
+| **Phase Label** | Suggests phase based on type | Issue missing phase label |
+
+### Audit Existing Issues
+
+Use the **audit script** to find issues with missing or incorrect labels:
+
+```bash
+# Check all open issues for labeling problems
+python scripts/audit-issue-labels.py
+
+# See all problems including info messages
+python scripts/audit-issue-labels.py --verbose
+
+# Preview what would be auto-fixed (dry run)
+python scripts/audit-issue-labels.py --dry-run
+
+# Automatically fix all auto-fixable issues
+python scripts/audit-issue-labels.py --fix-auto
+```
+
+#### Audit Report Format
+
+The script categorizes problems by severity:
+
+- **❌ Errors** - Must be fixed (missing type, duplicate priorities)
+- **⚠️ Warnings** - Should be fixed (missing priority, test type)
+- **ℹ️ Info** - Optional suggestions (missing phase label)
+- **🔧 Auto-fixable** - Can be fixed automatically by script
+
+#### Common Issues Found
+
+| Problem | Severity | Fix |
+|---------|----------|-----|
+| No labels at all | ❌ Error | Manually add `type:*`, `priority:*`, `status:*` |
+| Missing type label | ❌ Error | Add appropriate `type:*` label |
+| Multiple priorities | ❌ Error | Keep only highest priority |
+| Multiple statuses | ❌ Error | Keep only current status |
+| Missing priority | ⚠️ Warning | Auto-fix infers from context |
+| Missing status | ⚠️ Warning | Auto-fix adds `status:backlog` |
+| Missing phase | ℹ️ Info | Auto-fix infers from type |
+| Pattern on wrong type | ⚠️ Warning | Remove pattern or add design/implementation type |
+
+### Validation Workflow Triggers
+
+The label validation workflow runs automatically on:
+
+- ✅ **Issue opened** - Validates initial labels
+- ✅ **Issue edited** - Re-validates after changes
+- ✅ **Issue labeled** - Validates new label additions
+- ✅ **Issue unlabeled** - Ensures required labels still present
+- ✅ **Issue reopened** - Re-validates status
+
+### Best Practices for Label Compliance
+
+1. **Use Issue Templates** - Pre-populate labels in `.github/ISSUE_TEMPLATE/*.yml`
+2. **Review Audit Reports** - Run audit script weekly to catch unlabeled issues
+3. **Fix Errors First** - Address ❌ errors before ⚠️ warnings
+4. **Let Auto-Fix Work** - Use `--fix-auto` for safe automatic corrections
+5. **Manual Judgment** - Some labels (type, test-type) require human decision
+6. **Update Status Regularly** - Move issues through workflow (backlog → ready → in-progress → review → testing → completed → closed)
+
 ## 🔗 Related Documentation
 
 - [GitHub Issue Workflow](../../docs/github-issue-workflow.md) - Status label usage
 - [Issue Templates](../ISSUE_TEMPLATE/) - Default labels per template
 - [Traceability Guide](../../docs/ci-cd-workflows.md) - Label-based traceability
+- [Label Validation Workflow](../workflows/label-validation.yml) - Automated enforcement
+- [Audit Script](../../scripts/audit-issue-labels.py) - Find unlabeled issues
 
 ---
 
 **Standards Alignment**: GitHub best practices, WCAG accessibility guidelines (color contrast)
 
-**Version**: 1.0  
+**Version**: 1.1  
 **Last Updated**: 2025-11-27  
 **Owner**: DevOps Team

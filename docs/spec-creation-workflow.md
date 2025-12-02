@@ -1,5 +1,15 @@
 # Spec Creation and Validation Workflow
 
+> **⚠️ DEPRECATED**: This document describes the **legacy file-based traceability workflow**.
+> 
+> **Current Approach**: Use **GitHub Issues** as the single source of truth for requirements, architecture, and tests.
+> - See: [GitHub Issues Workflow](improvement_ideas/using_github_issues_as_infrastructure_for_REQ_Tracability.md)
+> - See: Phase-specific instructions in `.github/instructions/phase-NN-*.instructions.md`
+> 
+> This document is kept for historical reference only.
+
+---
+
 This document describes the infrastructure and workflow for creating and validating specification files with automatic compliance checking.
 
 ## 🎯 Overview

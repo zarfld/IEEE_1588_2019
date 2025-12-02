@@ -17,32 +17,265 @@ applyTo: "03-architecture/**"
 5. Define component boundaries and interfaces
 6. Establish technical foundation for detailed design
 
-## ⚠️ MANDATORY: YAML Front Matter Schema Compliance
+## 📋 Architecture Documentation Approach
 
-CRITICAL: All architecture specification files MUST use EXACT YAML front matter format defined in authoritative schema:
+### ⭐ PRIMARY: GitHub Issues (Recommended)
 
-Authoritative Schema: `spec-kit-templates/schemas/architecture-spec.schema.json`
+**Architecture artifacts should be captured as GitHub Issues** using ADR (Architecture Decision Record) and ARC-C (Architecture Component) templates.
 
-Required YAML Front Matter Format:
-```yaml
----
-specType: architecture
-standard: 42010
-phase: 03-architecture
-version: 1.0.0
-author: [Your Name]
-date: 2025-MM-DD
-status: draft  # draft | review | approved | deprecated
-traceability:
----
+#### Creating Architecture Decisions as GitHub Issues
+
+1. **Navigate to Issues → New Issue**
+2. **Select Template**: "Architecture Decision (ADR)"
+3. **Complete Required Fields**:
+   - **Title**: Decision statement (e.g., "Use PostgreSQL for persistent data storage")
+   - **Requirements Addressed**: Link to parent REQ issues using `#N` syntax
+   - **Context**: What forces are influencing this decision
+   - **Decision**: What architecture decision was made
+   - **Alternatives Considered**: Other options evaluated
+   - **Consequences**: Positive and negative impacts
+   - **Status**: Proposed / Accepted / Deprecated / Superseded
+   
+4. **Apply Labels**:
+   - `architecture-decision`
+   - `phase-03`
+   - Category labels (e.g., `security`, `performance`, `scalability`)
+   
+5. **Submit** → GitHub assigns issue number (e.g., #78)
+
+#### Creating Architecture Components as GitHub Issues
+
+1. **Navigate to Issues → New Issue**
+2. **Select Template**: "Architecture Component (ARC-C)"
+3. **Complete Required Fields**:
+   - **Title**: Component name (e.g., "User Authentication Service")
+   - **Architecture Decisions**: Link to related ADR issues
+   - **Component Purpose**: Responsibility and scope
+   - **Interfaces**: APIs, events, data contracts
+   - **Dependencies**: Other components/services
+   - **Technology Stack**: Languages, frameworks, tools
+   
+4. **Apply Labels**:
+   - `architecture-component`
+   - `phase-03`
+   
+5. **Submit** → GitHub assigns issue number (e.g., #79)
+
+#### Example: Creating ADR Issue
+
+**Title**: ADR-SECU-001: Use JWT for Stateless Authentication
+
+**Requirements Addressed**:
+```markdown
+**Traces to**:
+- #45 (REQ-F-AUTH-001: User Login)
+- #46 (REQ-NF-SECU-002: Session Security)
+- #2 (StR: Secure, scalable authentication)
 ```
 
-ENFORCEMENT:
-- Do NOT use full standard names like "ISO/IEC/IEEE 42010:2011" - use "42010" only
-- Do NOT modify schema patterns - match them exactly
-- MUST include ADR references and architectural viewpoints per ISO/IEC/IEEE 42010:2011
-- Reference authoritative schema file for any questions
-- Validation will FAIL if format deviates from schema
+**Context**:
+```markdown
+We need an authentication mechanism that:
+- Supports horizontal scaling (stateless)
+- Works across microservices
+- Minimizes database lookups
+- Provides secure token-based auth
+- Supports mobile and web clients
+
+Current constraints:
+- Microservices architecture (6 services)
+- Multi-region deployment planned
+- Mobile app requires offline capability
+```
+
+**Decision**:
+```markdown
+We will use **JWT (JSON Web Tokens)** for authentication with the following approach:
+
+1. **Token Generation**: Auth service issues JWT upon successful login
+2. **Token Storage**: Client stores token in secure storage (httpOnly cookie for web, secure storage for mobile)
+3. **Token Validation**: Each service validates JWT signature using shared secret/public key
+4. **Token Expiry**: Short-lived access tokens (15 min) + refresh tokens (7 days)
+5. **Claims**: JWT contains user ID, roles, permissions
+
+**Implementation**:
+- Library: `jsonwebtoken` (Node.js) / `PyJWT` (Python)
+- Algorithm: RS256 (asymmetric keys)
+- Key rotation: Every 90 days
+```
+
+**Alternatives Considered**:
+```markdown
+### Alternative 1: Session-based authentication with Redis
+**Pros**: Familiar pattern, immediate revocation
+**Cons**: Requires Redis cluster, not truly stateless, adds latency
+**Rejected because**: Adds infrastructure complexity and doesn't scale as well
+
+### Alternative 2: OAuth2 with external provider
+**Pros**: Battle-tested, offloads auth complexity
+**Cons**: Vendor lock-in, requires internet connectivity, costs
+**Rejected because**: Need for offline mobile capability and full control
+
+### Alternative 3: API keys
+**Pros**: Simple implementation
+**Cons**: No expiration, hard to rotate, less secure
+**Rejected because**: Security requirements mandate expiration and rotation
+```
+
+**Consequences**:
+```markdown
+### Positive
+- ✅ Stateless authentication enables horizontal scaling
+- ✅ No database lookup required for each request
+- ✅ Works seamlessly across microservices
+- ✅ Supports offline mobile scenarios (cached token)
+- ✅ Industry standard with good library support
+
+### Negative
+- ❌ Cannot immediately revoke tokens (must wait for expiry)
+- ❌ Token size larger than session ID (typically 200-500 bytes)
+- ❌ Requires careful secret/key management
+- ❌ Clock synchronization required across services (for expiry)
+
+### Mitigations
+- Use short-lived access tokens + refresh tokens for quasi-revocation
+- Implement token blacklist for critical revocations (in Redis)
+- Use NTP for clock synchronization
+- Implement automated key rotation
+```
+
+**Status**: Accepted  
+**Date**: 2025-11-12  
+**Labels**: `architecture-decision`, `phase-03`, `security`, `priority-high`
+
+After submission → Issue #78 created
+
+#### Example: Creating ARC-C Issue
+
+**Title**: ARC-C-AUTH: User Authentication Service
+
+**Architecture Decisions**:
+```markdown
+**Based on**:
+- #78 (ADR-SECU-001: JWT Authentication)
+- #80 (ADR-DATA-001: PostgreSQL for User Data)
+```
+
+**Component Purpose**:
+```markdown
+**Responsibility**: Manage user authentication, authorization, and session lifecycle
+
+**Scope**:
+- User registration and profile management
+- Login/logout flows
+- JWT token generation and refresh
+- Password reset and recovery
+- Multi-factor authentication (MFA)
+- User role and permission management
+
+**Out of Scope**:
+- OAuth2 social login (future phase)
+- Enterprise SSO/SAML (future phase)
+```
+
+**Interfaces**:
+```markdown
+### REST API
+**POST** `/api/v1/auth/register`
+- Input: `{ email, password, name }`
+- Output: `{ userId, accessToken, refreshToken }`
+
+**POST** `/api/v1/auth/login`
+- Input: `{ email, password }`
+- Output: `{ accessToken, refreshToken, expiresIn }`
+
+**POST** `/api/v1/auth/refresh`
+- Input: `{ refreshToken }`
+- Output: `{ accessToken, expiresIn }`
+
+**POST** `/api/v1/auth/logout`
+- Input: `{ refreshToken }`
+- Output: `{ success: true }`
+
+### Events Published
+- `user.registered` - New user created
+- `user.logged_in` - Successful login
+- `user.logged_out` - User logged out
+
+### Events Consumed
+- `user.deleted` - Invalidate user sessions
+```
+
+**Dependencies**:
+```markdown
+**Internal**:
+- User Service (for profile data)
+- Notification Service (for password reset emails)
+
+**External**:
+- PostgreSQL database (user credentials)
+- Redis cache (token blacklist)
+- SendGrid API (email delivery)
+```
+
+**Technology Stack**:
+```markdown
+- **Language**: Node.js 18 (TypeScript)
+- **Framework**: Express.js 4.18
+- **Authentication**: `jsonwebtoken`, `bcrypt`
+- **Database**: `pg` (PostgreSQL client)
+- **Cache**: `ioredis`
+- **Validation**: `joi`
+- **Testing**: Jest, Supertest
+```
+
+**Labels**: `architecture-component`, `phase-03`
+
+After submission → Issue #79 created
+
+#### Traceability via GitHub Issues
+
+Architecture artifacts trace to requirements:
+```markdown
+## Traceability
+- **Traces to**: #45, #46, #2 (requirements)
+- **Depends on**: #80 (other ADRs)
+- **Implemented by**: #PR-30 (pull request)
+- **Components**: #79, #81 (architecture components using this decision)
+```
+
+#### Querying Architecture Artifacts
+
+```bash
+# All architecture decisions
+is:issue label:architecture-decision label:phase-03
+
+# Security-related decisions
+is:issue label:architecture-decision label:security
+
+# Architecture components
+is:issue label:architecture-component
+```
+
+### 📝 Supplementary Documentation (Optional)
+
+While **GitHub Issues (ADR, ARC-C, QA-SC) are the single source of truth** for architecture decisions and components, you may create supplementary files in `03-architecture/` for:
+- Detailed C4 diagrams (Context, Container, Component, Code)
+- Architecture viewpoint documentation
+- Reference architecture patterns
+- Cross-cutting concerns analysis
+
+**Critical Rule**: All supplementary files MUST reference the canonical GitHub Issue(s) using `#N` syntax.
+
+**Example**: A C4 diagram file should reference:
+```markdown
+# Authentication Service - Component Diagram
+
+**Architecture Component**: #79 (ARC-C-AUTH)
+**Architecture Decision**: #78 (ADR-SECU-001: JWT Authentication)
+
+[Diagram content...]
+```
 
 ## 📋 ISO/IEC/IEEE 42010:2011 Compliance
 

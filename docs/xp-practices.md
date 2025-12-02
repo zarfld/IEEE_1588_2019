@@ -16,6 +16,151 @@ Extreme Programming is an agile software development methodology that emphasizes
 
 ---
 
+## The 5 XP Values
+
+XP is grounded in five core values that shape all practices:
+
+### 1. **Courage** ❤️‍🔥
+
+**Definition**: The willingness to:
+- Speak unpleasant truths (to management, customers, team)
+- Deliver bad news early (not hide problems until deadline)
+- Accept responsibility for mistakes (not blame others)
+- Throw away code and start over when lost
+- Challenge assumptions and ask hard questions
+
+**Example**:
+```markdown
+❌ Without Courage:
+"We're 90% done!" (said for 3 weeks, still not finished)
+
+✅ With Courage:
+"We'll miss Friday's deadline by 3 days. Here are 3 options:
+1. Delay release to Monday
+2. Ship with reduced scope (remove feature X)
+3. Request help from Team B
+I recommend Option 2. Your decision needed by today."
+```
+
+**Related Practices**: Honest status reporting, pair programming (courage to show imperfect code)
+
+### 2. **Feedback** 🔁
+
+**Definition**: Seek feedback as quickly as possible:
+- **Seconds**: Unit tests (TDD Red-Green-Refactor)
+- **Minutes**: Pair programming, code review
+- **Hours**: Continuous integration builds
+- **Days**: Customer demo, iteration review
+- **Not weeks or months** (too slow to learn)
+
+**Principle**: "Working software is the primary measure of progress."
+
+**Example**:
+```typescript
+// ❌ SLOW FEEDBACK (days/weeks):
+class OrderProcessor {
+  processOrder(order: Order): void {
+    // 500 lines of code written over 3 days
+    // Test at the end → discover design is wrong → 3 days wasted
+  }
+}
+
+// ✅ FAST FEEDBACK (minutes):
+describe('OrderProcessor', () => {
+  it('calculates tax correctly', () => {
+    // Test FIRST (30 seconds)
+    expect(processor.calculateTax(100)).toBe(8); // Red
+  });
+});
+
+// Implement (60 seconds) → Green → Refactor (30 seconds)
+// Total cycle: 2 minutes → Immediate feedback
+```
+
+**Related Practices**: TDD, Continuous Integration, Short Iterations
+
+### 3. **Communication** 💬
+
+**Definition**: Everyone knows what is happening:
+- Transparent status (good and bad news)
+- Big Visible Charts (15-second glance to understand project status)
+- Face-to-face conversation preferred over documentation
+- Ubiquitous Language (shared vocabulary)
+
+**Example**:
+```markdown
+## Sprint Burndown (Big Visible Chart)
+
+Story Points Remaining
+   ^
+20 |●
+   |  ●
+15 |    ●●
+   |       ●
+10 |         ●
+   |           ●
+ 5 |             ●
+   |               ● ← Actual
+ 0 |_______________●________________
+   Mon Tue Wed Thu Fri    (Planned: ─── )
+
+Status: 🟢 ON TRACK
+```
+
+**Related Practices**: Stand-ups, Pair Programming, Planning Game
+
+### 4. **Respect** 🤝
+
+**Definition**:
+- Every team member contributes value
+- Problems are **team problems**, not individual failures
+- Psychological safety (safe to admit mistakes, ask questions)
+- Collective ownership (anyone can improve any code)
+
+**Example**:
+```markdown
+❌ Blame Culture:
+"Bob's estimate was wrong. He's bad at estimating."
+
+✅ Respect Culture:
+"Our estimate was 2 days but took 5 days.
+Root cause: We assumed OAuth 2.0 knowledge, but spec changed to 2.1.
+Team action: Subscribe to spec changes, pair programming to share OAuth knowledge."
+```
+
+**Related Practices**: Collective Ownership, Pair Programming, Retrospectives
+
+### 5. **Simplicity** ✨
+
+**Definition**:
+- Do the simplest thing that could possibly work
+- YAGNI (You Aren't Gonna Need It) - no speculative features
+- Throw away code if you get lost and start over
+- Focus on what's needed **today**, not what might be needed tomorrow
+
+**Example**:
+```typescript
+// ❌ Complex (anticipating future needs):
+class PaymentProcessor {
+  // Supports 20 payment methods we might need someday
+  // 500 lines, 12 parameters, complex configuration
+  process(method: 'credit' | 'debit' | 'paypal' | 'crypto' | ...20 more): void {}
+}
+
+// ✅ Simple (what we need today):
+class PaymentProcessor {
+  // Supports 2 payment methods we ACTUALLY use
+  // 50 lines, clear interface
+  processCreditCard(card: CreditCard): PaymentResult {}
+  processPayPal(account: PayPalAccount): PaymentResult {}
+  // Add more methods when ACTUALLY needed (not speculatively)
+}
+```
+
+**Related Practices**: Simple Design, Refactoring, YAGNI
+
+---
+
 ## The 12 Core XP Practices
 
 ### 1. Test-Driven Development (TDD) 🧪
@@ -907,6 +1052,12 @@ git push
 - [Extreme Programming: A Gentle Introduction](http://www.extremeprogramming.org/)
 - [TDD by Example (video)](https://www.youtube.com/watch?v=qkblc5WRn-U)
 - [Pair Programming Best Practices](https://martinfowler.com/articles/on-pair-programming.html)
+
+### Related Documentation
+- **[Critical Self-Reflection and Honest Reporting](critical-self-reflection-honest-reporting.md)** - Deep dive into XP values (Courage, Feedback) and practices (Five Whys, listening to instincts, honest status reporting)
+- **[TDD Empirical Proof](tdd-empirical-proof.md)** - Detailed TDD practices with spike solutions
+- **[DDD Implementation Guide](ddd-implementation-guide.md)** - Domain-Driven Design integration
+- **Root Instructions**: `.github/copilot-instructions.md` - Complete framework overview
 
 ---
 

@@ -25,46 +25,54 @@ Perform comprehensive audit of existing repository to:
 
 **Analyze repository structure against template**:
 
-#### **Expected Structure** (Template):
+#### **Expected Structure** (GitHub Issues-First Template):
 ```
 project/
-├── README.md                           # Project overview
-├── docs/
-│   ├── 01-stakeholder-requirements/    # Phase 01
-│   │   ├── stakeholder-requirements-spec.md
-│   │   └── stakeholder-interviews.md
-│   ├── 02-requirements/                # Phase 02
-│   │   ├── requirements-spec.md
-│   │   └── requirements-traceability.md
-│   ├── 03-architecture/                # Phase 03
-│   │   ├── architecture-spec.md
-│   │   ├── c4-diagrams.md
-│   │   └── ADRs/
-│   ├── 04-design/                      # Phase 04
-│   │   ├── detailed-design-spec.md
-│   │   └── api-specifications/
-│   ├── 05-implementation/              # Phase 05 (reference docs)
-│   ├── 06-testing/                     # Phase 06
-│   │   ├── test-strategy.md
-│   │   └── test-results/
-│   ├── 07-deployment/                  # Phase 07
-│   │   └── deployment-guide.md
-│   └── spec-driven-development.md      # Process documentation
+├── README.md                           # Project overview (references GitHub Issues)
+├── docs/                               # Supplementary documentation (MUST reference issues)
+│   ├── 01-stakeholder-requirements/    # Phase 01 (optional supplementary docs)
+│   │   ├── stakeholder-interviews.md   # References StR issues via #N
+│   │   └── business-case.md            # References StR issues via #N
+│   ├── 02-requirements/                # Phase 02 (optional supplementary docs)
+│   │   └── user-stories.md             # References REQ-F issues via #N
+│   ├── 03-architecture/                # Phase 03 (C4 diagrams reference ADR/ARC-C)
+│   │   ├── diagrams/                   # C4 Context, Container, Component
+│   │   └── architecture-views.md       # References #ADR and #ARC-C issues
+│   ├── 04-design/                      # Phase 04 (design docs reference #ARC-C)
+│   │   ├── components/                 # Component designs referencing ARC-C issues
+│   │   └── interfaces/                 # API specs referencing ARC-C issues
+│   ├── 05-implementation/              # Phase 05 (code with issue references)
+│   ├── 06-integration/                 # Phase 06 (integration docs)
+│   ├── 07-verification-validation/     # Phase 07 (test results)
+│   ├── 08-transition/                  # Phase 08 (deployment docs)
+│   └── lifecycle-guide.md              # Process documentation
 ├── .github/
+│   ├── ISSUE_TEMPLATE/                 # Issue templates (StR, REQ-F, REQ-NF, ADR, ARC-C, TEST)
 │   ├── prompts/                        # Copilot prompts
-│   └── workflows/                      # CI/CD
-├── src/                                # Source code
-├── tests/                              # Test code
+│   └── workflows/                      # CI/CD with traceability validation
+├── src/                                # Source code (docstrings reference issues)
+├── tests/                              # Test code (tests reference issues)
 └── package.json                       # Dependencies & scripts
 ```
 
-#### **Structure Audit Checklist**:
-- [ ] `docs/` folder exists with phase subdirectories
-- [ ] `.github/prompts/` folder exists with spec-driven prompts
-- [ ] Source code organized logically
-- [ ] Tests organized and separated from source
-- [ ] README.md exists and provides project overview
+**Key Principle**: GitHub Issues are the single source of truth. Markdown files are OPTIONAL supplementary documentation that MUST reference canonical issues using `#N` syntax.
+
+#### **Structure Audit Checklist** (GitHub Issues-First):
+- [ ] `.github/ISSUE_TEMPLATE/` folder exists with issue templates (StR, REQ-F, REQ-NF, ADR, ARC-C, QA-SC, TEST)
+- [ ] GitHub Issues configured with proper labels:
+  - `type:stakeholder-requirement`, `type:requirement:functional`, `type:requirement:non-functional`
+  - `type:architecture:decision`, `type:architecture:component`, `type:architecture:quality-scenario`
+  - `type:test`, `type:bug`, `type:integration`, `type:deployment`
+  - `phase:01-stakeholder-requirements` through `phase:09-operation-maintenance`
+  - `priority:p0`, `priority:p1`, `priority:p2`, `priority:p3`
+  - `status:approved`, `status:in-progress`, `status:blocked`
+- [ ] `docs/` folder exists (optional supplementary docs MUST reference issues)
+- [ ] `.github/prompts/` folder exists with Issue-Driven prompts
+- [ ] Source code organized logically with issue references in docstrings
+- [ ] Tests organized and separated from source (test files reference issues)
+- [ ] README.md exists and references GitHub Issues workflow
 - [ ] Package management files exist (package.json, requirements.txt, etc.)
+- [ ] `.github/workflows/` contains CI/CD with traceability validation
 
 ### Step 2: Documentation Analysis
 
@@ -113,69 +121,82 @@ project/
 
 #### **Phase 2B: Standard Documentation Requirements**
 
-#### **Phase 01: Stakeholder Requirements**
-- [ ] **Stakeholder requirements exist**: Any business requirements, user needs documentation
-- [ ] **Stakeholder identification**: Users, sponsors, operators identified
-- [ ] **Business case**: ROI, justification documented
-- [ ] **Success criteria**: Measurable outcomes defined
-- [ ] **Traceability**: Business needs to requirements links
+#### **Phase 01: Stakeholder Requirements (GitHub Issues-Based)**
+- [ ] **StR GitHub Issues exist**: Issues with label `type:stakeholder-requirement`, `phase:01-stakeholder-requirements`
+- [ ] **Stakeholder identification**: Source stakeholder documented in each StR issue body
+- [ ] **Business case**: ROI, justification documented (supplementary docs reference StR issues via #N)
+- [ ] **Success criteria**: Measurable outcomes defined in StR issue bodies
+- [ ] **Traceability infrastructure**: Issue templates configured, labels set up
+- [ ] **Acceptance criteria**: Gherkin format in StR issue bodies
 
-**Findings Template**:
+**Findings Template** (GitHub Issues Audit):
 ```markdown
-### Phase 01 Assessment
+### Phase 01 Assessment (GitHub Issues)
 **Status**: [COMPLETE ✅ / PARTIAL 🟡 / MISSING 🔴]
 **Compliance Score**: [X/10]
 
 **Found**:
-- Business requirements in: [file paths]
-- User documentation in: [file paths]
-- Stakeholder info in: [file paths]
+- StR Issues: [count] issues with label `type:stakeholder-requirement`
+- Issue Templates: [YES/NO] `.github/ISSUE_TEMPLATE/stakeholder-requirement.yml`
+- Labels Configured: [YES/NO] `type:stakeholder-requirement`, `phase:01-stakeholder-requirements`
+- Supplementary Docs: [file paths] (audit for #N issue references)
 
 **Missing**:
-- [ ] Formal stakeholder requirements specification
-- [ ] Business case with ROI analysis
-- [ ] Defined success criteria and metrics
+- [ ] StR issue template not configured
+- [ ] No StR issues created (only file-based docs found)
+- [ ] StR issues lack acceptance criteria
+- [ ] No proper labels configured
 
 **Quality Issues**:
-- Requirements lack unique IDs
-- No traceability to business objectives
-- Acceptance criteria missing from user stories
+- StR issues lack unique titles (format: "StR-XXX: [Title]")
+- No source stakeholder documented in issue bodies
+- Acceptance criteria missing from StR issues
+- Supplementary docs don't reference canonical issues
 ```
 
-#### **Phase 02: System Requirements**
-- [ ] **Requirements specification**: Functional and non-functional requirements
-- [ ] **Requirements quality**: INVEST criteria, testability
-- [ ] **Acceptance criteria**: Given-When-Then scenarios
-- [ ] **Traceability**: Links to stakeholder requirements
-- [ ] **Requirements completeness**: All scenarios covered
+#### **Phase 02: System Requirements (GitHub Issues-Based)**
+- [ ] **REQ-F GitHub Issues exist**: Issues with label `type:requirement:functional`, `phase:02-requirements`
+- [ ] **REQ-NF GitHub Issues exist**: Issues with label `type:requirement:non-functional`, `phase:02-requirements`
+- [ ] **Requirements quality**: INVEST criteria documented in issue bodies
+- [ ] **Acceptance criteria**: Given-When-Then scenarios in issue bodies
+- [ ] **Traceability**: All REQ issues link to parent StR issues via "Traces to: #N"
+- [ ] **Requirements completeness**: All scenarios covered, no orphaned requirements
+- [ ] **Issue templates configured**: `.github/ISSUE_TEMPLATE/requirement-functional.yml`, `requirement-non-functional.yml`
 
-#### **Phase 03: Architecture**
-- [ ] **Architecture documentation**: High-level design, technology decisions
-- [ ] **Architecture diagrams**: C4 model, system context, containers
-- [ ] **Decision records**: ADRs for significant decisions
-- [ ] **Technology stack**: Documented with rationale
-- [ ] **Non-functional requirements**: Addressed in architecture
+#### **Phase 03: Architecture (GitHub Issues-Based)**
+- [ ] **ADR GitHub Issues exist**: Issues with label `type:architecture:decision`, `phase:03-architecture`
+- [ ] **ARC-C GitHub Issues exist**: Issues with label `type:architecture:component`, `phase:03-architecture`
+- [ ] **QA-SC GitHub Issues exist**: Issues with label `type:architecture:quality-scenario`, `phase:03-architecture`
+- [ ] **Architecture diagrams**: C4 model diagrams in `docs/03-architecture/diagrams/` reference #ADR and #ARC-C issues
+- [ ] **Decision records**: ADR issues document Context, Decision, Alternatives, Consequences
+- [ ] **Technology stack**: Documented in ADR issues with rationale
+- [ ] **Non-functional requirements**: ADR issues link to REQ-NF issues via "Addresses: #N"
+- [ ] **Traceability**: ADR and ARC-C issues link to satisfied requirements
 
-#### **Phase 04: Detailed Design**
-- [ ] **Design specifications**: Component designs, interfaces
-- [ ] **API documentation**: OpenAPI, GraphQL schemas
-- [ ] **Data models**: Database schemas, data flow
-- [ ] **Algorithm specifications**: Complex logic documented
-- [ ] **Error handling**: Exception scenarios designed
+#### **Phase 04: Detailed Design (Issue-Referenced)**
+- [ ] **Design specifications**: ARC-C issues updated with detailed design in issue bodies/comments
+- [ ] **API documentation**: OpenAPI, GraphQL schemas in `docs/04-design/interfaces/` reference #ARC-C issues
+- [ ] **Data models**: Database schemas in `docs/04-design/data-models/` reference #ARC-C issues
+- [ ] **Algorithm specifications**: Complex logic documented in ARC-C issue bodies
+- [ ] **Error handling**: Exception scenarios designed in ARC-C issues
+- [ ] **Supplementary design docs**: All files in `docs/04-design/` MUST reference canonical #ARC-C issues
 
-#### **Phase 05: Implementation**
+#### **Phase 05: Implementation (Code with Issue Traceability)**
 - [ ] **Source code**: Well-organized, following standards
-- [ ] **Code documentation**: Comments, inline docs
+- [ ] **Code documentation**: Docstrings reference implementing issues ("Implements: #N", "Architecture: #N", "Verifies: #N")
+- [ ] **Pull Requests**: All PRs link to issues via "Fixes #N" or "Implements #N"
 - [ ] **Configuration**: Environment configs, deployment settings
 - [ ] **Dependencies**: Managed, documented, up-to-date
 - [ ] **Build system**: Automated build, package management
+- [ ] **Code traceability audit**: Run grep search for issue references in code
 
-#### **Phase 06: Testing**
-- [ ] **Test strategy**: Unit, integration, e2e testing approach
+#### **Phase 06-07: Integration & Testing (GitHub Issues-Based)**
+- [ ] **TEST GitHub Issues exist**: Issues with label `type:test`, `test-type:unit|integration|e2e|acceptance`
+- [ ] **Test traceability**: All TEST issues link to verified requirements via "Verifies: #N (REQ-F-XXX)"
 - [ ] **Test coverage**: >80% unit test coverage
 - [ ] **Test quality**: AAA pattern, meaningful test names
 - [ ] **Test automation**: CI/CD integration
-- [ ] **Test documentation**: Test plans, results
+- [ ] **Test documentation**: TEST issue bodies document test approach, expected results
 
 #### **Phase 07: Deployment**
 - [ ] **Deployment guide**: Step-by-step deployment process

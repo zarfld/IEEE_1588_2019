@@ -2,9 +2,19 @@
 mode: agent
 ---
 
-# Compile Specification to Code
+# Compile Requirements to Code
 
-Transform specification files into working code following standards and XP practices.
+> **⚠️ UPDATED APPROACH**: This template now uses **GitHub Issues** as the single source of truth for requirements, architecture, and tests. This prompt now compiles from **GitHub Issue bodies** rather than file-based specs.
+> 
+> **Primary Source**: GitHub Issues (StR, REQ-F, REQ-NF, ADR, ARC-C issues)
+> **Secondary Source**: Supplementary docs (only if they reference canonical issues via `#N`)
+> **Deprecated Source**: ~~File-based specification files as primary artifacts~~
+> 
+> For GitHub Issues workflow, see:
+> - Root instructions: `.github/copilot-instructions.md` (Issue-Driven Development section)
+> - Phase instructions: `.github/instructions/phase-05-implementation.instructions.md`
+
+Transform requirements from **GitHub Issues** into working code following standards and XP practices.
 
 ## 🚨 AI Agent Guardrails
 **CRITICAL**: Prevent production code contamination and assumptions:
@@ -12,104 +22,148 @@ Transform specification files into working code following standards and XP pract
 - ✅ **Test mocks are acceptable**: Use dependency injection for testability
 - ❌ **No "TODO" or placeholder implementations**: Complete implementations only
 - ✅ **Clear test/production boundaries**: Maintain strict separation
-- ❌ **No implementation-based assumptions**: Always reference specifications
-- ✅ **Always trace to specification**: Every decision must have documented rationale
+- ❌ **No implementation-based assumptions**: Always reference GitHub Issues
+- ✅ **Always trace to GitHub Issues**: Every code file must reference implementing issues in docstrings
+- ✅ **All PRs link to issues**: Use "Fixes #N" or "Implements #N" in PR description
 
 **Validation Questions**:
-1. Have I validated against specifications rather than assumptions?
+1. Have I validated against GitHub Issue requirements rather than assumptions?
 2. Am I distinguishing between test and production code appropriately?
 3. Are all implementations complete without placeholders?
+4. Have I added issue traceability to code docstrings ("Implements: #N", "Architecture: #N", "Verifies: #N")?
 
 ## Objective
 
-Compile Markdown specifications (`*-spec.md`, `main.md`) into production-ready code that:
-- Implements all requirements
+Compile requirements from **GitHub Issues** (REQ-F, REQ-NF, ADR, ARC-C) into production-ready code that:
+- Implements all requirement issues
 - Follows IEEE/ISO standards
 - Applies XP practices (TDD, Simple Design, YAGNI)
-- Maintains traceability
+- Maintains traceability via issue references in code
 
 ## Apply To
 
-This prompt applies to specification compilation:
+This prompt applies to compiling **GitHub Issues** into code:
 
-```
-applyTo:
-  - "**/*-spec.md"
-  - "**/*-specification.md"
-  - "**/main.md"
-  - "**/requirements-*.md"
-  - "**/architecture-*.md"
-  - "**/design-*.md"
-```
+**Primary Source**: GitHub Issues
+- `type:requirement:functional` (REQ-F issues)
+- `type:requirement:non-functional` (REQ-NF issues)
+- `type:architecture:decision` (ADR issues)
+- `type:architecture:component` (ARC-C issues)
 
-## Compilation Process
+**Secondary Source**: Supplementary documentation (only if referencing canonical issues)
+- `docs/02-requirements/*.md` (MUST reference REQ-F/REQ-NF issues via `#N`)
+- `docs/03-architecture/*.md` (MUST reference ADR/ARC-C issues via `#N`)
+- `docs/04-design/*.md` (MUST reference ARC-C issues via `#N`)
 
-### Phase 1: Analyze Specification
+## Compilation Process (GitHub Issues-Based)
 
-1. **Read the specification** thoroughly
-2. **Identify requirements**:
-   - Functional requirements (REQ-F-XXX)
-   - Non-functional requirements (REQ-NF-XXX)
-   - Acceptance criteria (Given-When-Then)
-3. **Extract design decisions**:
-   - Architecture patterns
-   - Technology choices
-   - Design patterns
-4. **Note constraints**:
-   - Performance requirements
-   - Security requirements
-   - Compliance requirements
+### Phase 1: Analyze GitHub Issues
 
-### Phase 2: Plan Implementation
+1. **Query GitHub Issues** for requirements
+   ```bash
+   # List all REQ-F issues
+   gh issue list --label "type:requirement:functional" --state all
+   
+   # Get specific requirement details
+   gh issue view 23  # REQ-F-AUTH-001: User Login
+   ```
 
-1. **Break down into modules**:
-   - Identify component boundaries
-   - Define interfaces
-   - Plan data flow
-2. **Determine test strategy**:
-   - Unit tests for each function
-   - Integration tests for module interactions
-   - Acceptance tests for user scenarios
-3. **Identify dependencies**:
-   - External libraries needed
-   - Internal module dependencies
-   - Database schema requirements
+2. **Identify requirements from issue bodies**:
+   - Functional requirements (REQ-F issues with label `type:requirement:functional`)
+   - Non-functional requirements (REQ-NF issues with label `type:requirement:non-functional`)
+   - Acceptance criteria (Given-When-Then in issue bodies)
 
-### Phase 3: Generate Tests First (TDD)
+3. **Extract design decisions from ADR issues**:
+   - Architecture patterns (from ADR issue bodies)
+   - Technology choices (from ADR issues)
+   - Design patterns (from ARC-C issue bodies)
+
+4. **Note constraints from REQ-NF issues**:
+   - Performance requirements (REQ-NF issues)
+   - Security requirements (REQ-NF issues)
+   - Compliance requirements (REQ-NF issues)
+
+### Phase 2: Plan Implementation (Issue-Driven)
+
+1. **Break down into modules from ARC-C issues**:
+   - Identify component boundaries (from ARC-C issue bodies)
+   - Define interfaces (from ARC-C issues or supplementary docs referencing them)
+   - Plan data flow (from ARC-C and ADR issues)
+
+2. **Determine test strategy from TEST issues**:
+   - Create TEST issue placeholders if not already created
+   - Unit tests for each function (TEST issues with label `test-type:unit`)
+   - Integration tests for module interactions (TEST issues with label `test-type:integration`)
+   - Acceptance tests from REQ-F issue bodies (TEST issues with label `test-type:acceptance`)
+
+3. **Identify dependencies from ADR issues**:
+   - External libraries needed (documented in ADR issues)
+   - Internal module dependencies (from ARC-C issues)
+   - Database schema requirements (from design docs referencing ARC-C issues)
+
+### Phase 3: Generate Tests First (TDD + Issue Traceability)
 
 Before writing any implementation code:
 
-1. **Create test files** for each module
-2. **Write unit tests** for each function
+1. **Create test files** for each module (reference TEST issues)
+2. **Write unit tests** with issue traceability
    ```typescript
-   describe('UserService', () => {
+   /**
+    * User authentication tests
+    * 
+    * Verifies: #23 (REQ-F-AUTH-001: User Login)
+    * TEST Issue: #89 (TEST-AUTH-001: Authentication Tests)
+    * 
+    * @see https://github.com/owner/repo/issues/23
+    */
+   describe('UserService (Verifies #23)', () => {
+     /**
+      * Test valid credentials
+      * Verifies acceptance criteria from REQ-F-AUTH-001 (Issue #23)
+      */
      it('should authenticate user with valid credentials', async () => {
        // Test implementation
      });
      
+     /**
+      * Test invalid credentials
+      * Verifies error handling from REQ-F-AUTH-001 (Issue #23)
+      */
      it('should reject invalid credentials', async () => {
        // Test implementation
      });
    });
    ```
-3. **Write integration tests** for module interactions
-4. **Write acceptance tests** from Given-When-Then scenarios
+3. **Write integration tests** for module interactions (reference ARC-C issues)
+4. **Write acceptance tests** from Given-When-Then scenarios in REQ-F issue bodies
 5. **Run tests** - they should FAIL (RED)
+6. **Create TEST GitHub Issues** documenting test approach if not already created
 
-### Phase 4: Implement Code
+### Phase 4: Implement Code (With GitHub Issue Traceability)
 
 1. **Write minimal code** to pass tests (GREEN)
 2. **Follow standards**:
-   - **IEEE 1016**: Document design decisions
+   - **IEEE 1016**: Document design decisions (reference ADR issues)
    - **Simple Design**: No unnecessary complexity
-   - **YAGNI**: Build only what's specified
-3. **Maintain traceability**:
+   - **YAGNI**: Build only what's specified in REQ-F issues
+3. **Maintain traceability via GitHub Issue references**:
    ```typescript
+   /**
+    * User authentication service
+    * 
+    * Implements: #23 (REQ-F-AUTH-001: User Login)
+    * Architecture: #45 (ARC-C-AUTH-001: Authentication Service)
+    * Verified by: #89 (TEST-AUTH-001: Authentication Tests)
+    * 
+    * @see https://github.com/owner/repo/issues/23
+    * @see https://github.com/owner/repo/issues/45
+    */
+   
    /**
     * Authenticates a user with email and password.
     * 
-    * @implements REQ-F-002 - User authentication
-    * @traces StR-003 - Stakeholder requirement for secure login
+    * Implements: #23 (REQ-F-AUTH-001: User Login)
+    * 
     * @param email User's email address
     * @param password User's password
     * @returns Authentication result with session token

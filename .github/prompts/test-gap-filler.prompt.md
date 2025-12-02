@@ -1,3 +1,4 @@
+````prompt
 ---
 mode: agent
 applyTo:
@@ -9,958 +10,684 @@ applyTo:
   - "**/__tests__/**/*"
 ---
 
-# Test Gap Filler Prompt
+# Test Gap Filler Prompt (GitHub Issues)
 
 You are a **Test Engineer** following **TDD principles** and **IEEE 1012-2016** Verification & Validation standards.
 
-## 🎯 Objective
+## 🎯 Core Workflow: GitHub Issues for Test Traceability
 
-Identify and fill test coverage gaps to achieve >80% test coverage:
-1. **Analyze current test coverage** and identify untested code paths
-2. **Generate missing unit tests** with AAA pattern (Arrange, Act, Assert)
-3. **Create integration tests** for component interactions
-4. **Add edge case tests** for boundary conditions and error scenarios
-5. **Ensure requirement traceability** for all generated tests
+**ALL test artifacts are tracked as GitHub Issues:**
+- **REQ Issues**: Requirements with labels `type:requirement:functional` or `type:requirement:non-functional`
+- **TEST Issues**: Test specifications with label `type:test`, linking to requirements via `Verifies: #N`
+- **Test Code**: Implementation files with `Verifies: #N` in docstrings
 
-## 📊 Test Coverage Analysis Framework
+**This prompt generates:**
+1. **TEST Issues**: For untested requirements (create issue bodies)
+2. **Test Code**: With traceability comments (`Verifies: #N`)
+3. **Coverage Reports**: Showing REQ → TEST → Code chain
+4. **Gap Analysis**: Requirements missing TEST issues or implementing code
 
-### Step 1: Coverage Assessment
+---
 
-**Generate coverage reports for different languages**:
+## 📊 Step 1: Identify Untested Requirements
 
-#### **JavaScript/TypeScript (Jest)**
+### Query GitHub Issues for Requirement Coverage
+
 ```bash
-npm run test:coverage
-# or
-npx jest --coverage --coverageReporters=text-lcov --coverageReporters=html
+# Find all requirements
+gh issue list --label "type:requirement:functional" --state all --json number,title,labels > requirements.json
+gh issue list --label "type:requirement:non-functional" --state all --json number,title,labels >> requirements.json
+
+# Find all TEST issues
+gh issue list --label "type:test" --state all --json number,title,body > tests.json
+
+# Analyze which requirements lack TEST issues
+python scripts/find-untested-requirements.py
 ```
 
-#### **Python (pytest)**
-```bash
-pytest --cov=src --cov-report=html --cov-report=term
+### Python Script: `scripts/find-untested-requirements.py`
+
+```python
+#!/usr/bin/env python3
+"""
+Find requirements without TEST issues
+
+Scans requirement issues and checks for TEST issues with "Verifies: #N" links.
+Generates report and TEST issue bodies for untested requirements.
+"""
+
+import json
+import re
+import os
+from github import Github
+
+def load_requirements():
+    """Load all requirement issues from GitHub"""
+    token = os.getenv('GITHUB_TOKEN')
+    repo_name = os.getenv('GITHUB_REPOSITORY', 'zarfld/copilot-instructions-template')
+    
+    g = Github(token)
+    repo = g.get_repo(repo_name)
+    
+    req_issues = []
+    for label in ['type:requirement:functional', 'type:requirement:non-functional']:
+        issues = repo.get_issues(labels=[label], state='all')
+        for issue in issues:
+            req_issues.append({
+                'number': issue.number,
+                'title': issue.title,
+                'body': issue.body or '',
+                'labels': [l.name for l in issue.labels],
+                'priority': next((l.name for l in issue.labels if 'priority:' in l.name), 'priority:p2')
+            })
+    
+    return req_issues
+
+def load_test_issues():
+    """Load all TEST issues and extract 'Verifies: #N' links"""
+    token = os.getenv('GITHUB_TOKEN')
+    repo_name = os.getenv('GITHUB_REPOSITORY', 'zarfld/copilot-instructions-template')
+    
+    g = Github(token)
+    repo = g.get_repo(repo_name)
+    
+    test_issues = []
+    issues = repo.get_issues(labels=['type:test'], state='all')
+    for issue in issues:
+        body = issue.body or ''
+        
+        # Extract "Verifies: #N" references
+        verifies = re.findall(r'Verifies:\s*#(\d+)', body, re.IGNORECASE)
+        
+        test_issues.append({
+            'number': issue.number,
+            'title': issue.title,
+            'verifies': [int(n) for n in verifies]
+        })
+    
+    return test_issues
+
+def find_untested_requirements(req_issues, test_issues):
+    """Identify requirements without TEST issues"""
+    
+    # Build mapping: requirement number → list of TEST issues
+    req_to_tests = {}
+    for test in test_issues:
+        for req_num in test['verifies']:
+            if req_num not in req_to_tests:
+                req_to_tests[req_num] = []
+            req_to_tests[req_num].append(test['number'])
+    
+    # Find untested requirements
+    untested = []
+    for req in req_issues:
+        if req['number'] not in req_to_tests:
+            untested.append(req)
+    
+    return untested, req_to_tests
+
+def generate_test_issue_body(req_issue):
+    """Generate TEST issue body for untested requirement"""
+    
+    req_num = req_issue['number']
+    req_title = req_issue['title']
+    req_body = req_issue['body']
+    
+    # Extract requirement ID from title (e.g., "REQ-F-AUTH-001")
+    req_id_match = re.search(r'(REQ-[FN][A-Z]?-[A-Z]+-\d+)', req_title)
+    req_id = req_id_match.group(1) if req_id_match else 'REQ-UNK-001'
+    
+    # Convert REQ-F-AUTH-001 → TEST-AUTH-001
+    test_id = req_id.replace('REQ-F-', 'TEST-').replace('REQ-NF-', 'TEST-')
+    
+    # Extract acceptance criteria from requirement body
+    ac_match = re.search(r'## Acceptance Criteria\s*\n(.*?)(?=\n##|\Z)', req_body, re.DOTALL | re.IGNORECASE)
+    acceptance_criteria = ac_match.group(1).strip() if ac_match else 'TBD'
+    
+    # Determine priority from requirement
+    priority = req_issue.get('priority', 'priority:p2')
+    
+    # Generate TEST issue body
+    test_issue_body = f"""## Description
+Test suite for requirement #{req_num}: {req_title}
+
+## Verifies Requirements
+- **Verifies**: #{req_num} ({req_id}: {req_title})
+
+## Test Scenarios
+
+### Unit Tests
+1. Happy path - valid inputs produce expected outputs
+2. Invalid inputs - proper error handling and validation
+3. Boundary conditions - min/max values, edge cases
+4. Error scenarios - exception handling and recovery
+
+### Integration Tests (if applicable)
+1. End-to-end workflow - complete user journey
+2. External service integration - API calls, database operations
+3. Transaction handling - rollback scenarios
+
+### Edge Cases
+1. Empty/null inputs
+2. Special characters (XSS, SQL injection attempts)
+3. Concurrent operations
+4. Network failures/timeouts
+
+## Acceptance Criteria (from #{req_num})
+
+{acceptance_criteria}
+
+## Test Implementation
+
+**Test File**: `tests/[category]/[module]/[feature].test.[ext]`
+
+**Coverage Target**: >90% of implementing code
+
+**Traceability**: All test functions must include:
+```
+/**
+ * Test [description]
+ * 
+ * Verifies: #{req_num} ({req_id})
+ * TEST Issue: [This issue number]
+ */
 ```
 
-#### **Java (JaCoCo)**
+## Definition of Done
+- [ ] All test scenarios implemented
+- [ ] Tests pass in CI/CD pipeline
+- [ ] Code coverage >90% for implementing code
+- [ ] Traceability comments added
+- [ ] TEST issue updated with file locations
+- [ ] Linked to requirement issue #{req_num}
+"""
+    
+    return test_id, test_issue_body
+
+def generate_gap_report(untested_reqs, req_to_tests, all_reqs):
+    """Generate markdown report of test coverage gaps"""
+    
+    total_reqs = len(all_reqs)
+    tested_reqs = total_reqs - len(untested_reqs)
+    coverage_pct = (tested_reqs / total_reqs * 100) if total_reqs > 0 else 0
+    
+    # Group by priority
+    untested_by_priority = {'priority:p0': [], 'priority:p1': [], 'priority:p2': []}
+    for req in untested_reqs:
+        priority = req.get('priority', 'priority:p2')
+        if priority in untested_by_priority:
+            untested_by_priority[priority].append(req)
+    
+    report = f"""# Test Coverage Gap Analysis
+
+**Date**: {datetime.now().strftime('%Y-%m-%d')}
+**Repository**: {os.getenv('GITHUB_REPOSITORY', 'unknown')}
+
+## 📊 Summary
+
+**Requirements Coverage**:
+- Total Requirements: {total_reqs}
+- Requirements with TEST issues: {tested_reqs} ({coverage_pct:.1f}%)
+- **Untested Requirements**: {len(untested_reqs)} ({100-coverage_pct:.1f}%)
+
+**Target**: 100% of P0/P1 requirements tested, 90%+ overall
+
+**Status**: {'✅ PASS' if coverage_pct >= 90 else '🔴 CRITICAL GAPS'}
+
+---
+
+## 🔴 Untested Requirements (CRITICAL)
+
+"""
+    
+    # P0 requirements
+    if untested_by_priority['priority:p0']:
+        report += f"### Priority P0 (Blocker) - {len(untested_by_priority['priority:p0'])} requirements\n\n"
+        report += "| Issue | Requirement | Action |\n"
+        report += "|-------|-------------|--------|\n"
+        for req in untested_by_priority['priority:p0']:
+            report += f"| #{req['number']} | {req['title'][:60]} | Create TEST issue |\n"
+        report += "\n"
+    
+    # P1 requirements
+    if untested_by_priority['priority:p1']:
+        report += f"### Priority P1 (High) - {len(untested_by_priority['priority:p1'])} requirements\n\n"
+        report += "| Issue | Requirement | Action |\n"
+        report += "|-------|-------------|--------|\n"
+        for req in untested_by_priority['priority:p1'][:10]:  # Limit to 10
+            report += f"| #{req['number']} | {req['title'][:60]} | Create TEST issue |\n"
+        
+        if len(untested_by_priority['priority:p1']) > 10:
+            report += f"\n... and {len(untested_by_priority['priority:p1']) - 10} more P1 requirements\n"
+        report += "\n"
+    
+    # P2 requirements
+    if untested_by_priority['priority:p2']:
+        report += f"### Priority P2 (Medium) - {len(untested_by_priority['priority:p2'])} requirements\n\n"
+        report += f"Total: {len(untested_by_priority['priority:p2'])} requirements\n"
+        report += "(Expand this section for details)\n\n"
+    
+    report += """---
+
+## ✅ Actions Required
+
+### 1. Create TEST Issues
+
+For each untested requirement, create a TEST issue using:
+
 ```bash
-mvn test jacoco:report
+# Use GitHub CLI
+gh issue create --label "type:test,phase:07-verification-validation,priority:p0" \\
+  --title "TEST-[MODULE]-001: [Feature] Tests" \\
+  --body-file test-issue-body.md
 ```
 
-#### **Go**
-```bash
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+Or use the issue template: `.github/ISSUE_TEMPLATE/test-case.md`
+
+### 2. Implement Test Code
+
+After creating TEST issues, implement test files with traceability:
+
+```typescript
+/**
+ * Test user login functionality
+ * 
+ * Verifies: #25 (REQ-F-AUTH-001: User Login)
+ * TEST Issue: #50 (TEST-AUTH-001)
+ */
+describe('User Login (Verifies #25)', () => {
+  it('should authenticate user with valid credentials', () => {
+    // Test implementation
+  });
+});
 ```
 
-### **Coverage Analysis Template**
+### 3. Link TEST Issues to Requirements
+
+In the TEST issue body, include:
 
 ```markdown
-# Test Coverage Analysis
-
-## Overall Coverage: [X]%
-**Target**: 80% minimum
-**Gap**: [Y]% points to target
-
-## Coverage by Category
-- **Statements**: [X]% ([covered]/[total])
-- **Branches**: [Y]% ([covered]/[total])
-- **Functions**: [Z]% ([covered]/[total])
-- **Lines**: [W]% ([covered]/[total])
-
-## Coverage by Component
-
-| Component | Lines | Coverage | Gap | Priority |
-|-----------|-------|----------|-----|----------|
-| userController.js | 234 | 92% | ✅ Target met | Maintain |
-| orderService.py | 445 | 65% | 🔴 15% gap | HIGH |
-| paymentGateway.js | 189 | 45% | 🔴 35% gap | CRITICAL |
-| utilityHelpers.js | 78 | 23% | 🔴 57% gap | MEDIUM |
-
-## Critical Untested Code Paths
-1. **paymentGateway.js** - Lines 45-67 (error handling)
-2. **orderService.py** - Lines 123-156 (discount calculation)
-3. **userController.js** - Lines 89-92 (email validation edge cases)
+## Verifies Requirements
+- **Verifies**: #25 (REQ-F-AUTH-001: User Login)
 ```
 
-### Step 2: Untested Code Identification
+In the requirement issue (#25), add comment:
 
-**Identify specific untested code paths**:
-
-#### **JavaScript Example Analysis**
-
-**Uncovered Code**:
-```javascript
-// paymentGateway.js - Lines 45-67 (0% coverage)
-async function processRefund(transactionId, amount, reason) {
-  try {
-    // Validate refund amount
-    if (amount <= 0) {
-      throw new Error('Refund amount must be positive');
-    }
-    
-    // Get original transaction
-    const transaction = await Transaction.findById(transactionId);
-    if (!transaction) {
-      throw new Error('Transaction not found');
-    }
-    
-    if (transaction.amount < amount) {
-      throw new Error('Refund amount exceeds original transaction');
-    }
-    
-    // Process refund with payment provider
-    const refundResult = await paymentProvider.refund({
-      transactionId,
-      amount,
-      reason
-    });
-    
-    if (!refundResult.success) {
-      throw new Error(`Refund failed: ${refundResult.error}`);
-    }
-    
-    // Update transaction record
-    await Transaction.update(transactionId, {
-      status: 'refunded',
-      refundAmount: amount,
-      refundReason: reason,
-      refundedAt: new Date()
-    });
-    
-    return refundResult;
-  } catch (error) {
-    logger.error('Refund processing failed', { transactionId, amount, error });
-    throw error;
-  }
-}
+```markdown
+## Verified By
+- #50 (TEST-AUTH-001: User Login Tests)
 ```
 
-**Generated Unit Tests**:
-```javascript
-// tests/paymentGateway.test.js
-describe('processRefund', () => {
+---
+
+## 📋 Generated TEST Issue Bodies
+
+Below are generated TEST issue bodies for untested requirements. Copy and paste when creating issues.
+
+"""
+    
+    # Generate issue bodies for first 5 untested requirements
+    for i, req in enumerate(untested_reqs[:5]):
+        test_id, test_body = generate_test_issue_body(req)
+        
+        report += f"""### {i+1}. TEST Issue for Requirement #{req['number']}
+
+**Title**: `{test_id}: {req['title'].replace('REQ-F-', '').replace('REQ-NF-', '')} Tests`
+
+**Labels**: `type:test`, `phase:07-verification-validation`, `{req.get('priority', 'priority:p2')}`
+
+**Body**:
+```markdown
+{test_body}
+```
+
+---
+
+"""
+    
+    if len(untested_reqs) > 5:
+        report += f"\n... and {len(untested_reqs) - 5} more TEST issue bodies (run script to generate all)\n"
+    
+    return report
+
+if __name__ == '__main__':
+    from datetime import datetime
+    
+    print("Loading requirements...")
+    req_issues = load_requirements()
+    
+    print("Loading TEST issues...")
+    test_issues = load_test_issues()
+    
+    print("Analyzing coverage gaps...")
+    untested_reqs, req_to_tests = find_untested_requirements(req_issues, test_issues)
+    
+    print("Generating report...")
+    report = generate_gap_report(untested_reqs, req_to_tests, req_issues)
+    
+    # Write report
+    with open('test-coverage-gap-report.md', 'w') as f:
+        f.write(report)
+    
+    print(f"✅ Report generated: test-coverage-gap-report.md")
+    print(f"Found {len(untested_reqs)} untested requirements out of {len(req_issues)} total")
+    
+    # Exit with error if critical gaps
+    if untested_reqs:
+        print(f"⚠️ Action required: Create TEST issues for {len(untested_reqs)} requirements")
+        exit(1)
+    else:
+        print("✅ All requirements have TEST issues!")
+        exit(0)
+```
+
+---
+
+## 📝 Step 2: Generate Test Code with Traceability
+
+### Test Code Template (TypeScript/JavaScript)
+
+```typescript
+/**
+ * Test suite for user authentication
+ * 
+ * Verifies: #25 (REQ-F-AUTH-001: User Login)
+ * TEST Issue: #50 (TEST-AUTH-001)
+ * 
+ * Acceptance Criteria (from #25):
+ *   Given user has valid credentials
+ *   When user submits login form
+ *   Then user is authenticated and redirected to dashboard
+ */
+describe('User Login (Verifies #25)', () => {
   
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // TEST-PAY-003-01: Happy path refund processing
-  test('should process valid refund successfully', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 50.00;
-    const reason = 'Customer request';
-    
-    const mockTransaction = {
-      id: transactionId,
-      amount: 100.00,
-      status: 'completed'
+  /**
+   * TEST-AUTH-001-01: Successful login with valid credentials
+   * Verifies: #25 (REQ-F-AUTH-001)
+   */
+  it('should authenticate user with valid credentials', async () => {
+    // ARRANGE
+    const credentials = {
+      email: 'user@test.com',
+      password: 'ValidPass123!'
     };
     
-    const mockRefundResult = {
-      success: true,
-      refundId: 'ref-456'
-    };
+    const expectedToken = 'jwt-token-12345';
+    authService.login.mockResolvedValue({ token: expectedToken, userId: 1 });
     
-    Transaction.findById.mockResolvedValue(mockTransaction);
-    paymentProvider.refund.mockResolvedValue(mockRefundResult);
-    Transaction.update.mockResolvedValue(true);
+    // ACT
+    const result = await login(credentials);
     
-    // Act
-    const result = await processRefund(transactionId, amount, reason);
-    
-    // Assert
-    expect(result).toEqual(mockRefundResult);
-    expect(Transaction.findById).toHaveBeenCalledWith(transactionId);
-    expect(paymentProvider.refund).toHaveBeenCalledWith({
-      transactionId,
-      amount,
-      reason
+    // ASSERT
+    expect(result).toMatchObject({
+      authenticated: true,
+      token: expectedToken,
+      userId: 1
     });
-    expect(Transaction.update).toHaveBeenCalledWith(transactionId, {
-      status: 'refunded',
-      refundAmount: amount,
-      refundReason: reason,
-      refundedAt: expect.any(Date)
-    });
+    expect(authService.login).toHaveBeenCalledWith(credentials);
   });
 
-  // TEST-PAY-003-02: Invalid refund amount (negative)
-  test('should reject negative refund amount', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = -10.00;
-    const reason = 'Invalid test';
+  /**
+   * TEST-AUTH-001-02: Failed login with invalid password
+   * Verifies: #25 (REQ-F-AUTH-001) - error handling
+   */
+  it('should reject login with invalid password', async () => {
+    // ARRANGE
+    const credentials = {
+      email: 'user@test.com',
+      password: 'WrongPassword'
+    };
     
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Refund amount must be positive');
+    authService.login.mockRejectedValue(new AuthError('Invalid credentials'));
     
-    expect(Transaction.findById).not.toHaveBeenCalled();
+    // ACT & ASSERT
+    await expect(login(credentials)).rejects.toThrow('Invalid credentials');
+    expect(authService.login).toHaveBeenCalledWith(credentials);
   });
 
-  // TEST-PAY-003-03: Invalid refund amount (zero)
-  test('should reject zero refund amount', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 0;
-    const reason = 'Invalid test';
+  /**
+   * TEST-AUTH-001-03: Account lockout after failed attempts
+   * Verifies: #26 (REQ-NF-SECU-001: Account lockout policy)
+   */
+  it('should lock account after 5 failed login attempts', async () => {
+    // ARRANGE
+    const credentials = { email: 'user@test.com', password: 'WrongPass' };
     
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Refund amount must be positive');
-  });
-
-  // TEST-PAY-003-04: Transaction not found
-  test('should handle transaction not found', async () => {
-    // Arrange
-    const transactionId = 'nonexistent';
-    const amount = 50.00;
-    const reason = 'Customer request';
+    // ACT - Simulate 5 failed attempts
+    for (let i = 0; i < 5; i++) {
+      await login(credentials).catch(() => {});
+    }
     
-    Transaction.findById.mockResolvedValue(null);
-    
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Transaction not found');
-    
-    expect(paymentProvider.refund).not.toHaveBeenCalled();
-  });
-
-  // TEST-PAY-003-05: Refund amount exceeds original
-  test('should reject refund amount exceeding original transaction', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 150.00; // More than original 100.00
-    const reason = 'Customer request';
-    
-    const mockTransaction = {
-      id: transactionId,
-      amount: 100.00,
-      status: 'completed'
-    };
-    
-    Transaction.findById.mockResolvedValue(mockTransaction);
-    
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Refund amount exceeds original transaction');
-    
-    expect(paymentProvider.refund).not.toHaveBeenCalled();
-  });
-
-  // TEST-PAY-003-06: Payment provider refund failure
-  test('should handle payment provider refund failure', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 50.00;
-    const reason = 'Customer request';
-    
-    const mockTransaction = {
-      id: transactionId,
-      amount: 100.00,
-      status: 'completed'
-    };
-    
-    const mockRefundResult = {
-      success: false,
-      error: 'Insufficient funds in merchant account'
-    };
-    
-    Transaction.findById.mockResolvedValue(mockTransaction);
-    paymentProvider.refund.mockResolvedValue(mockRefundResult);
-    
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Refund failed: Insufficient funds in merchant account');
-    
-    expect(Transaction.update).not.toHaveBeenCalled();
-  });
-
-  // TEST-PAY-003-07: Database update failure
-  test('should handle database update failure', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 50.00;
-    const reason = 'Customer request';
-    
-    const mockTransaction = {
-      id: transactionId,
-      amount: 100.00,
-      status: 'completed'
-    };
-    
-    const mockRefundResult = {
-      success: true,
-      refundId: 'ref-456'
-    };
-    
-    Transaction.findById.mockResolvedValue(mockTransaction);
-    paymentProvider.refund.mockResolvedValue(mockRefundResult);
-    Transaction.update.mockRejectedValue(new Error('Database connection failed'));
-    
-    // Act & Assert
-    await expect(processRefund(transactionId, amount, reason))
-      .rejects.toThrow('Database connection failed');
-    
-    expect(logger.error).toHaveBeenCalledWith(
-      'Refund processing failed',
-      expect.objectContaining({
-        transactionId,
-        amount,
-        error: expect.any(Error)
-      })
-    );
-  });
-
-  // TEST-PAY-003-08: Edge case - exact refund amount
-  test('should process refund for exact transaction amount', async () => {
-    // Arrange
-    const transactionId = 'txn-123';
-    const amount = 100.00; // Exact match
-    const reason = 'Full refund';
-    
-    const mockTransaction = {
-      id: transactionId,
-      amount: 100.00,
-      status: 'completed'
-    };
-    
-    const mockRefundResult = {
-      success: true,
-      refundId: 'ref-456'
-    };
-    
-    Transaction.findById.mockResolvedValue(mockTransaction);
-    paymentProvider.refund.mockResolvedValue(mockRefundResult);
-    Transaction.update.mockResolvedValue(true);
-    
-    // Act
-    const result = await processRefund(transactionId, amount, reason);
-    
-    // Assert
-    expect(result).toEqual(mockRefundResult);
-    expect(Transaction.update).toHaveBeenCalledWith(
-      transactionId,
-      expect.objectContaining({
-        status: 'refunded',
-        refundAmount: 100.00
-      })
-    );
+    // ASSERT
+    const account = await Account.findByEmail(credentials.email);
+    expect(account.locked).toBe(true);
+    expect(account.lockedUntil).toBeInstanceOf(Date);
   });
 });
 ```
 
-#### **Python Example Analysis**
+### Test Code Template (Python)
 
-**Uncovered Code**:
 ```python
-# orderService.py - Lines 123-156 (0% coverage)
-def calculate_discount(subtotal, discount_code, customer_tier):
-    """Calculate discount amount based on code and customer tier."""
-    
-    if not discount_code:
-        return 0.0
-    
-    # Get discount configuration
-    discount = DiscountCode.get_by_code(discount_code)
-    if not discount:
-        raise InvalidDiscountError(f"Invalid discount code: {discount_code}")
-    
-    if not discount.is_active():
-        raise ExpiredDiscountError(f"Discount code expired: {discount_code}")
-    
-    # Check minimum order amount
-    if subtotal < discount.minimum_order:
-        raise InsufficientOrderError(
-            f"Minimum order ${discount.minimum_order} required for {discount_code}"
-        )
-    
-    # Calculate base discount
-    if discount.type == 'percentage':
-        discount_amount = subtotal * (discount.value / 100)
-    elif discount.type == 'fixed':
-        discount_amount = discount.value
-    else:
-        raise InvalidDiscountError(f"Unknown discount type: {discount.type}")
-    
-    # Apply customer tier multiplier
-    tier_multipliers = {
-        'bronze': 1.0,
-        'silver': 1.1,
-        'gold': 1.2,
-        'platinum': 1.5
-    }
-    
-    multiplier = tier_multipliers.get(customer_tier, 1.0)
-    discount_amount *= multiplier
-    
-    # Apply maximum discount limit
-    if discount.max_discount and discount_amount > discount.max_discount:
-        discount_amount = discount.max_discount
-    
-    # Ensure discount doesn't exceed subtotal
-    if discount_amount > subtotal:
-        discount_amount = subtotal
-    
-    return round(discount_amount, 2)
-```
+"""
+Test suite for order discount calculation
 
-**Generated Unit Tests**:
-```python
-# tests/test_order_service.py
+Verifies: #30 (REQ-F-ORD-004: Discount calculation)
+TEST Issue: #60 (TEST-ORD-004)
+
+Acceptance Criteria (from #30):
+  Given customer has valid discount code
+  When order subtotal meets minimum requirement
+  Then discount is applied according to code type and customer tier
+"""
+
 import pytest
 from unittest.mock import Mock, patch
 from order_service import calculate_discount
-from exceptions import InvalidDiscountError, ExpiredDiscountError, InsufficientOrderError
+from exceptions import InvalidDiscountError, ExpiredDiscountError
 
 class TestCalculateDiscount:
+    """
+    Test discount calculation functionality
+    
+    Verifies: #30 (REQ-F-ORD-004)
+    TEST Issue: #60 (TEST-ORD-004)
+    """
     
     def setup_method(self):
-        """Set up test fixtures."""
+        """Set up test fixtures"""
         self.mock_discount = Mock()
         self.mock_discount.minimum_order = 50.0
         self.mock_discount.max_discount = None
         
-    # TEST-ORD-004-01: No discount code provided
-    def test_calculate_discount_no_code(self):
-        """Should return 0 when no discount code provided."""
-        # Act
-        result = calculate_discount(100.0, None, 'bronze')
-        
-        # Assert
-        assert result == 0.0
-        
-    def test_calculate_discount_empty_code(self):
-        """Should return 0 when empty discount code provided."""
-        # Act
-        result = calculate_discount(100.0, '', 'bronze')
-        
-        # Assert
-        assert result == 0.0
-
-    # TEST-ORD-004-02: Invalid discount code
     @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_invalid_code(self, mock_get_code):
-        """Should raise error for invalid discount code."""
-        # Arrange
-        mock_get_code.return_value = None
+    def test_percentage_discount_calculation(self, mock_get_code):
+        """
+        TEST-ORD-004-01: Calculate percentage discount
         
-        # Act & Assert
-        with pytest.raises(InvalidDiscountError) as exc_info:
-            calculate_discount(100.0, 'INVALID', 'bronze')
-        
-        assert "Invalid discount code: INVALID" in str(exc_info.value)
-
-    # TEST-ORD-004-03: Expired discount code
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_expired_code(self, mock_get_code):
-        """Should raise error for expired discount code."""
-        # Arrange
-        self.mock_discount.is_active.return_value = False
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act & Assert
-        with pytest.raises(ExpiredDiscountError) as exc_info:
-            calculate_discount(100.0, 'EXPIRED', 'bronze')
-        
-        assert "Discount code expired: EXPIRED" in str(exc_info.value)
-
-    # TEST-ORD-004-04: Insufficient order amount
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_insufficient_order(self, mock_get_code):
-        """Should raise error when order below minimum."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.minimum_order = 100.0
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act & Assert
-        with pytest.raises(InsufficientOrderError) as exc_info:
-            calculate_discount(50.0, 'SAVE10', 'bronze')
-        
-        assert "Minimum order $100.0 required" in str(exc_info.value)
-
-    # TEST-ORD-004-05: Percentage discount calculation
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_percentage(self, mock_get_code):
-        """Should calculate percentage discount correctly."""
-        # Arrange
+        Verifies: #30 (REQ-F-ORD-004)
+        """
+        # ARRANGE
         self.mock_discount.is_active.return_value = True
         self.mock_discount.type = 'percentage'
         self.mock_discount.value = 10.0  # 10%
         mock_get_code.return_value = self.mock_discount
         
-        # Act
+        # ACT
         result = calculate_discount(100.0, 'SAVE10', 'bronze')
         
-        # Assert
+        # ASSERT
         assert result == 10.0  # 10% of $100
-
-    # TEST-ORD-004-06: Fixed discount calculation
+        
     @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_fixed(self, mock_get_code):
-        """Should calculate fixed discount correctly."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'fixed'
-        self.mock_discount.value = 15.0  # $15 off
-        mock_get_code.return_value = self.mock_discount
+    def test_invalid_discount_code(self, mock_get_code):
+        """
+        TEST-ORD-004-02: Reject invalid discount code
         
-        # Act
-        result = calculate_discount(100.0, 'SAVE15', 'bronze')
+        Verifies: #30 (REQ-F-ORD-004) - error handling
+        """
+        # ARRANGE
+        mock_get_code.return_value = None
         
-        # Assert
-        assert result == 15.0
-
-    # TEST-ORD-004-07: Unknown discount type
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_unknown_type(self, mock_get_code):
-        """Should raise error for unknown discount type."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'unknown'
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act & Assert
+        # ACT & ASSERT
         with pytest.raises(InvalidDiscountError) as exc_info:
-            calculate_discount(100.0, 'UNKNOWN', 'bronze')
+            calculate_discount(100.0, 'INVALID', 'bronze')
         
-        assert "Unknown discount type: unknown" in str(exc_info.value)
-
-    # TEST-ORD-004-08: Customer tier multipliers
+        assert "Invalid discount code: INVALID" in str(exc_info.value)
+    
     @pytest.mark.parametrize("tier,multiplier,expected", [
         ('bronze', 1.0, 10.0),
         ('silver', 1.1, 11.0),
         ('gold', 1.2, 12.0),
         ('platinum', 1.5, 15.0),
-        ('unknown', 1.0, 10.0)  # Default to 1.0
     ])
     @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_tier_multipliers(self, mock_get_code, tier, multiplier, expected):
-        """Should apply correct tier multiplier."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'percentage'  
-        self.mock_discount.value = 10.0  # 10%
-        mock_get_code.return_value = self.mock_discount
+    def test_customer_tier_multipliers(self, mock_get_code, tier, multiplier, expected):
+        """
+        TEST-ORD-004-03: Apply tier-based multipliers
         
-        # Act
-        result = calculate_discount(100.0, 'SAVE10', tier)
-        
-        # Assert
-        assert result == expected
-
-    # TEST-ORD-004-09: Maximum discount limit
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_max_limit(self, mock_get_code):
-        """Should apply maximum discount limit."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'percentage'
-        self.mock_discount.value = 50.0  # 50% would be $50
-        self.mock_discount.max_discount = 20.0  # But max is $20
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act
-        result = calculate_discount(100.0, 'SAVE50', 'bronze')
-        
-        # Assert
-        assert result == 20.0  # Limited to max discount
-
-    # TEST-ORD-004-10: Discount cannot exceed subtotal
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_exceeds_subtotal(self, mock_get_code):
-        """Should limit discount to subtotal amount."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'fixed'
-        self.mock_discount.value = 150.0  # $150 discount
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act
-        result = calculate_discount(100.0, 'BIGDISCOUNT', 'bronze')
-        
-        # Assert  
-        assert result == 100.0  # Limited to subtotal
-
-    # TEST-ORD-004-11: Edge case - minimum order exactly met
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_minimum_order_exact(self, mock_get_code):
-        """Should work when order exactly meets minimum."""
-        # Arrange
+        Verifies: #31 (REQ-F-ORD-005: Tier-based discounts)
+        """
+        # ARRANGE
         self.mock_discount.is_active.return_value = True
         self.mock_discount.type = 'percentage'
         self.mock_discount.value = 10.0
-        self.mock_discount.minimum_order = 100.0
         mock_get_code.return_value = self.mock_discount
         
-        # Act
-        result = calculate_discount(100.0, 'SAVE10', 'bronze')
+        # ACT
+        result = calculate_discount(100.0, 'SAVE10', tier)
         
-        # Assert
-        assert result == 10.0
-
-    # TEST-ORD-004-12: Rounding to 2 decimal places
-    @patch('order_service.DiscountCode.get_by_code')
-    def test_calculate_discount_rounding(self, mock_get_code):
-        """Should round result to 2 decimal places."""
-        # Arrange
-        self.mock_discount.is_active.return_value = True
-        self.mock_discount.type = 'percentage'
-        self.mock_discount.value = 7.77  # Will create repeating decimal
-        mock_get_code.return_value = self.mock_discount
-        
-        # Act
-        result = calculate_discount(100.0, 'SAVE777', 'bronze')
-        
-        # Assert
-        assert result == 7.77  # Rounded to 2 decimal places
-```
-
-### Step 3: Integration Test Generation
-
-**Identify integration test gaps**:
-
-#### **API Integration Tests**
-
-```javascript
-// tests/integration/userRegistration.integration.test.js
-describe('User Registration Integration', () => {
-  
-  beforeEach(async () => {
-    await testDb.clear();
-    await testDb.seed();
-  });
-
-  // TEST-INT-USER-001: Complete registration flow
-  test('should register user with all validations', async () => {
-    // Arrange
-    const userData = {
-      email: 'integration@test.com',
-      password: 'SecurePassword123!',
-      name: 'Integration Test User'
-    };
-
-    // Act
-    const response = await request(app)
-      .post('/api/users')
-      .send(userData)
-      .expect(201);
-
-    // Assert - API Response
-    expect(response.body).toHaveProperty('id');
-    expect(response.body.email).toBe(userData.email);
-    expect(response.body).not.toHaveProperty('password');
-
-    // Assert - Database State
-    const userInDb = await User.findById(response.body.id);
-    expect(userInDb).toBeTruthy();
-    expect(userInDb.email).toBe(userData.email);
-    expect(userInDb.password).not.toBe(userData.password); // Should be hashed
-
-    // Assert - Password Hashing
-    const isPasswordValid = await bcrypt.compare(userData.password, userInDb.password);
-    expect(isPasswordValid).toBe(true);
-
-    // Assert - Email Sent
-    expect(emailService.sendWelcomeEmail).toHaveBeenCalledWith(
-      userData.email,
-      userData.name
-    );
-  });
-
-  // TEST-INT-USER-002: Registration with duplicate email
-  test('should prevent duplicate email registration', async () => {
-    // Arrange - Create existing user
-    await User.create({
-      email: 'existing@test.com',
-      password: await bcrypt.hash('ExistingPassword123!', 12),
-      name: 'Existing User'
-    });
-
-    const duplicateUserData = {
-      email: 'existing@test.com',
-      password: 'NewPassword123!',
-      name: 'Duplicate User'
-    };
-
-    // Act
-    const response = await request(app)
-      .post('/api/users')
-      .send(duplicateUserData)
-      .expect(409);
-
-    // Assert - Error Response
-    expect(response.body.error).toBe('User already exists');
-
-    // Assert - No New User Created
-    const users = await User.findByEmail('existing@test.com');
-    expect(users).toHaveLength(1);
-    expect(users[0].name).toBe('Existing User'); // Original user unchanged
-  });
-
-  // TEST-INT-USER-003: Registration triggers downstream services
-  test('should trigger user onboarding workflow', async () => {
-    // Arrange
-    const userData = {
-      email: 'workflow@test.com',
-      password: 'WorkflowPassword123!',
-      name: 'Workflow User'
-    };
-
-    // Act
-    const response = await request(app)
-      .post('/api/users')
-      .send(userData)
-      .expect(201);
-
-    // Assert - User Profile Created
-    const userProfile = await UserProfile.findByUserId(response.body.id);
-    expect(userProfile).toBeTruthy();
-    expect(userProfile.onboardingStatus).toBe('pending');
-
-    // Assert - Analytics Event Tracked
-    expect(analyticsService.track).toHaveBeenCalledWith('user_registered', {
-      userId: response.body.id,
-      email: userData.email,
-      registrationDate: expect.any(Date)
-    });
-
-    // Assert - Welcome Email Queued
-    expect(emailQueue.add).toHaveBeenCalledWith('welcome_email', {
-      userId: response.body.id,
-      email: userData.email,
-      name: userData.name
-    });
-  });
-});
-```
-
-### Step 4: Test Quality Standards
-
-**Ensure all generated tests meet quality standards**:
-
-#### **Test Quality Checklist**
-
-- [ ] **AAA Pattern**: Arrange, Act, Assert clearly separated
-- [ ] **Single Responsibility**: Each test verifies one behavior  
-- [ ] **Descriptive Names**: Test names describe the scenario
-- [ ] **Independent**: Tests don't depend on each other
-- [ ] **Repeatable**: Tests produce same result every time
-- [ ] **Fast**: Tests run quickly (<100ms per unit test)
-- [ ] **Deterministic**: No flaky tests due to timing/randomness
-
-#### **Test Naming Convention**
-
-```javascript
-// Pattern: should_[expected behavior]_when_[condition]
-test('should return 400 when email format is invalid', () => {
-  // Test implementation
-});
-
-test('should create user successfully when all data is valid', () => {
-  // Test implementation
-});
-
-test('should hash password when user is created', () => {
-  // Test implementation
-});
-```
-
-#### **Test Organization**
-
-```javascript
-describe('UserController', () => {
-  describe('POST /api/users', () => {
-    describe('when data is valid', () => {
-      test('should create user with 201 status', () => {});
-      test('should return user data without password', () => {});
-      test('should hash password before saving', () => {});
-    });
-    
-    describe('when data is invalid', () => {
-      test('should return 400 for invalid email', () => {});
-      test('should return 400 for weak password', () => {});
-      test('should return 409 for duplicate email', () => {});
-    });
-    
-    describe('when external service fails', () => {
-      test('should return 500 when database is unavailable', () => {});
-      test('should return 500 when email service fails', () => {});
-    });
-  });
-});
-```
-
-### Step 5: Test Generation Strategy
-
-#### **Priority-Based Test Generation**
-
-**Critical Priority (P0)**:
-1. **Main business logic paths** - Core functionality that drives business value
-2. **Data integrity operations** - Database operations, transactions
-3. **Security-critical code** - Authentication, authorization, input validation
-4. **Payment/financial operations** - Money-related calculations and transfers
-
-**High Priority (P1)**:
-1. **Error handling paths** - Exception scenarios and recovery
-2. **Integration points** - External API calls, database interactions
-3. **Configuration-dependent code** - Environment-specific behavior
-4. **Performance-critical paths** - Code that affects response times
-
-**Medium Priority (P2)**:
-1. **Edge cases and boundary conditions** - Min/max values, empty inputs
-2. **Logging and monitoring code** - Observability features
-3. **Helper and utility functions** - Supporting code
-4. **UI interaction logic** - Frontend event handlers
-
-**Low Priority (P3)**:
-1. **Constants and configuration** - Static values and settings
-2. **Simple getter/setter methods** - Basic data access
-3. **Deprecated code paths** - Legacy functionality being phased out
-
-#### **Test Generation Template**
-
-```markdown
-# Test Generation Plan for [Component]
-
-## Coverage Gap Analysis
-- **Current Coverage**: [X]%
-- **Target Coverage**: 80%
-- **Gap**: [Y]% points
-- **Lines to Cover**: [Z] lines
-
-## Untested Code Paths
-1. **[Function/Method Name]** (Lines X-Y)
-   - **Risk Level**: [Critical/High/Medium/Low]
-   - **Complexity**: [High/Medium/Low]  
-   - **Business Impact**: [High/Medium/Low]
-   - **Test Priority**: [P0/P1/P2/P3]
-
-## Generated Tests
-
-### Unit Tests
-- [ ] **TEST-[COMP]-[NUM]-01**: Happy path scenario
-- [ ] **TEST-[COMP]-[NUM]-02**: Invalid input handling
-- [ ] **TEST-[COMP]-[NUM]-03**: Boundary conditions
-- [ ] **TEST-[COMP]-[NUM]-04**: Exception scenarios
-- [ ] **TEST-[COMP]-[NUM]-05**: Edge cases
-
-### Integration Tests  
-- [ ] **TEST-INT-[COMP]-001**: End-to-end workflow
-- [ ] **TEST-INT-[COMP]-002**: External service integration
-- [ ] **TEST-INT-[COMP]-003**: Database transaction handling
-
-### Performance Tests (if applicable)
-- [ ] **TEST-PERF-[COMP]-001**: Response time under load
-- [ ] **TEST-PERF-[COMP]-002**: Memory usage patterns
-- [ ] **TEST-PERF-[COMP]-003**: Concurrent request handling
-
-## Requirement Traceability
-- **REQ-F-[ID]**: [Requirement description] → Tests: TEST-[COMP]-[NUM]-01, TEST-[COMP]-[NUM]-02
-- **REQ-NF-[ID]**: [Requirement description] → Tests: TEST-PERF-[COMP]-001
-
-## Success Criteria
-- [ ] All P0/P1 code paths have tests
-- [ ] Coverage increases to 80%+ 
-- [ ] All tests pass in CI/CD pipeline
-- [ ] Tests are maintainable and well-documented
-```
-
-## 🚀 Usage
-
-### Comprehensive Test Gap Analysis:
-```bash
-/test-gap-filler.prompt.md Analyze test coverage and generate missing tests.
-
-Current coverage: 67%
-Target: 80%
-
-Focus on:
-- Untested error handling paths
-- Missing integration tests
-- Edge cases and boundary conditions
-- Critical business logic without tests
-
-Generate high-quality tests with AAA pattern and requirement traceability.
-```
-
-### Specific Component Testing:
-```bash
-# Generate tests for specific file
-/test-gap-filler.prompt.md Generate comprehensive test suite for paymentGateway.js
-
-Current coverage: 45%
-Missing tests for:
-- Refund processing logic
-- Payment failure scenarios  
-- Currency conversion edge cases
-
-# Generate integration tests
-/test-gap-filler.prompt.md Create integration tests for user registration flow
-
-Test complete workflow:
-- API request validation
-- Database operations
-- Email service integration
-- Analytics tracking
-```
-
-### Performance-Critical Testing:
-```bash
-/test-gap-filler.prompt.md Generate performance tests for order processing service
-
-Requirements:
-- Handle 1000 concurrent orders
-- Response time <500ms (95th percentile)
-- Memory usage <500MB under load
-```
-
-## 📊 Test Coverage Dashboard
-
-### **Coverage Report Template**
-
-```markdown
-# Test Coverage Report
-
-**Generated**: [Date]
-**Target Coverage**: 80%
-**Current Coverage**: [X]%
-
-## Coverage by Component
-
-| Component | Lines | Coverage | Tests | Status |
-|-----------|-------|----------|-------|--------|
-| userController | 234 | 92% | 15 | ✅ Target Met |
-| orderService | 445 | 78% | 12 | ⚠️ Close to Target |
-| paymentGateway | 189 | 45% | 3 | 🔴 Below Target |
-| utilityHelpers | 78 | 95% | 8 | ✅ Excellent |
-
-## Critical Gaps (Immediate Action Required)
-
-1. **paymentGateway.js**: 35% gap (67 untested lines)
-   - Missing: Error handling, refund logic, webhook processing
-   - **Risk**: Critical (handles financial transactions)
-   - **Action**: Generate 8-10 additional tests
-
-2. **orderService.py**: 2% gap (9 untested lines)  
-   - Missing: Discount calculation edge cases
-   - **Risk**: Medium (business logic)
-   - **Action**: Generate 3-4 additional tests
-
-## Test Quality Metrics
-
-- **Test Execution Time**: [X]ms (Target: <5000ms)
-- **Flaky Tests**: [X] (Target: 0)
-- **Test Maintainability**: [X]/10 (Target: 8+)
-
-## Recommendations
-
-1. **Immediate**: Add tests for paymentGateway.js
-2. **This Week**: Complete orderService.py coverage  
-3. **This Month**: Review and refactor flaky tests
+        # ASSERT
+        assert result == expected
 ```
 
 ---
 
-**Every line tested, every bug prevented!** 🧪
+## 🚀 Step 3: CI/CD Workflow for Test Gap Detection
+
+### GitHub Actions: `.github/workflows/test-gap-detection.yml`
+
+```yaml
+name: Test Gap Detection
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 6 AM
+
+jobs:
+  detect-test-gaps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install PyGithub
+      
+      - name: Find untested requirements
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/find-untested-requirements.py
+      
+      - name: Post gap report to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('test-coverage-gap-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Test Coverage Gap Analysis\n\n${report}`
+            });
+      
+      - name: Fail if critical gaps exist
+        run: |
+          UNTESTED_P0=$(cat test-coverage-gap-report.md | grep -c "priority:p0" || true)
+          
+          if [ "$UNTESTED_P0" -gt 0 ]; then
+            echo "❌ Found $UNTESTED_P0 untested P0 requirements"
+            exit 1
+          fi
+          
+          echo "✅ All P0 requirements have TEST issues"
+```
+
+---
+
+## ✅ Test Quality Checklist
+
+**Every test MUST**:
+- [ ] Include `Verifies: #N` in docstring/describe block
+- [ ] Follow AAA pattern (Arrange-Act-Assert)
+- [ ] Use descriptive names (what/when/expected)
+- [ ] Test happy path + error paths + edge cases
+- [ ] Use specific assertions (not just truthy/falsy)
+- [ ] Be independent (can run in any order)
+- [ ] Clean up after itself (no test pollution)
+
+**Every TEST issue MUST**:
+- [ ] Link to requirement via `Verifies: #N`
+- [ ] List test scenarios (unit/integration/edge cases)
+- [ ] Specify test file location
+- [ ] Define coverage target (e.g., >90%)
+- [ ] Include acceptance criteria from requirement
+
+---
+
+## 🎯 Usage
+
+### Find Untested Requirements
+
+```bash
+# Run gap analysis
+python scripts/find-untested-requirements.py
+
+# View report
+cat test-coverage-gap-report.md
+```
+
+### Create TEST Issue for Untested Requirement
+
+```bash
+# Generate issue body
+python scripts/find-untested-requirements.py --generate-issue-body --req-number 25
+
+# Create issue via GitHub CLI
+gh issue create --label "type:test,phase:07-verification-validation,priority:p0" \
+  --title "TEST-AUTH-001: User Login Tests" \
+  --body-file test-issue-body.md
+```
+
+### Generate Test Code with Traceability
+
+```bash
+# Copilot Chat
+@workspace Generate tests for requirement #25 with traceability
+
+# Include in test file:
+# - Verifies: #25 in docstring
+# - TEST Issue reference
+# - Acceptance criteria from #25
+# - AAA pattern
+```
+
+---
+
+**Remember**: Every requirement MUST have TEST issues! Use GitHub Issues for traceability. 🧪
+````

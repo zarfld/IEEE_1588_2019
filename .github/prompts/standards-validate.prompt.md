@@ -57,74 +57,81 @@ Cross-validate compliance with all 5 standards across the entire software lifecy
 
 ## Validation Process
 
-### Phase 1: Document Structure Validation
+### Phase 1: GitHub Issues Structure Validation
 
-Check that all required lifecycle documents exist:
+Check that all required lifecycle artifacts are tracked as GitHub Issues:
 
 ```markdown
-## Required Documents Checklist
+## Required Issues Checklist (GitHub Issues-First Approach)
 
 ### Phase 01: Stakeholder Requirements
-- [ ] stakeholder-requirements.md exists
-- [ ] Stakeholder needs documented
-- [ ] Stakeholder concerns identified
-- [ ] Stakeholder requirements have IDs (StR-XXX)
+- [ ] Stakeholder requirement issues exist (label: `type:stakeholder-requirement`, `phase:01-stakeholder-requirements`)
+- [ ] Stakeholder needs documented in issue bodies
+- [ ] Stakeholder concerns identified in issues
+- [ ] All StR issues follow naming: "StR-XXX: [Stakeholder Need Title]"
 
 ### Phase 02: System Requirements
-- [ ] requirements-spec.md exists (ISO 29148)
-- [ ] All StR traced to REQ
+- [ ] Functional requirement issues exist (label: `type:requirement:functional`, `phase:02-requirements`)
+- [ ] Non-functional requirement issues exist (label: `type:requirement:non-functional`, `phase:02-requirements`)
+- [ ] All REQ-F/REQ-NF issues trace to parent StR issues via "Traces to: #N"
 - [ ] Functional requirements complete
 - [ ] Non-functional requirements complete
-- [ ] Acceptance criteria defined
-- [ ] Traceability matrix present
+- [ ] Acceptance criteria defined in issue bodies
+- [ ] Traceability links present in issue bodies
 
 ### Phase 03: Architecture
-- [ ] architecture-spec.md exists (IEEE 42010)
-- [ ] Architecture viewpoints defined
-- [ ] Architecture views documented
-- [ ] ADRs (Architecture Decision Records) present
-- [ ] Quality attributes addressed
-- [ ] Technology stack justified
+- [ ] Architecture decision issues exist (label: `type:architecture:decision`, `phase:03-architecture`)
+- [ ] Architecture component issues exist (label: `type:architecture:component`, `phase:03-architecture`)
+- [ ] Quality scenario issues exist (label: `type:architecture:quality-scenario`, `phase:03-architecture`)
+- [ ] ADR issues document rationale and trace to requirements (#REQ)
+- [ ] ARC-C issues define component boundaries
+- [ ] Quality attributes addressed via QA-SC issues
+- [ ] Supplementary docs (C4 diagrams) reference canonical issues
 
 ### Phase 04: Design
-- [ ] design-spec.md exists (IEEE 1016)
-- [ ] Design descriptions complete
-- [ ] Design traces to requirements
-- [ ] Design patterns documented
-- [ ] Interface specifications present
-- [ ] Data models documented
+- [ ] Design issues created or ARC-C issues updated with detailed design
+- [ ] Design issues trace to architecture components (#ARC-C)
+- [ ] Design patterns documented in issue comments or supplementary docs
+- [ ] Interface specifications present (referencing #ARC-C issues)
+- [ ] Data models documented (referencing #ARC-C issues)
+- [ ] Supplementary design docs in `04-design/` MUST reference issues
 
 ### Phase 05: Implementation
-- [ ] User stories exist
-- [ ] Code follows design
-- [ ] Code has traceability annotations
+- [ ] Implementation issues or user stories exist
+- [ ] Code references implementing issues in docstrings (`Implements: #N`, `Architecture: #N`)
+- [ ] Pull requests link to issues via `Fixes #N` or `Implements #N`
+- [ ] Code follows design specifications
 - [ ] Code follows coding standards
-- [ ] Code is peer-reviewed
+- [ ] Code is peer-reviewed (PR approvals)
 
 ### Phase 06: Integration
-- [ ] Integration test plan exists
-- [ ] API contracts documented
-- [ ] Integration scenarios covered
+- [ ] Integration issues exist (label: `type:integration`)
+- [ ] API contracts documented (referencing #ARC-C issues)
+- [ ] Integration scenarios covered in issues
 - [ ] Component interfaces tested
+- [ ] CI/CD configured and passing
 
 ### Phase 07: Verification & Validation
-- [ ] Test specifications exist (IEEE 1012)
+- [ ] Test case issues exist (label: `type:test`, `test-type:unit|integration|e2e|acceptance`)
+- [ ] All TEST issues link to verified requirements via "Verifies: #N"
 - [ ] Test coverage ≥80% (line)
-- [ ] All requirements have tests
+- [ ] All requirements have corresponding TEST issues
 - [ ] V&V reports generated
-- [ ] Traceability matrix complete
+- [ ] Traceability matrix complete (all #REQ → #TEST links)
 
 ### Phase 08: Transition
-- [ ] Deployment plan exists
+- [ ] Deployment issues exist (label: `type:deployment`, `phase:08-transition`)
 - [ ] Infrastructure documented
 - [ ] Rollback procedures defined
 - [ ] Operations runbooks created
+- [ ] Supplementary deployment docs reference canonical issues
 
 ### Phase 09: Operation & Maintenance
 - [ ] Operations manual exists
-- [ ] Monitoring configured
-- [ ] Incident procedures defined
+- [ ] Monitoring configured and documented
+- [ ] Incident response procedures defined
 - [ ] Maintenance plan documented
+- [ ] Maintenance issues tracked with appropriate labels
 ```
 
 ### Phase 2: Cross-Standard Validation
@@ -132,22 +139,25 @@ Check that all required lifecycle documents exist:
 Check compliance across all standards:
 
 ```markdown
-## Cross-Standard Compliance Matrix
+## Cross-Standard Compliance Matrix (GitHub Issues-Based)
 
-| Artifact | ISO 12207 | ISO 29148 | IEEE 1016 | IEEE 42010 | IEEE 1012 |
-|----------|-----------|-----------|-----------|------------|-----------|
-| stakeholder-requirements.md | ✅ § 6.4.1 | ✅ § 5.2 | - | ✅ § 5.3 | - |
-| requirements-spec.md | ✅ § 6.4.2 | ✅ § 6.1-6.4 | - | - | ✅ § 5.2 |
-| architecture-spec.md | ✅ § 6.4.3 | - | ✅ § 5.2 | ✅ § 5.1-5.7 | - |
-| design-spec.md | ✅ § 6.4.4 | - | ✅ § 5.1-5.6 | - | - |
-| src/**/*.ts | ✅ § 6.4.5 | - | - | - | - |
-| tests/**/*.test.ts | ✅ § 6.4.7 | ✅ § 6.4.5 | - | - | ✅ § 5.3 |
+| Artifact Type | ISO 12207 | ISO 29148 | IEEE 1016 | IEEE 42010 | IEEE 1012 |
+|---------------|-----------|-----------|-----------|------------|-----------|
+| StR Issues (type:stakeholder-requirement) | ✅ § 6.4.1 | ✅ § 5.2 | - | ✅ § 5.3 | - |
+| REQ-F/REQ-NF Issues (type:requirement:functional/non-functional) | ✅ § 6.4.2 | ✅ § 6.1-6.4 | - | - | ✅ § 5.2 |
+| ADR Issues (type:architecture:decision) | ✅ § 6.4.3 | - | ✅ § 5.2 | ✅ § 5.1-5.7 | - |
+| ARC-C Issues (type:architecture:component) | ✅ § 6.4.3 | - | ✅ § 5.2 | ✅ § 5.4 | - |
+| Design docs (04-design/) referencing #ARC-C | ✅ § 6.4.4 | - | ✅ § 5.1-5.6 | - | - |
+| Source code with issue references | ✅ § 6.4.5 | - | - | - | - |
+| TEST Issues (type:test) with "Verifies: #N" | ✅ § 6.4.7 | ✅ § 6.4.5 | - | - | ✅ § 5.3 |
 
 **Legend**:
 - ✅ Compliant with standard (includes section reference)
 - ⚠️ Partially compliant
 - 🔴 Non-compliant
 - - Not applicable
+
+**Note**: All artifacts above refer to GitHub Issues as the single source of truth. Supplementary markdown files are allowed but MUST reference canonical issues using #N syntax.
 ```
 
 ### Phase 3: Requirements Compliance (ISO 29148)

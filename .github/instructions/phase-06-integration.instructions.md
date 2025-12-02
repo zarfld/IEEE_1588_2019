@@ -17,18 +17,74 @@ applyTo: "06-integration/**"
 5. Automate integration and deployment
 6. Maintain system integrity through continuous integration
 
+## 📋 Integration Tracking via GitHub
+
+### Pull Request Integration Workflow
+
+**Every PR is an integration event**. PRs MUST:
+- Link to implementing issues (`Fixes #N`, `Implements #N`)
+- Pass all CI checks (tests, lint, coverage)
+- Include integration test results
+- Update related TEST issues with results
+
+**Example PR for Integration**:
+```markdown
+## Integration PR: Merge User Authentication Service
+
+Fixes #45, #46 (requirements)
+Implements #79 (ARC-C-AUTH component)
+Based on #78 (ADR-SECU-001)
+
+## Integration Tests
+✅ Unit tests: 15/15 passing
+✅ Integration tests: 8/8 passing  
+✅ E2E tests: 3/3 passing
+✅ Coverage: 92%
+
+## Integration Points Verified
+- [x] UserService ↔ Database (PostgreSQL)
+- [x] UserService ↔ JWT Token Service
+- [x] UserService ↔ Password Hasher
+- [x] API Gateway ↔ UserService endpoints
+
+## Deployment
+Merged to `develop` branch
+Deployed to staging environment
+```
+
+### Integration Issues
+
+For complex integrations, create dedicated integration issues:
+
+**Title**: Integrate Authentication Service with API Gateway
+
+**Components**:
+- #79 (ARC-C-AUTH: Authentication Service)
+- #82 (ARC-C-GATEWAY: API Gateway)
+
+**Integration Tasks**:
+- [ ] Configure gateway routing to auth endpoints
+- [ ] Add JWT validation middleware
+- [ ] Update gateway OpenAPI spec
+- [ ] Test end-to-end authentication flow
+- [ ] Update integration tests
+- [ ] Deploy to staging
+
+**Verified by**: #125 (TEST-INT-AUTH-GATEWAY)
+
 ## 📋 ISO/IEC/IEEE 12207:2017 Compliance
 
 ### Integration Process Activities
 
-1. **Integration Strategy**
-   - Define integration approach (big-bang, incremental, top-down, bottom-up)
+1. **Integration Strategy** (documented in ADR issues)
+   - Define integration approach (incremental recommended for CI/CD)
    - Identify integration sequence
    - Define integration environment
 
-2. **Integration Execution**
+2. **Integration Execution** (tracked via PRs and integration issues)
    - Integrate software units and components
    - Execute integration tests
+   - Track via PR merges and CI pipeline results
    - Document integration results
 
 3. **Integration Verification**

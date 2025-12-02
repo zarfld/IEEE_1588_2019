@@ -263,26 +263,82 @@ Scenario: Automated order processing
 **Risks**: Team adoption (Medium), Integration complexity (High)
 ```
 
-## 🗂️ Project Structure Creation
+## 🗂️ GitHub Issues Creation (Primary Requirement)
 
-I'll also help you set up the initial project structure:
+**IMPORTANT**: The template now uses **GitHub Issues as the single source of truth** for all requirements, architecture, and test traceability. After documenting stakeholder requirements, I will help you:
+
+1. **Create Stakeholder Requirement (StR) Issues** - One issue per stakeholder requirement
+   - Use issue template: `type:stakeholder-requirement`
+   - Labels: `phase:01-stakeholder-requirements`, `priority:pN` (p0=critical, p1=high, p2=medium, p3=low)
+   - Title format: "StR-XXX: [Stakeholder Need Title]"
+   - Issue body includes: Source stakeholder, rationale, acceptance criteria (Gherkin), success metrics
+
+2. **Link Issues to Project Board** - Organize issues in GitHub Project for tracking
+
+3. **Set Up Traceability Infrastructure**:
+   - Configure issue templates (`.github/ISSUE_TEMPLATE/`)
+   - Set up labels for lifecycle phases and issue types
+   - Create initial milestone for Phase 01
+
+### Example GitHub Issue Creation Command:
+
+```bash
+# Using GitHub CLI (if available)
+gh issue create \
+  --title "StR-BUS-001: Revenue Growth Through Automation" \
+  --label "type:stakeholder-requirement,phase:01-stakeholder-requirements,priority:p1" \
+  --body "**Source**: Business Sponsor (John Smith, VP Sales)
+
+**Rationale**: Manual processes cost \$50K/month; automation saves 80% effort
+
+**Requirement**: The solution shall reduce manual order processing time by 80%, enabling the sales team to process 500 orders/day instead of current 100 orders/day.
+
+**Success Criteria**:
+- Order processing time reduced from 10 minutes to 2 minutes
+- Sales team capacity increases from 100 to 500 orders/day
+- Processing errors reduced from 5% to <1%
+- ROI: Break-even within 6 months
+
+**Acceptance Criteria**:
+\`\`\`gherkin
+Scenario: Automated order processing
+  Given sales team receives new order
+  When order is submitted to system
+  Then order processed within 2 minutes
+  And confirmation sent to customer
+  And sales team notified of completion
+\`\`\`"
+```
+
+### Manual Issue Creation via GitHub Web UI:
+
+If GitHub CLI is not available, I'll provide:
+1. **Issue template content** for each StR requirement
+2. **Copy-paste instructions** for creating issues manually
+3. **Label setup guide** for configuring the repository
+
+## 🗂️ Project Structure Creation (Supplementary)
+
+I'll also help you set up supplementary documentation structure (MUST reference canonical GitHub Issues):
 
 ```
 your-project/
-├── README.md (generated)
+├── README.md (generated - references setup issues)
 ├── docs/
 │   ├── 01-stakeholder-requirements/
-│   │   ├── stakeholder-requirements-spec.md (generated)
-│   │   ├── stakeholder-interviews.md
-│   │   └── business-case.md
-│   ├── 02-requirements/ (ready for next phase)
-│   ├── 03-architecture/ (ready for later)
-│   ├── 04-design/ (ready for later)
-│   └── spec-driven-development.md (template documentation)
+│   │   ├── stakeholder-interviews.md (reference StR issues)
+│   │   └── business-case.md (reference StR issues)
+│   ├── 02-requirements/ (ready for REQ-F/REQ-NF issues)
+│   ├── 03-architecture/ (ready for ADR/ARC-C issues)
+│   ├── 04-design/ (ready for design docs referencing #ARC-C)
+│   └── lifecycle-guide.md (template documentation)
 ├── .github/
+│   ├── ISSUE_TEMPLATE/ (StR, REQ-F, REQ-NF, ADR, ARC-C, TEST templates)
 │   └── prompts/ (copied from template)
 └── src/ (when ready for Phase 05)
 ```
+
+**Note**: Supplementary markdown files in `docs/01-stakeholder-requirements/` are OPTIONAL and must always reference the canonical GitHub Issues using `#N` syntax.
 
 ## 🎯 Sample Discovery Session
 
@@ -335,30 +391,70 @@ Scenario: Customer checks order status
 ```
 ```
 
-## 🔄 Next Steps Roadmap
+## 🔄 Next Steps Roadmap (Issue-Driven Development)
 
-After completing discovery, I'll provide a roadmap:
+After completing discovery, I'll provide an **Issue-Driven Development roadmap**:
 
 ### Immediate (This Week):
-1. ✅ **Stakeholder Requirements Complete** - Document created
-2. ⏳ **Stakeholder Review** - Get approval from key stakeholders  
-3. ⏳ **Requirements Baseline** - Version control, change management
+1. ✅ **Stakeholder Requirements Documented** - Discovery complete
+2. 🔄 **Create StR GitHub Issues** - One issue per stakeholder requirement
+   - Use issue template: `type:stakeholder-requirement`
+   - Labels: `phase:01-stakeholder-requirements`, `priority:pN`
+   - Each issue includes source, rationale, acceptance criteria
+3. ⏳ **Stakeholder Review** - Get approval on StR issues (add `status:approved` label)
+4. ⏳ **Requirements Baseline** - Close approved issues or keep open for traceability
 
-### Phase 02 (Next 1-2 Weeks):
-1. **System Requirements Analysis** - Use `requirements-elicit.prompt.md`
-2. **Requirements Refinement** - Use `requirements-refine.prompt.md` 
-3. **Completeness Check** - Use `requirements-complete.prompt.md`
-4. **Requirements Validation** - Use `requirements-validate.prompt.md`
+### Phase 02 (Next 1-2 Weeks): System Requirements via GitHub Issues
+1. **Create REQ-F Issues** (Functional Requirements)
+   - Use `requirements-elicit.prompt.md`, `requirements-refine.prompt.md`
+   - Each REQ-F issue MUST link to parent StR issue: "Traces to: #N"
+2. **Create REQ-NF Issues** (Non-Functional Requirements)
+   - Link to parent StR issues: "Traces to: #N"
+   - Cover performance, security, reliability, usability, maintainability
+3. **Completeness & Validation** - Use `requirements-complete.prompt.md`, `requirements-validate.prompt.md`
+4. **Create Initial TEST Issue Placeholders** - Link to requirements: "Verifies: #N"
 
-### Phase 03 (Following 2-3 Weeks):
-1. **Architecture Design** - Use `architecture-starter.prompt.md`
-2. **Architecture Decision Records** - Document key decisions
-3. **C4 Diagrams** - Context, Container, Component views
+### Phase 03 (Following 2-3 Weeks): Architecture via GitHub Issues
+1. **Create ADR Issues** (Architecture Decision Records)
+   - Use issue template: `type:architecture:decision`
+   - Document alternatives, rationale, consequences
+   - Link to satisfied requirements: "Addresses: #N (REQ-F-XXX)"
+2. **Create ARC-C Issues** (Architecture Components)
+   - Use issue template: `type:architecture:component`
+   - Define boundaries, interfaces, responsibilities
+   - Link to ADRs: "Implements: #N (ADR-XXX)"
+3. **Create QA-SC Issues** (Quality Attribute Scenarios)
+4. **Supplementary Architecture Docs**: C4 diagrams in `03-architecture/diagrams/` referencing #ADR and #ARC-C issues
 
-### Quality Gates:
-- **Phase 01 → 02**: All stakeholder requirements approved, no TBDs
-- **Phase 02 → 03**: Requirements score ≥90% completeness, validated
-- **Phase 03 → 04**: Architecture views complete, ADRs documented
+### Phase 04-09: Design Through Maintenance (All Issue-Driven)
+- **Phase 04 (Design)**: Update ARC-C issues with detailed design or create design docs referencing #ARC-C
+- **Phase 05 (Implementation)**: Code docstrings reference `Implements: #N`; PRs use `Fixes #N`
+- **Phase 06 (Integration)**: Integration issues track component assembly and CI/CD
+- **Phase 07 (V&V)**: TEST issues verify requirements via "Verifies: #N"
+- **Phase 08-09 (Transition/Ops)**: Deployment and operations issues
+
+### Quality Gates (GitHub Issues-Based Validation):
+- **Phase 01 → 02**: 
+  - ✅ All StR issues created and approved (`status:approved` label or closed)
+  - ✅ No TBDs in issue bodies
+  - ✅ All StR issues have acceptance criteria (Gherkin)
+- **Phase 02 → 03**: 
+  - ✅ 100% REQ-F/REQ-NF issues trace to parent StR issues ("Traces to: #N")
+  - ✅ Requirements completeness score ≥90%
+  - ✅ All requirement issues have acceptance criteria
+  - ✅ Requirements validated via `requirements-validate.prompt.md`
+- **Phase 03 → 04**: 
+  - ✅ All major decisions documented as ADR issues
+  - ✅ All components identified as ARC-C issues
+  - ✅ 100% ARC-C issues trace to requirements
+  - ✅ C4 diagrams reference canonical issues
+- **Phase 05 → 06**:
+  - ✅ All code references implementing issues (`Implements: #N` in docstrings)
+  - ✅ All PRs link to issues (`Fixes #N` or `Implements #N`)
+  - ✅ Test coverage ≥80%
+- **Phase 07 Exit**:
+  - ✅ 100% requirements have TEST issues
+  - ✅ All TEST issues link via "Verifies: #N"
 
 ## 🎓 Tips for Effective Discovery
 

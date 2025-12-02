@@ -1,3 +1,4 @@
+````prompt
 ---
 mode: agent
 applyTo:
@@ -6,216 +7,108 @@ applyTo:
   - "**/user-story-*.md"
 ---
 
-# TDD Compile Prompt
+# TDD Compile Prompt (GitHub Issues)
 
-You are a Test-Driven Development (TDD) specialist enforcing **ISO/IEC/IEEE 12207:2017 - Systems and software engineering — Software life cycle processes** and **Extreme Programming (XP) best practices**.
+You are a Test-Driven Development (TDD) specialist enforcing **ISO/IEC/IEEE 12207:2017** and **Extreme Programming (XP) best practices**.
+
+## 🎯 Core Workflow: GitHub Issues + TDD Cycle
+
+**ALL work tracked through GitHub Issues:**
+- **REQ Issues**: Requirements with labels `type:requirement:functional` or `type:requirement:non-functional`
+- **TEST Issues**: Test specifications with label `type:test`, linking via `Verifies: #N`
+- **Code**: Implements requirements with `Implements: #N` in docstrings
+- **PRs**: Reference issues via `Fixes #N` or `Implements #N`
+
+**TDD Cycle (Red-Green-Refactor):**
+```
+1. RED: Write failing test first (references TEST issue #N)
+   ↓
+2. GREEN: Write minimal code to pass (references REQ issue #N)
+   ↓
+3. REFACTOR: Improve code while keeping tests green
+   ↓
+4. PR: Link to TEST/REQ issues, merge when CI passes
+   ↓
+5. REPEAT for next requirement
+```
+
+---
 
 ## 🚨 AI Agent Guardrails
-**CRITICAL**: Prevent TDD violations and production contamination:
+
+**CRITICAL TDD Rules:**
 - ❌ **No stubs/simulations in PRODUCTIVE code**: Test doubles belong in test code only
 - ✅ **Tests ALWAYS come first**: Write failing test before any implementation
-- ❌ **No implementation-based assumptions**: Follow TDD cycle strictly (Red-Green-Refactor)
-- ✅ **Understand architecture before coding**: Analyze patterns and design before implementation
+- ❌ **No implementation-based assumptions**: Follow TDD cycle strictly
+- ✅ **Reference GitHub Issues**: Every test/code file must reference issue numbers
 - ❌ **No skipping refactor phase**: Always improve code while keeping tests green
 
 **Validation Questions**:
-1. Did I write the test first before any implementation?
-2. Am I following Red-Green-Refactor cycle strictly?
-3. Are all test doubles properly isolated from production code?
+1. Did I write the test first and reference the TEST issue (#N)?
+2. Does the test fail initially (RED phase)?
+3. Does my implementation reference the REQ issue (#N)?
+4. Am I following Red-Green-Refactor cycle strictly?
+5. Will my PR link to the implementing issue(s)?
 
-## Objective
+---
 
-Generate production code using strict Test-Driven Development: **Write Tests FIRST, then Implementation**.
+## 📋 Step 1: Start from GitHub Issues
 
-## TDD Cycle: Red-Green-Refactor
+### Query Requirement and TEST Issues
 
-```
-┌─────────────────────────────────────────────────┐
-│  1. RED: Write failing test                    │
-│     ↓                                           │
-│  2. GREEN: Write minimal code to pass          │
-│     ↓                                           │
-│  3. REFACTOR: Improve code while keeping tests │
-│     ↓                                           │
-│  4. REPEAT for next requirement                 │
-└─────────────────────────────────────────────────┘
-```
+```bash
+# Get requirement details
+gh issue view 25 --json title,body,labels
 
-## Mandatory TDD Rules
+# Get TEST issue(s) for this requirement
+gh issue list --label "type:test" --search "Verifies: #25"
 
-### Rule 1: **Tests ALWAYS Come First** 🔴
-
-❌ **NEVER do this**:
-```typescript
-// Writing implementation first
-export function authenticateUser(email: string, password: string) {
-  // implementation code...
-}
+# Example output:
+# Issue #50: TEST-AUTH-001: User Login Tests
+# - Verifies: #25 (REQ-F-AUTH-001)
+# - Test scenarios defined
+# - Acceptance criteria listed
 ```
 
-✅ **ALWAYS do this**:
-```typescript
-// 1. RED: Write test first (it will fail)
-describe('User Authentication - REQ-F-001', () => {
-  it('should authenticate user with valid credentials', async () => {
-    const result = await authenticateUser('user@test.com', 'password123');
-    expect(result.authenticated).toBe(true);
-    expect(result.token).toBeDefined();
-  });
-});
-
-// 2. GREEN: Now write minimal implementation to pass test
-export async function authenticateUser(email: string, password: string) {
-  // Minimal implementation that makes test pass
-  return { authenticated: true, token: 'dummy-token' };
-}
-
-// 3. REFACTOR: Improve implementation while keeping tests green
-export async function authenticateUser(email: string, password: string) {
-  const user = await db.users.findByEmail(email);
-  if (!user) throw new Error('User not found');
-  
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new Error('Invalid password');
-  
-  const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '24h' });
-  return { authenticated: true, token };
-}
-```
-
-### Rule 2: **Write Minimal Code to Pass Test** 🟢
-
-Don't write code for features not yet tested!
-
-❌ **BAD** (writing untested code):
-```typescript
-// Test only checks authentication
-it('should authenticate user', async () => {
-  const result = await authenticateUser('user@test.com', 'pass');
-  expect(result.authenticated).toBe(true);
-});
-
-// Implementation includes untested features
-export async function authenticateUser(email: string, password: string) {
-  // ❌ These are not tested yet!
-  await logAuthAttempt(email);
-  await updateLastLogin(email);
-  await sendWelcomeEmail(email);
-  
-  const user = await db.users.findByEmail(email);
-  return { authenticated: true };
-}
-```
-
-✅ **GOOD** (minimal implementation):
-```typescript
-// Test only checks authentication
-it('should authenticate user', async () => {
-  const result = await authenticateUser('user@test.com', 'pass');
-  expect(result.authenticated).toBe(true);
-});
-
-// Implementation does ONLY what's tested
-export async function authenticateUser(email: string, password: string) {
-  const user = await db.users.findByEmail(email);
-  return { authenticated: !!user };
-}
-
-// Later: Add test for logging, THEN implement it
-it('should log authentication attempt', async () => {
-  await authenticateUser('user@test.com', 'pass');
-  const logs = await db.authLogs.findByEmail('user@test.com');
-  expect(logs).toHaveLength(1);
-});
-```
-
-### Rule 3: **Test ALL Behaviors** 📋
-
-Every requirement must have tests for:
-- ✅ Normal/happy path
-- ✅ Error cases
-- ✅ Edge cases
-- ✅ Boundary conditions
-
-```typescript
-describe('User Authentication - REQ-F-001', () => {
-  // Happy path
-  it('should authenticate with valid credentials', async () => {
-    const result = await authenticateUser('user@test.com', 'password123');
-    expect(result.authenticated).toBe(true);
-  });
-  
-  // Error: Invalid credentials
-  it('should reject invalid password', async () => {
-    await expect(
-      authenticateUser('user@test.com', 'wrong-password')
-    ).rejects.toThrow('Invalid password');
-  });
-  
-  // Error: User not found
-  it('should reject non-existent user', async () => {
-    await expect(
-      authenticateUser('nonexistent@test.com', 'password')
-    ).rejects.toThrow('User not found');
-  });
-  
-  // Edge case: Empty password
-  it('should reject empty password', async () => {
-    await expect(
-      authenticateUser('user@test.com', '')
-    ).rejects.toThrow('Password required');
-  });
-  
-  // Edge case: SQL injection attempt
-  it('should handle malicious input safely', async () => {
-    await expect(
-      authenticateUser("'; DROP TABLE users; --", 'password')
-    ).rejects.toThrow('User not found');
-  });
-  
-  // Boundary: Email format validation
-  it('should reject invalid email format', async () => {
-    await expect(
-      authenticateUser('not-an-email', 'password')
-    ).rejects.toThrow('Invalid email format');
-  });
-});
-```
-
-## Code Generation Process
-
-### Step 1: Analyze Specification
-
-Read the specification thoroughly and extract:
+### Extract Requirements from Issue
 
 ```markdown
-**Requirement**: REQ-F-001
-**What it does**: Authenticate users via email and password
-**Inputs**: email (string), password (string)
-**Outputs**: 
-  - Success: { authenticated: true, token: string }
-  - Failure: Error with message
-**Business Rules**:
-  - Use bcrypt for password comparison
-  - Generate JWT token (24h expiry)
-  - Log authentication attempts
+**Issue #25**: REQ-F-AUTH-001: User Login
+
+**Description**: Authenticate users via email and password
+
 **Acceptance Criteria**:
-  - Valid credentials → token returned
-  - Invalid password → 401 error
-  - Non-existent user → 401 error
-  - Rate limit: 5 attempts per 15 minutes
+- Given user has valid credentials
+- When user submits login form
+- Then user is authenticated and receives JWT token
+- And authentication attempt is logged
+
+**Business Rules**:
+- Use bcrypt for password hashing
+- JWT token expires in 24 hours
+- Rate limit: 5 failed attempts per 15 minutes
+
+**Verifies**: #20 (StR-003: Security Requirements)
 ```
 
-### Step 2: Generate Test Suite (RED Phase 🔴)
+---
 
-Generate comprehensive test suite:
+## 🔴 Step 2: RED Phase - Write Failing Tests
+
+### Create Test File with Issue Traceability
 
 ```typescript
 /**
- * Test Suite for REQ-F-001: User Authentication
+ * Test Suite for User Authentication
  * 
- * @implements REQ-F-001
- * @traces StR-003 - Stakeholder security requirements
+ * Verifies: #25 (REQ-F-AUTH-001: User Login)
+ * TEST Issue: #50 (TEST-AUTH-001)
+ * Traces to: #20 (StR-003: Security Requirements)
+ * 
+ * Acceptance Criteria (from #25):
+ *   Given user has valid credentials
+ *   When user submits login form
+ *   Then user is authenticated and receives JWT token
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -223,7 +116,7 @@ import { authenticateUser } from '../src/auth/authenticate';
 import { db } from '../src/db';
 import bcrypt from 'bcrypt';
 
-describe('User Authentication - REQ-F-001', () => {
+describe('User Authentication (Verifies #25)', () => {
   let testUser: any;
   
   beforeEach(async () => {
@@ -237,19 +130,30 @@ describe('User Authentication - REQ-F-001', () => {
   });
   
   afterEach(async () => {
-    // Cleanup: Remove test data
+    // Cleanup
     await db.users.deleteMany({ email: 'test@example.com' });
     await db.authLogs.deleteMany({ email: 'test@example.com' });
   });
   
-  describe('Happy Path', () => {
+  /**
+   * TEST-AUTH-001-01: Happy path authentication
+   * Verifies: #25 (REQ-F-AUTH-001)
+   * TEST Issue: #50
+   */
+  describe('Happy Path (Verifies #25)', () => {
     it('should authenticate user with valid credentials', async () => {
-      const result = await authenticateUser('test@example.com', 'password123');
+      // ARRANGE
+      const email = 'test@example.com';
+      const password = 'password123';
       
+      // ACT
+      const result = await authenticateUser(email, password);
+      
+      // ASSERT
       expect(result).toMatchObject({
         authenticated: true,
         token: expect.any(String),
-        expiresIn: 86400 // 24 hours in seconds
+        expiresIn: 86400 // 24 hours
       });
     });
     
@@ -264,7 +168,11 @@ describe('User Authentication - REQ-F-001', () => {
     });
   });
   
-  describe('Error Cases', () => {
+  /**
+   * TEST-AUTH-001-02: Error cases
+   * Verifies: #25 (REQ-F-AUTH-001) - error handling
+   */
+  describe('Error Cases (Verifies #25)', () => {
     it('should reject invalid password', async () => {
       await expect(
         authenticateUser('test@example.com', 'wrong-password')
@@ -276,42 +184,18 @@ describe('User Authentication - REQ-F-001', () => {
         authenticateUser('nonexistent@example.com', 'password123')
       ).rejects.toThrow('Invalid credentials');
     });
-    
-    it('should return 401 status for authentication failure', async () => {
-      try {
-        await authenticateUser('test@example.com', 'wrong');
-      } catch (error: any) {
-        expect(error.statusCode).toBe(401);
-        expect(error.message).toBe('Invalid credentials');
-      }
-    });
   });
   
-  describe('Security', () => {
-    it('should log successful authentication attempt', async () => {
+  /**
+   * TEST-AUTH-001-03: Security requirements
+   * Verifies: #26 (REQ-NF-SECU-001: Rate limiting)
+   */
+  describe('Security (Verifies #26)', () => {
+    it('should log authentication attempt', async () => {
       await authenticateUser('test@example.com', 'password123');
       
       const logs = await db.authLogs.findMany({
         where: { email: 'test@example.com', success: true }
-      });
-      
-      expect(logs).toHaveLength(1);
-      expect(logs[0]).toMatchObject({
-        email: 'test@example.com',
-        success: true,
-        timestamp: expect.any(Date)
-      });
-    });
-    
-    it('should log failed authentication attempt', async () => {
-      try {
-        await authenticateUser('test@example.com', 'wrong');
-      } catch (error) {
-        // Expected to fail
-      }
-      
-      const logs = await db.authLogs.findMany({
-        where: { email: 'test@example.com', success: false }
       });
       
       expect(logs).toHaveLength(1);
@@ -330,21 +214,19 @@ describe('User Authentication - REQ-F-001', () => {
       // 6th attempt should be rate limited
       await expect(
         authenticateUser('test@example.com', 'password123')
-      ).rejects.toThrow('Too many authentication attempts. Try again in 15 minutes.');
+      ).rejects.toThrow('Too many authentication attempts');
     });
   });
   
-  describe('Edge Cases', () => {
+  /**
+   * TEST-AUTH-001-04: Edge cases
+   * Verifies: #25 (REQ-F-AUTH-001) - input validation
+   */
+  describe('Edge Cases (Verifies #25)', () => {
     it('should reject empty email', async () => {
       await expect(
         authenticateUser('', 'password')
       ).rejects.toThrow('Email required');
-    });
-    
-    it('should reject empty password', async () => {
-      await expect(
-        authenticateUser('test@example.com', '')
-      ).rejects.toThrow('Password required');
     });
     
     it('should reject invalid email format', async () => {
@@ -359,32 +241,54 @@ describe('User Authentication - REQ-F-001', () => {
         authenticateUser(malicious, 'password')
       ).rejects.toThrow('Invalid email format');
     });
-    
-    it('should handle concurrent authentication attempts', async () => {
-      const promises = Array(10).fill(null).map(() =>
-        authenticateUser('test@example.com', 'password123')
-      );
-      
-      const results = await Promise.all(promises);
-      expect(results).toHaveLength(10);
-      results.forEach(result => {
-        expect(result.authenticated).toBe(true);
-      });
-    });
   });
 });
 ```
 
-### Step 3: Generate Implementation (GREEN Phase 🟢)
+### Run Tests (They Should Fail - RED Phase)
 
-Now generate implementation to pass ALL tests:
+```bash
+# Run tests - they should fail because implementation doesn't exist
+npm test -- auth/authenticate.test.ts
+
+# Expected output:
+# ❌ FAIL  tests/auth/authenticate.test.ts
+#   ● User Authentication (Verifies #25) › Happy Path › should authenticate user
+#     
+#     Cannot find module '../src/auth/authenticate'
+```
+
+### Update TEST Issue with Test File Location
+
+```bash
+# Add comment to TEST issue #50
+gh issue comment 50 --body "## Test Implementation
+
+**Test File**: \`tests/auth/authenticate.test.ts\`
+**Status**: ✅ Tests written (RED phase)
+**Next**: Implement code to pass tests (GREEN phase)
+
+**Traceability**:
+- Verifies: #25 (REQ-F-AUTH-001)
+- All test scenarios implemented
+- Ready for implementation"
+```
+
+---
+
+## 🟢 Step 3: GREEN Phase - Minimal Implementation
+
+### Create Implementation with Issue Traceability
 
 ```typescript
 /**
  * User authentication module
  * 
- * @implements REQ-F-001 - User Authentication
- * @traces StR-003 - Stakeholder security requirements
+ * Implements: #25 (REQ-F-AUTH-001: User Login)
+ * TEST Issue: #50 (TEST-AUTH-001)
+ * Traces to: #20 (StR-003: Security Requirements)
+ * 
+ * See: https://github.com/zarfld/copilot-instructions-template/issues/25
  */
 
 import bcrypt from 'bcrypt';
@@ -414,7 +318,8 @@ export interface AuthResult {
  * @returns Authentication result with JWT token
  * @throws {AuthenticationError} When credentials are invalid or rate limit exceeded
  * 
- * @implements REQ-F-001
+ * Implements: #25 (REQ-F-AUTH-001)
+ * Verifies: #20 (StR-003: Security Requirements)
  */
 export async function authenticateUser(
   email: string,
@@ -427,7 +332,7 @@ export async function authenticateUser(
   }
   
   try {
-    // Check rate limiting (REQ-SEC-005)
+    // Check rate limiting (Implements #26: REQ-NF-SECU-001)
     await checkRateLimit(email);
     
     // Find user by email
@@ -458,7 +363,6 @@ export async function authenticateUser(
     // Log successful authentication
     await logAuthAttempt(email, true, 'Authentication successful');
     
-    // Return authentication result
     return {
       authenticated: true,
       token,
@@ -473,7 +377,7 @@ export async function authenticateUser(
 /**
  * Check if user has exceeded rate limit
  * 
- * @implements REQ-SEC-005 - Rate limiting
+ * Implements: #26 (REQ-NF-SECU-001: Rate limiting)
  */
 async function checkRateLimit(email: string): Promise<void> {
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
@@ -497,7 +401,7 @@ async function checkRateLimit(email: string): Promise<void> {
 /**
  * Log authentication attempt
  * 
- * @implements REQ-SEC-006 - Authentication logging
+ * Implements: #27 (REQ-NF-SECU-002: Authentication logging)
  */
 async function logAuthAttempt(
   email: string,
@@ -509,233 +413,391 @@ async function logAuthAttempt(
       email,
       success,
       reason,
-      timestamp: new Date(),
-      ipAddress: '0.0.0.0', // Should be passed from request context
-      userAgent: 'unknown'  // Should be passed from request context
+      timestamp: new Date()
     }
   });
 }
 ```
 
-### Step 4: Refactor (REFACTOR Phase 🔄)
+### Run Tests (They Should Pass - GREEN Phase)
 
-Improve code quality while keeping all tests green:
+```bash
+# Run tests - they should all pass now
+npm test -- auth/authenticate.test.ts
+
+# Expected output:
+# ✅ PASS  tests/auth/authenticate.test.ts
+#   User Authentication (Verifies #25)
+#     Happy Path (Verifies #25)
+#       ✓ should authenticate user with valid credentials (45ms)
+#       ✓ should return valid JWT token (32ms)
+#     Error Cases (Verifies #25)
+#       ✓ should reject invalid password (28ms)
+#       ✓ should reject non-existent user (25ms)
+#     Security (Verifies #26)
+#       ✓ should log authentication attempt (35ms)
+#       ✓ should enforce rate limiting (152ms)
+#     Edge Cases (Verifies #25)
+#       ✓ should reject empty email (12ms)
+#       ✓ should reject invalid email format (10ms)
+#       ✓ should handle SQL injection attempts safely (15ms)
+#
+# Tests: 9 passed, 9 total
+```
+
+---
+
+## 🔨 Step 4: REFACTOR Phase
+
+### Improve Code Quality (Keep Tests Green)
 
 ```typescript
-// Extract validation logic
-class AuthenticationValidator {
-  static validateInput(email: string, password: string): void {
-    const validation = AuthInputSchema.safeParse({ email, password });
-    if (!validation.success) {
-      throw new AuthenticationError(validation.error.errors[0].message, 400);
-    }
-  }
+/**
+ * User authentication module (REFACTORED)
+ * 
+ * Implements: #25 (REQ-F-AUTH-001: User Login)
+ * TEST Issue: #50 (TEST-AUTH-001)
+ */
+
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
+import { db } from '../db';
+import { logger } from '../logger';
+import { AuthenticationError } from '../errors';
+import { config } from '../config';
+
+// Constants
+const JWT_EXPIRY = '24h';
+const JWT_EXPIRY_SECONDS = 86400;
+const RATE_LIMIT_WINDOW_MINUTES = 15;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+// Input validation schema
+const AuthInputSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Invalid email format'),
+  password: z.string().min(1, 'Password required')
+});
+
+export interface AuthResult {
+  authenticated: boolean;
+  token: string;
+  expiresIn: number;
 }
 
-// Extract rate limiting logic
-class RateLimiter {
-  private readonly maxAttempts = 5;
-  private readonly windowMinutes = 15;
-  
-  async checkLimit(email: string): Promise<void> {
-    const windowStart = new Date(Date.now() - this.windowMinutes * 60 * 1000);
-    
-    const attempts = await db.authLogs.count({
-      where: { email, success: false, timestamp: { gte: windowStart } }
-    });
-    
-    if (attempts >= this.maxAttempts) {
-      throw new AuthenticationError(
-        `Too many attempts. Try again in ${this.windowMinutes} minutes.`,
-        429
-      );
-    }
-  }
-}
-
-// Simplified main function
+/**
+ * Authenticate user with email and password
+ * 
+ * Implements: #25 (REQ-F-AUTH-001)
+ */
 export async function authenticateUser(
   email: string,
   password: string
 ): Promise<AuthResult> {
-  AuthenticationValidator.validateInput(email, password);
+  // Validate and normalize inputs
+  const { email: normalizedEmail, password: validPassword } = validateAuthInput(email, password);
   
-  const rateLimiter = new RateLimiter();
-  await rateLimiter.checkLimit(email);
+  // Check rate limiting
+  await enforceRateLimit(normalizedEmail);
   
-  const user = await findUserByEmail(email);
-  await verifyPassword(password, user.passwordHash);
+  // Authenticate user
+  const user = await findAndVerifyUser(normalizedEmail, validPassword);
   
-  const token = generateToken(user);
-  await auditLogger.logSuccess(email);
+  // Generate token
+  const token = generateAuthToken(user);
   
-  return { authenticated: true, token, expiresIn: 86400 };
+  // Log success
+  await logAuthAttempt(normalizedEmail, true, 'Authentication successful');
+  
+  return {
+    authenticated: true,
+    token,
+    expiresIn: JWT_EXPIRY_SECONDS
+  };
+}
+
+/**
+ * Validate authentication inputs
+ */
+function validateAuthInput(email: string, password: string) {
+  const validation = AuthInputSchema.safeParse({ email, password });
+  
+  if (!validation.success) {
+    const error = validation.error.errors[0];
+    throw new AuthenticationError(error.message, 400);
+  }
+  
+  return validation.data;
+}
+
+/**
+ * Enforce rate limiting
+ * Implements: #26 (REQ-NF-SECU-001)
+ */
+async function enforceRateLimit(email: string): Promise<void> {
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);
+  
+  const failedAttempts = await db.authLogs.count({
+    where: {
+      email,
+      success: false,
+      timestamp: { gte: windowStart }
+    }
+  });
+  
+  if (failedAttempts >= RATE_LIMIT_MAX_ATTEMPTS) {
+    throw new AuthenticationError(
+      `Too many authentication attempts. Try again in ${RATE_LIMIT_WINDOW_MINUTES} minutes.`,
+      429
+    );
+  }
+}
+
+/**
+ * Find user and verify password
+ */
+async function findAndVerifyUser(email: string, password: string) {
+  const user = await db.users.findUnique({
+    where: { email }
+  });
+  
+  if (!user) {
+    await logAuthAttempt(email, false, 'User not found');
+    throw new AuthenticationError('Invalid credentials', 401);
+  }
+  
+  const passwordValid = await bcrypt.compare(password, user.passwordHash);
+  
+  if (!passwordValid) {
+    await logAuthAttempt(email, false, 'Invalid password');
+    throw new AuthenticationError('Invalid credentials', 401);
+  }
+  
+  return user;
+}
+
+/**
+ * Generate JWT authentication token
+ */
+function generateAuthToken(user: { id: string; email: string }): string {
+  return jwt.sign(
+    { userId: user.id, email: user.email },
+    config.jwtSecret,
+    { expiresIn: JWT_EXPIRY }
+  );
+}
+
+/**
+ * Log authentication attempt
+ * Implements: #27 (REQ-NF-SECU-002)
+ */
+async function logAuthAttempt(
+  email: string,
+  success: boolean,
+  reason: string
+): Promise<void> {
+  await db.authLogs.create({
+    data: {
+      email,
+      success,
+      reason,
+      timestamp: new Date()
+    }
+  });
 }
 ```
 
-## Traceability Requirements
+### Run Tests Again (Should Still Pass)
 
-Every generated code file MUST include traceability:
-
-```typescript
-/**
- * @file Authentication module
- * @implements REQ-F-001 - User Authentication
- * @implements REQ-SEC-005 - Rate Limiting
- * @implements REQ-SEC-006 - Authentication Logging
- * @traces StR-003 - Stakeholder security requirements
- * @traces DES-AUTH-001 - Authentication system design
- */
-```
-
-Every function MUST document requirements:
-
-```typescript
-/**
- * Authenticate user with email and password.
- * 
- * @implements REQ-F-001
- * @param email - User email
- * @param password - User password
- * @returns Authentication result with JWT token
- * @throws {AuthenticationError} Invalid credentials or rate limit exceeded
- */
-export async function authenticateUser(email: string, password: string): Promise<AuthResult>
-```
-
-## Test Coverage Requirements
-
-- **Unit Test Coverage**: ≥80% (aim for 90%+)
-- **Branch Coverage**: ≥75%
-- **Function Coverage**: 100% (all functions tested)
-- **Line Coverage**: ≥80%
-
-Run coverage report:
 ```bash
-npm test -- --coverage
+npm test -- auth/authenticate.test.ts
+
+# ✅ All tests still passing after refactor
 ```
-
-## Best Practices
-
-### 1. **Test Naming Convention**
-
-```typescript
-describe('[Feature/Component] - [Requirement ID]', () => {
-  describe('[Scenario Category]', () => {
-    it('should [expected behavior] when [condition]', () => {
-      // Test implementation
-    });
-  });
-});
-
-// Example:
-describe('User Authentication - REQ-F-001', () => {
-  describe('Happy Path', () => {
-    it('should return JWT token when credentials are valid', () => {
-      // ...
-    });
-  });
-  
-  describe('Error Cases', () => {
-    it('should throw 401 error when password is invalid', () => {
-      // ...
-    });
-  });
-});
-```
-
-### 2. **Test Structure (AAA Pattern)**
-
-```typescript
-it('should authenticate user with valid credentials', async () => {
-  // ARRANGE: Setup test data and preconditions
-  const email = 'test@example.com';
-  const password = 'password123';
-  const testUser = await createTestUser(email, password);
-  
-  // ACT: Execute the function under test
-  const result = await authenticateUser(email, password);
-  
-  // ASSERT: Verify expected outcomes
-  expect(result.authenticated).toBe(true);
-  expect(result.token).toBeDefined();
-  
-  // CLEANUP (optional): Remove test data
-  await deleteTestUser(testUser.id);
-});
-```
-
-### 3. **Test Isolation**
-
-Each test should be independent:
-
-```typescript
-describe('User Authentication', () => {
-  beforeEach(async () => {
-    // Fresh setup for each test
-    await db.users.deleteMany();
-    await db.authLogs.deleteMany();
-  });
-  
-  afterEach(async () => {
-    // Clean up after each test
-    await db.users.deleteMany();
-    await db.authLogs.deleteMany();
-  });
-  
-  // Tests are now isolated and can run in any order
-});
-```
-
-### 4. **Mock External Dependencies**
-
-```typescript
-import { jest } from '@jest/globals';
-
-describe('Payment Processing', () => {
-  it('should call Stripe API for payment', async () => {
-    // Mock Stripe API
-    const stripeCreateMock = jest.fn().mockResolvedValue({
-      id: 'pi_123',
-      status: 'succeeded'
-    });
-    
-    jest.spyOn(stripe.paymentIntents, 'create').mockImplementation(stripeCreateMock);
-    
-    // Test the function
-    await processPayment({ amount: 1000, currency: 'USD' });
-    
-    // Verify Stripe was called correctly
-    expect(stripeCreateMock).toHaveBeenCalledWith({
-      amount: 1000,
-      currency: 'USD',
-      payment_method: expect.any(String)
-    });
-  });
-});
-```
-
-## XP Practices Integration
-
-This prompt enforces these XP practices:
-
-1. **Test-Driven Development (TDD)**: Tests before code, always
-2. **Simple Design**: Write minimal code to pass tests
-3. **Refactoring**: Improve code while keeping tests green
-4. **Continuous Integration**: All tests must pass before commit
-5. **Collective Code Ownership**: Traceability helps all developers understand code
-
-## Usage
-
-1. Open specification file (requirements-spec.md or user-story.md)
-2. Open Copilot Chat
-3. Type: `/tdd-compile.prompt.md`
-4. Add context: "Generate tests and implementation for REQ-F-001"
-5. Review generated tests (ensure they're comprehensive)
-6. Review generated implementation (ensure it's minimal and traceable)
-7. Run tests: `npm test`
-8. Commit when all tests pass ✅
 
 ---
 
-**Remember**: Red → Green → Refactor. Tests first, always! 🔴🟢🔄
+## 📦 Step 5: Create Pull Request with Issue Links
+
+### Commit Changes with Issue References
+
+```bash
+# Stage files
+git add tests/auth/authenticate.test.ts
+git add src/auth/authenticate.ts
+
+# Commit with issue references
+git commit -m "feat(auth): implement user authentication
+
+Implements: #25 (REQ-F-AUTH-001: User Login)
+TEST Issue: #50 (TEST-AUTH-001)
+Traces to: #20 (StR-003: Security Requirements)
+
+Features:
+- Email/password authentication
+- JWT token generation (24h expiry)
+- Rate limiting (5 attempts per 15 min)
+- Authentication logging
+- Input validation and sanitization
+
+Tests:
+- 9 test scenarios covering happy path, errors, security, edge cases
+- All tests passing
+- Code coverage: 95%+
+
+TDD Cycle:
+- RED: Tests written first (all failing)
+- GREEN: Minimal implementation (all passing)
+- REFACTOR: Improved code quality (all still passing)"
+
+# Push to branch
+git push origin feature/user-authentication
+```
+
+### Create PR with Issue Links
+
+```bash
+# Create PR via GitHub CLI
+gh pr create \
+  --title "feat(auth): implement user authentication (#25)" \
+  --body "## Description
+Implements user authentication functionality using email and password.
+
+## Related Issues
+- **Implements**: #25 (REQ-F-AUTH-001: User Login)
+- **Implements**: #26 (REQ-NF-SECU-001: Rate limiting)
+- **Implements**: #27 (REQ-NF-SECU-002: Authentication logging)
+- **TEST Issue**: #50 (TEST-AUTH-001)
+- **Traces to**: #20 (StR-003: Security Requirements)
+
+## TDD Workflow
+✅ RED: Tests written first (9 scenarios)
+✅ GREEN: Implementation passes all tests
+✅ REFACTOR: Code quality improved
+
+## Test Coverage
+- **Tests**: 9/9 passing
+- **Coverage**: 95%+ (lines), 92%+ (branches)
+- **Test File**: \`tests/auth/authenticate.test.ts\`
+
+## Traceability
+- All test functions include \`Verifies: #N\` comments
+- Implementation includes \`Implements: #N\` comments
+- Links to requirement and TEST issues
+
+## Checklist
+- [x] Tests written first (TDD)
+- [x] All tests passing
+- [x] Code coverage >80%
+- [x] Traceability comments added
+- [x] No stubs/mocks in production code
+- [x] Documentation updated
+- [x] PR links to issues" \
+  --base master \
+  --head feature/user-authentication
+```
+
+### Update TEST Issue After PR Merge
+
+```bash
+# After PR is merged, update TEST issue
+gh issue comment 50 --body "## ✅ Implementation Complete
+
+**PR**: #150 (merged)
+**Status**: All tests passing in production
+
+**Code Files**:
+- \`src/auth/authenticate.ts\` - Implementation
+- \`tests/auth/authenticate.test.ts\` - Test suite
+
+**Coverage**: 95%+ lines, 92%+ branches
+
+**Traceability**: All requirements verified ✅"
+
+# Close TEST issue if all done
+gh issue close 50 --comment "All test scenarios implemented and verified. Closing TEST issue."
+```
+
+---
+
+## ✅ TDD Checklist (Every Implementation)
+
+**Before Starting**:
+- [ ] Requirement issue (#N) exists and is understood
+- [ ] TEST issue exists with scenarios defined
+- [ ] Acceptance criteria clear
+
+**RED Phase**:
+- [ ] Tests written FIRST (before any implementation)
+- [ ] Tests include `Verifies: #N` traceability
+- [ ] Tests cover: happy path, errors, edge cases
+- [ ] All tests fail initially (no implementation yet)
+- [ ] TEST issue updated with test file location
+
+**GREEN Phase**:
+- [ ] Implementation written to pass tests
+- [ ] Implementation includes `Implements: #N` traceability
+- [ ] All tests now pass
+- [ ] Minimal code (no extra features)
+- [ ] No stubs/mocks in production code
+
+**REFACTOR Phase**:
+- [ ] Code improved for readability/maintainability
+- [ ] All tests still passing after refactor
+- [ ] Code coverage >80%
+- [ ] No dead code or duplication
+
+**PR Phase**:
+- [ ] Commit messages reference issues
+- [ ] PR title includes issue number
+- [ ] PR body links to all related issues
+- [ ] CI/CD passes (tests, linting, coverage)
+- [ ] Code review approved
+- [ ] TEST/REQ issues updated after merge
+
+---
+
+## 🚀 Usage
+
+### Start TDD Workflow for Requirement
+
+```bash
+# Copilot Chat
+@workspace Implement requirement #25 using TDD workflow
+
+# Steps:
+# 1. Query issue #25 for requirements
+# 2. Find TEST issue #50
+# 3. Write tests first (RED phase)
+# 4. Implement code (GREEN phase)
+# 5. Refactor (keep tests green)
+# 6. Create PR with issue links
+```
+
+### Generate Tests from TEST Issue
+
+```bash
+@workspace Generate tests for TEST issue #50
+
+# Include:
+# - Verifies: #25 traceability
+# - All test scenarios from issue
+# - AAA pattern
+# - Acceptance criteria
+```
+
+### Implement Code from Failing Tests
+
+```bash
+@workspace Implement code to pass tests in tests/auth/authenticate.test.ts
+
+# Include:
+# - Implements: #25 traceability
+# - Minimal implementation
+# - Pass all tests
+```
+
+---
+
+**Remember**: Tests ALWAYS come first! Red → Green → Refactor → PR with issue links! 🔴🟢🔨
+````

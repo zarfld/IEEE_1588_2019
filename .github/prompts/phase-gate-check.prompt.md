@@ -80,24 +80,25 @@ Validate exit criteria for each development phase before allowing progression to
 
 #### **Mandatory Exit Criteria (100% Required)**
 
-**Stakeholder Requirements Quality**:
-- [ ] All stakeholder requirements have unique IDs (STR-XXX-###)
-- [ ] All requirements trace to identified business needs
-- [ ] All requirements have clear acceptance criteria
-- [ ] All requirements approved by stakeholders
-- [ ] No "TBD" or placeholder requirements remain
+**Stakeholder Requirements Quality (GitHub Issues)**:
+- [ ] All stakeholder requirement issues created (label: `type:stakeholder-requirement`, `phase:01-stakeholder-requirements`)
+- [ ] All StR issues have unique titles following format: "StR-XXX: [Stakeholder Need Title]"
+- [ ] All StR issues trace to identified business needs (documented in issue body)
+- [ ] All StR issues have clear acceptance criteria (Gherkin format in issue body)
+- [ ] All StR issues approved by stakeholders (label: `status:approved` or closed)
+- [ ] No "TBD" or placeholder content in issue bodies
 
 **Stakeholder Engagement**:
-- [ ] All primary stakeholders identified and engaged
-- [ ] Stakeholder interviews completed and documented
-- [ ] Requirements conflicts resolved and documented
-- [ ] Sign-off obtained from all stakeholder representatives
+- [ ] All primary stakeholders identified and documented (in StR issue bodies as "Source" field)
+- [ ] Stakeholder interviews completed and documented (supplementary docs reference StR issues)
+- [ ] Requirements conflicts resolved and documented (in issue comments or ADR issues)
+- [ ] Sign-off obtained from all stakeholder representatives (GitHub issue approvals/labels)
 
-**Documentation Quality**:
-- [ ] Stakeholder Requirements Specification complete
-- [ ] Business case documented with ROI analysis
-- [ ] Project scope clearly defined with exclusions
-- [ ] Success criteria and metrics defined
+**Documentation Quality (Issue-Based)**:
+- [ ] All StR issues contain: Source stakeholder, Rationale, Requirement statement, Success Criteria, Acceptance Criteria
+- [ ] Business case documented (supplementary docs reference StR issues via #N)
+- [ ] Project scope clearly defined with exclusions (StR issues or project description)
+- [ ] Success criteria and metrics defined in StR issue bodies
 
 **Process Compliance**:
 - [ ] Requirements elicitation process followed
@@ -124,26 +125,27 @@ Validate exit criteria for each development phase before allowing progression to
 
 ### **Gate 02→03: System Requirements → Architecture Design**
 
-#### **Mandatory Exit Criteria**
+#### **Mandatory Exit Criteria (GitHub Issues-Based)**
 
-**Requirements Quality**:
-- [ ] All system requirements derived from stakeholder requirements
-- [ ] All requirements meet INVEST criteria
+**Requirements Quality (GitHub Issues)**:
+- [ ] All REQ-F issues (type:requirement:functional) derived from parent StR issues
+- [ ] All REQ-NF issues (type:requirement:non-functional) derived from parent StR issues
+- [ ] All requirement issues meet INVEST criteria (documented in issue body)
 - [ ] Requirements completeness score ≥90% (from requirements-complete.prompt.md)
 - [ ] Requirements validation passed (from requirements-validate.prompt.md)
-- [ ] Architecture-significant requirements identified
+- [ ] Architecture-significant requirements labeled (e.g., `architecture-significant`)
 
 **Requirements Coverage**:
-- [ ] All functional requirements specified with acceptance criteria
-- [ ] All non-functional requirements quantified (performance, security)
-- [ ] All constraints documented (technology, budget, timeline)
-- [ ] All interfaces to external systems defined
+- [ ] All REQ-F issues specify acceptance criteria in issue body
+- [ ] All REQ-NF issues quantified (performance targets, security levels in issue body)
+- [ ] All constraints documented (as issues or in project description)
+- [ ] All interfaces to external systems defined (in issue bodies or supplementary docs referencing issues)
 
-**Traceability**:
-- [ ] Forward traceability: STR → REQ complete
-- [ ] All requirements have unique IDs (REQ-F-XXX, REQ-NF-XXX)
-- [ ] Requirements traceability matrix generated
-- [ ] Orphaned requirements identified and resolved
+**Traceability (Issue Links)**:
+- [ ] Forward traceability: 100% of REQ issues trace to StR issues via "Traces to: #N"
+- [ ] All requirement issues follow naming: "REQ-F-XXX" or "REQ-NF-XXX" in title
+- [ ] Traceability validated (script: `scripts/validate-traceability.py` or manual audit)
+- [ ] No orphaned requirements (all REQ issues have parent StR issue links)
 
 #### **Quality Scorecard**
 
@@ -160,24 +162,27 @@ Validate exit criteria for each development phase before allowing progression to
 
 #### **Mandatory Exit Criteria**
 
-**Architecture Documentation**:
-- [ ] C4 Context diagram complete and approved
-- [ ] C4 Container diagram complete and approved  
-- [ ] C4 Component diagrams for critical containers
-- [ ] Architecture specification following ISO 42010
-- [ ] All architectural views documented (4+1 model)
+**Architecture Documentation (GitHub Issues + Supplementary Docs)**:
+- [ ] ADR issues created for all significant decisions (label: `type:architecture:decision`, `phase:03-architecture`)
+- [ ] ARC-C issues created for all components (label: `type:architecture:component`, `phase:03-architecture`)
+- [ ] QA-SC issues created for quality scenarios (label: `type:architecture:quality-scenario`)
+- [ ] C4 Context diagram complete (supplementary doc references #ADR and #ARC-C issues)
+- [ ] C4 Container diagram complete (references #ARC-C issues)
+- [ ] C4 Component diagrams for critical containers (references #ARC-C issues)
+- [ ] All architectural views documented (supplementary docs reference canonical issues)
 
-**Architecture Decisions**:
-- [ ] All significant decisions documented as ADRs
-- [ ] Technology stack selected with rationale
-- [ ] Architecture patterns chosen and documented
-- [ ] Non-functional requirements addressed in architecture
+**Architecture Decisions (ADR Issues)**:
+- [ ] All ADR issues document: Context, Decision, Alternatives Considered, Consequences
+- [ ] All ADR issues link to requirements they satisfy ("Addresses: #N (REQ-F-XXX)")
+- [ ] Technology stack selected with ADR issue documenting rationale
+- [ ] Architecture patterns chosen with ADR issues
+- [ ] Non-functional requirements addressed (ADR issues link to REQ-NF issues)
 
-**Architecture Validation**:
-- [ ] Architecture review completed by senior architects
-- [ ] Architecture addresses all quality attributes
-- [ ] Performance estimates provided for key scenarios
-- [ ] Security architecture reviewed and approved
+**Architecture Validation (Issue-Based)**:
+- [ ] Architecture review completed (ADR issue comments/approvals from architects)
+- [ ] All QA-SC issues address quality attributes from REQ-NF issues
+- [ ] Performance estimates provided in QA-SC issue bodies
+- [ ] Security architecture reviewed (ADR issues approved, comments documented)
 
 #### **Quality Scorecard**
 
@@ -192,25 +197,26 @@ Validate exit criteria for each development phase before allowing progression to
 
 ### **Gate 04→05: Detailed Design → Implementation**
 
-#### **Mandatory Exit Criteria**
+#### **Mandatory Exit Criteria (GitHub Issues-Based)**
 
 **Design Completeness**:
-- [ ] All components from architecture have detailed designs
-- [ ] All interfaces defined with API specifications
-- [ ] All data models defined with schemas
-- [ ] All algorithms and business logic specified
+- [ ] All ARC-C issues updated with detailed design specifications (in issue body or comments)
+- [ ] All interfaces defined with API specifications (referencing #ARC-C issues)
+- [ ] All data models defined with schemas (in supplementary docs referencing #ARC-C)
+- [ ] All algorithms and business logic specified (in ARC-C issue bodies or design docs)
+- [ ] Supplementary design docs in `04-design/` reference canonical #ARC-C issues
 
 **Design Quality**:
-- [ ] Design follows SOLID principles
-- [ ] Design patterns appropriately applied
-- [ ] Error handling strategies defined
-- [ ] Performance considerations addressed
+- [ ] Design follows SOLID principles (documented in ARC-C issues)
+- [ ] Design patterns appropriately applied (documented in ADR or ARC-C issues)
+- [ ] Error handling strategies defined (in ARC-C issue bodies)
+- [ ] Performance considerations addressed (link to QA-SC or REQ-NF issues)
 
 **Implementation Readiness**:
 - [ ] Development environment set up and tested
-- [ ] Code scaffolding generated from design
-- [ ] Test strategy defined (unit, integration, e2e)
-- [ ] CI/CD pipeline configured
+- [ ] Code scaffolding generated from design (ready for TDD)
+- [ ] Test strategy defined (TEST issue placeholders created, link to REQ issues)
+- [ ] CI/CD pipeline configured (GitHub Actions workflows in place)
 
 #### **Quality Scorecard**
 
@@ -225,25 +231,28 @@ Validate exit criteria for each development phase before allowing progression to
 
 ### **Gate 05→06: Implementation → Integration & Testing**
 
-#### **Mandatory Exit Criteria**
+#### **Mandatory Exit Criteria (GitHub Issues + Code Traceability)**
 
 **Code Quality**:
-- [ ] All features implemented per requirements
-- [ ] Code review completed for all changes
+- [ ] All features implemented per REQ-F issues (check PR links: "Fixes #N" or "Implements #N")
+- [ ] All PRs link to implementing issue(s)
+- [ ] All code has docstring traceability ("Implements: #N", "Architecture: #N", "Verifies: #N")
+- [ ] Code review completed for all PRs (approved and merged)
 - [ ] Static analysis passes (no critical issues)
 - [ ] Security scan passes (no high/critical vulnerabilities)
 
-**Test Coverage**:
+**Test Coverage (Issue-Based)**:
 - [ ] Unit test coverage ≥80% (critical paths ≥95%)
 - [ ] Integration tests cover all API endpoints
-- [ ] All acceptance criteria have automated tests
+- [ ] All acceptance criteria from REQ issues have automated tests
 - [ ] Test quality validated (from test-validate.prompt.md)
+- [ ] TEST issues created for all requirements (label: `type:test`)
 
-**TDD Compliance**:
-- [ ] TDD process followed (tests written first)
+**TDD Compliance (Issue-Driven)**:
+- [ ] TDD process followed (tests written first, documented in PR descriptions)
 - [ ] All tests passing in CI/CD pipeline
-- [ ] Test-to-requirement traceability established
-- [ ] Test documentation complete
+- [ ] Test-to-requirement traceability via TEST issues: "Verifies: #N (REQ-F-XXX)"
+- [ ] Test documentation complete (TEST issue bodies document test approach)
 
 #### **Quality Scorecard**
 
@@ -256,22 +265,22 @@ Validate exit criteria for each development phase before allowing progression to
 | Security & Performance | 15% | __/10 | __/1.5 |
 | **Total** | **100%** | | **__/10** |
 
-### **Gate 06→07: Integration & Testing → Deployment**
+### **Gate 06→07: Integration & Testing → Deployment (Phase 07: Verification & Validation)**
 
-#### **Mandatory Exit Criteria**
+#### **Mandatory Exit Criteria (GitHub Issues-Based)**
 
 **Testing Completeness**:
-- [ ] All planned test cases executed
-- [ ] System integration testing completed
-- [ ] Performance testing meets requirements
-- [ ] Security testing passed
-- [ ] User acceptance testing completed
+- [ ] All TEST issues executed and results documented (close issues or add execution results in comments)
+- [ ] System integration testing completed (integration TEST issues closed)
+- [ ] Performance testing meets requirements (verify against QA-SC or REQ-NF issues)
+- [ ] Security testing passed (security TEST issues closed)
+- [ ] User acceptance testing completed (acceptance TEST issues closed)
 
-**Defect Management**:
-- [ ] All critical and high severity defects resolved
-- [ ] Medium severity defects have approved workarounds
-- [ ] Defect metrics within acceptable thresholds
-- [ ] No open security vulnerabilities (high/critical)
+**Defect Management (GitHub Issues)**:
+- [ ] All critical and high severity bug issues resolved (label: `type:bug`, `priority:p0` or `priority:p1`)
+- [ ] Medium severity bug issues have approved workarounds (documented in issue comments)
+- [ ] Defect metrics within acceptable thresholds (check closed vs. open bug issues)
+- [ ] No open security vulnerabilities (high/critical) - check security scan results and security bug issues
 
 **Production Readiness**:
 - [ ] Production environment prepared and tested
@@ -490,24 +499,36 @@ npm run lint
 
 ### Current Phase Assessment:
 ```bash
-# Check readiness for next phase
+# Check readiness for next phase (GitHub Issues-Based)
 /phase-gate-check.prompt.md I'm currently in Phase 02 (System Requirements). 
 Please assess readiness to move to Phase 03 (Architecture Design).
 
-Current artifacts:
-- ./02-requirements/requirements-spec.md
-- ./01-stakeholder-requirements/stakeholder-requirements-spec.md
+Current GitHub Issues:
+- 15 StR issues (type:stakeholder-requirement) - all approved
+- 42 REQ-F issues (type:requirement:functional)
+- 18 REQ-NF issues (type:requirement:non-functional)
+
+Please validate:
+- 100% REQ issues trace to StR issues via "Traces to: #N"
+- All issues have acceptance criteria
+- All issues are properly labeled
 ```
 
 ### Specific Quality Check:
 ```bash
-# Check specific quality dimension
+# Check specific quality dimension (GitHub Issues traceability)
 /phase-gate-check.prompt.md Please audit our requirements traceability. 
-Do all system requirements trace back to stakeholder requirements?
+Do all REQ-F/REQ-NF issues trace back to parent StR issues using "Traces to: #N" syntax?
+
+Repository: owner/repo
+Labels to check: type:requirement:functional, type:requirement:non-functional
 
 # Check test coverage readiness
-/phase-gate-check.prompt.md Are we ready for Phase 06 (Testing)? 
-Current test coverage is 78%. What needs to be improved?
+/phase-gate-check.prompt.md Are we ready for Phase 07 (Verification & Validation)? 
+Current test coverage is 78%. 
+
+Do all requirements have corresponding TEST issues?
+Do all TEST issues link to requirements via "Verifies: #N"?
 ```
 
 ### Generate Gate Review Report:

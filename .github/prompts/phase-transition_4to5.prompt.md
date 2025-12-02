@@ -1,22 +1,36 @@
 ## Phase 05: Implementation - TDD & Standards-Compliant Development
 
-> For each implementation unit created from design, ensure an updated design spec or section includes YAML front matter (if new file) and that tests reference originating IDs:
-> ```yaml
-> ---
-> title: "Component Implementation Plan - <ComponentName>"
-> specType: implementation-plan
-> version: 0.1.0
-> status: draft
-> author: <name>
-> date: <YYYY-MM-DD>
-> relatedDesign:
->   - DES-C-001
-> relatedRequirements:
->   - REQ-F-001
-> integrityLevel: 1
-> ---
+> **GitHub Issues Traceability**: All code MUST reference implementing GitHub Issues in docstrings and comments. Use `Implements: #N`, `Verifies: #N`, `Architecture: #N` syntax. Traceability path via issues: #REQ-F → #ARC-C → Pull Request (#PR) → #TEST.
+> 
+> **Code Documentation Examples**:
+> ```python
+> """
+> User authentication service.
+> 
+> Implements: #23 (REQ-F-AUTH-001: User Login)
+> Architecture: #45 (ARC-C-AUTH-001: Authentication Service)
+> Verified by: #89 (TEST-AUTH-001: Authentication Tests)
+> 
+> See: https://github.com/org/repo/issues/23
+> """
+> class AuthenticationService:
+>     pass
 > ```
-> Traceability path must be maintained: REQ-* → ARC-C-* → DES-* → SRC:<path> → TEST-* (with @pytest.mark.requirement or similar annotation).
+> 
+> ```typescript
+> /**
+>  * User login endpoint
+>  * 
+>  * @implements #23 REQ-F-AUTH-001: User Login
+>  * @architecture #45 ARC-C-AUTH-001: Authentication Service
+>  * @see https://github.com/org/repo/issues/23
+>  */
+> export async function loginUser(credentials: Credentials): Promise<User> {
+>   // Implementation
+> }
+> ```
+> 
+> **Pull Request Requirements**: Every PR MUST link to implementing issue(s) using `Fixes #N` or `Implements #N` in PR description.
 
 **Context**: I have completed Phase 04 (Detailed Design) following IEEE 1016-2009 standards and am ready to transition to Phase 05 (Implementation) following ISO/IEC/IEEE 12207:2017 Implementation Process and XP practices.
 

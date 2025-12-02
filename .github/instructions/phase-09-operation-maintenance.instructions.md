@@ -17,22 +17,116 @@ applyTo: "09-operation-maintenance/**"
 5. Continuously improve based on feedback
 6. Plan and execute system evolution
 
+## 📋 Incident and Maintenance Tracking via GitHub
+
+### Incident Tracking
+
+Use GitHub Issues for incident management:
+
+**Template**: Bug Report or create custom "Incident" template
+
+**Example Incident Issue**:
+
+**Title**: [INC-001] Login failures for users with special characters in email
+
+**Severity**: High (P1)
+
+**Impact**:
+```markdown
+- Affects: ~500 users with '+' or '.' in email addresses
+- User-facing: Login fails with 400 Bad Request
+- Workaround: None currently available
+- Revenue impact: Potential churn for affected users
+```
+
+**Root Cause Analysis**:
+```markdown
+Related to #45 (REQ-F-AUTH-001: User Login)
+Component: #79 (ARC-C-AUTH: Authentication Service)
+
+**Cause**: Email validation regex doesn't handle RFC 5322 compliant addresses
+**Fix**: Update validation to use proper email RFC compliance
+```
+
+**Resolution**:
+```markdown
+Implements fix: #PR-155
+Verified by: #156 (TEST-INC-001-REGRESSION)
+Deployed: v1.2.1 hotfix on 2025-11-12
+```
+
+**Labels**: `bug`, `incident`, `priority-high`, `phase-09`
+
+### Maintenance Request Tracking
+
+**Maintenance Types** (use labels):
+- `maintenance-corrective`: Fix defects (bugs)
+- `maintenance-adaptive`: Adapt to environment changes
+- `maintenance-perfective`: Improve performance/features
+- `maintenance-preventive`: Prevent future issues
+
+**Example Maintenance Issue**:
+
+**Title**: [MAINT-PERF] Optimize database queries for user search
+
+**Type**: Perfective Maintenance
+
+**Justification**:
+```markdown
+Performance degradation observed:
+- User search response time: 2.5s (target: <200ms)
+- Database CPU: 85% during peak hours
+- N+1 query problem identified in user search endpoint
+```
+
+**Original Requirements**:
+```markdown
+Relates to: #46 (REQ-NF-PERF-001: Search performance)
+Component: #79 (ARC-C-AUTH)
+```
+
+**Proposed Solution**:
+- Add database indexes on email and name fields
+- Implement query result caching (Redis, 5min TTL)
+- Batch fetch related entities
+
+**Expected Impact**:
+- Response time: <200ms
+- Database CPU: <50%
+- Cache hit rate: >80%
+
+### Linking Bugs to Original Requirements
+
+Every bug MUST link back to:
+```markdown
+## Traceability
+- **Original Requirement**: #45 (REQ-F-AUTH-001)
+- **Architecture**: #79 (ARC-C-AUTH)
+- **Implementation**: #PR-25 (where bug was introduced)
+- **Tests**: #120 (why didn't tests catch this?)
+
+## Impact Analysis
+- Requirement still met? Partially (95% of users unaffected)
+- New test needed? Yes - add edge case tests for special chars
+- Documentation update? Yes - clarify supported email formats
+```
+
 ## 📋 ISO/IEC/IEEE 12207:2017 Compliance
 
 ### Operation Process
 
-1. **Operational Use**
+1. **Operational Use** (tracked via monitoring dashboards + GitHub Issues for incidents)
    - Operate system per specifications
-   - Monitor performance
-   - Provide user support
+   - Monitor performance (metrics → alerts → issues)
+   - Provide user support (support tickets → GitHub issues)
    - Log issues and feedback
 
-2. **Operational Support**
+2. **Operational Support** (GitHub Issues for support requests)
    - Assist users
    - Resolve operational problems
    - Maintain operational documentation
 
-### Maintenance Process
+### Maintenance Process (GitHub Issues with maintenance-* labels)
 
 1. **Maintenance Planning**
    - Define maintenance strategy

@@ -16,6 +16,89 @@ applyTo: "07-verification-validation/**"
 4. Ensure requirements traceability
 5. Perform acceptance testing with customer
 6. Document test results and defects
+7. **Report test results with courage and honesty** - See [Critical Self-Reflection Guide](../../docs/critical-self-reflection-honest-reporting.md)
+
+## 📋 Test Case Documentation Approach
+
+### ⭐ PRIMARY: GitHub Issues (Recommended)
+
+**Test cases should be captured as GitHub Issues** using the Test Case (TEST) template.
+
+#### Creating Test Cases as GitHub Issues
+
+1. **Navigate to Issues → New Issue**
+2. **Select Template**: "Test Case (TEST)"
+3. **Complete Required Fields**:
+   - **Title**: Test case description (e.g., "Verify user can login with valid credentials")
+   - **Verified Requirements**: Link to requirements using `#N` syntax
+   - **Test Type**: Unit / Integration / System / Acceptance / Performance / Security
+   - **Test Steps**: Detailed procedure
+   - **Expected Results**: What should happen
+   - **Test Data**: Required data/fixtures
+   - **Priority**: Critical / High / Medium / Low
+   
+4. **Apply Labels**: `test-case`, `phase-07`, `verify-test`
+5. **Submit** → Issue assigned (e.g., #120)
+
+**Example TEST Issue**:
+
+**Title**: TEST-AUTH-LOGIN-001: Verify user authentication with valid credentials
+
+**Verified Requirements**:
+```markdown
+Verifies:
+- #45 (REQ-F-AUTH-001: User Login)
+- #46 (REQ-NF-SECU-002: Session Security)
+```
+
+**Test Type**: Integration
+
+**Test Steps**:
+```markdown
+1. Navigate to login page
+2. Enter valid email: test@example.com
+3. Enter valid password: SecurePass123!
+4. Click "Login" button
+5. Observe redirect and token generation
+```
+
+**Expected Results**:
+```markdown
+- User is authenticated successfully
+- Access token and refresh token are generated
+- User is redirected to dashboard
+- Session is created with 15-minute expiry
+- Tokens are stored securely (httpOnly cookie)
+```
+
+**Test Data**:
+```markdown
+User: { email: 'test@example.com', password: 'SecurePass123!' }
+Expected: 200 OK response with tokens
+```
+
+**Priority**: Critical (P0)
+
+**Test Results**: Track in issue comments:
+```markdown
+## Test Run: 2025-11-12 14:30 UTC
+**Status**: ✅ PASS
+**Environment**: Staging
+**Tester**: @johndoe
+**Build**: v1.2.3-rc1
+**Duration**: 2.5s
+**Notes**: All acceptance criteria met
+```
+
+#### Traceability: Tests → Requirements
+
+```markdown
+## Traceability
+- **Verifies**: #45, #46 (requirements)
+- **Test Suite**: Integration Tests
+- **Automated**: Yes (src/tests/integration/auth/login.spec.ts)
+- **Coverage**: Lines 92%, Branches 88%
+```
 
 ## 📋 IEEE 1012-2016 Compliance
 
@@ -24,10 +107,12 @@ applyTo: "07-verification-validation/**"
 **Verification**: "Are we building the product right?"
 - Confirms that work products properly reflect requirements
 - Technical correctness evaluation
+- **Tracked via**: TEST issues with `verify-test` label
 
 **Validation**: "Are we building the right product?"
 - Confirms that product fulfills intended use
 - Fitness for purpose evaluation
+- **Tracked via**: Acceptance test issues with `verify-demonstration` label
 
 ### V&V Activities by Lifecycle Phase
 
@@ -821,6 +906,21 @@ Update Architecture Traceability Matrix to include reliability evidence:
 
 **Deliverable**: Defect analysis report with lessons learned
 
+### 6. Corrective-Action Loop (V&V)
+
+For each verified gap/anomaly discovered during V&V, execute a full corrective-action loop to route the issue back to the originating lifecycle phase, implement the fix with tests-first, re-integrate, and re-verify.
+
+**Prompt**: Use `.github/prompts/corrective-action-loop.prompt.md`
+
+Key steps:
+- Document the anomaly and classify severity/integrity level
+- Perform root cause analysis; identify origin phase (requirements/design/code)
+- Write failing unit and system/integration tests that reproduce the defect (TDD)
+- Apply minimal-scoped fix; treat as development (requirements → design → code → test)
+- Execute impact-based regression suite and reliability checks (if affected)
+- Update traceability (Requirement ↔ Design ↔ Code ↔ Test ↔ CAP ↔ SFMEA)
+- Close with objective evidence (CI runs, reports) and stakeholder sign-off
+
 ## �🚨 Critical Requirements for This Phase
 
 ### Always Do
@@ -902,10 +1002,157 @@ Update Architecture Traceability Matrix to include reliability evidence:
 ✅ **Defect analysis complete** with root cause classification and lessons learned  
 ✅ **(Optional) RDT passed** if required (Reliability Demonstration Test with statistical confidence)  
 
+## 📊 Honest Test Result Reporting
+
+### Critical Principle: Report Truth, Not Hope
+
+**XP Value - Courage**: "Tell the truth straight out, whether the data is **good or bad**."
+
+#### Test Report Template
+
+```markdown
+## Test Report - [Iteration/Build ID]
+
+### Summary
+- **Total Tests**: 1,245
+- **Passing**: 1,198 ✅ (96.2%)
+- **Failing**: 47 ❌ (3.8%)
+- **Trend**: Failing tests increased from 12 (1%) last week 🚨
+
+### Failed Tests by Category
+| Category | Count | Priority | Root Cause |
+|----------|-------|----------|------------|
+| Integration (API) | 25 | 🚨 High | Third-party API changed format |
+| Unit (OrderProcessor) | 15 | 🔴 High | Refactoring introduced regression |
+| E2E (Checkout flow) | 5 | 🟡 Medium | Flaky tests (timing issues) |
+| UI (Layout) | 2 | 🟢 Low | CSS regression |
+
+### Action Plan
+- **Today**: Fix API adapter (2 hours) → Unblock 25 tests
+- **Tomorrow**: Fix OrderProcessor regression (4 hours)
+- **Next Sprint**: Stabilize flaky E2E tests (technical debt)
+
+**Status**: 🔴 RED (failure rate >3% threshold)  
+**Blocking Release**: Yes (critical failures)  
+**Owner**: Dev Team (All)  
+**Next Update**: End of day Friday
+```
+
+#### Honest Status vs. Wishful Thinking
+
+| ❌ Dishonest Reporting | ✅ Honest Reporting |
+|-------------------------|----------------------|
+| "90% of tests pass" | "47 tests failing, including 25 critical API tests" |
+| "Almost ready to ship" | "Blocked by API integration issues; ETA 2 days" |
+| "Minor issues only" | "15 unit test failures due to regression (high priority)" |
+| "We're catching up" | "Test failures trending up; need corrective action" |
+
+### Early Warning System
+
+**Report immediately when**:
+- Test failure rate >3% (threshold breach)
+- Critical tests fail (P0/P1 priority)
+- Trend shows increasing failures (week-over-week)
+- Flaky tests impact CI reliability
+- Coverage drops below 80%
+
+**Notification Protocol**:
+```markdown
+## Test Status Alert 🚨
+
+**Date**: 2025-11-28 14:30 UTC  
+**To**: Team Lead, Product Owner
+
+**Problem**: Integration test failures blocking deployment
+
+**Impact**:
+- Cannot deploy to staging
+- Release delayed by estimated 2 days
+- 25 API tests failing (20% of integration suite)
+
+**Root Cause**: Third-party weather API changed response format without notice
+
+**Options**:
+1. Fix adapter immediately (2 days) → Delay release to Monday
+2. Rollback to old API version (4 hours) → On-time release, but vendor forces upgrade in 2 months
+3. Ship without weather feature (1 day) → Reduced scope, on-time release
+
+**Recommendation**: Option 1 (fix adapter properly)
+
+**Why telling you NOW**: Gives max reaction time for stakeholder communication
+
+**Promise**: Daily updates at 5pm until resolved
+```
+
+### Five Whys for Test Failures
+
+When tests fail, dig to root cause:
+
+**Example**:
+```markdown
+## Root Cause Analysis: Authentication Tests Failing
+
+**Symptom**: 15 authentication tests failing since Tuesday
+
+**Five Whys**:
+1. **Why** are auth tests failing?  
+   → JWT token validation returns 401 Unauthorized.
+
+2. **Why** is token validation failing?  
+   → Token signature is invalid.
+
+3. **Why** is signature invalid?  
+   → Secret key changed in environment config.
+
+4. **Why** did secret key change?  
+   → DevOps rotated keys as part of security policy.
+
+5. **Why** didn't we know about key rotation?  
+   → No notification process for environment changes.
+
+**Root Cause**: Lack of communication between DevOps and Dev teams
+
+**Systemic Solution** (team problem, not individual blame):
+- [ ] Add key rotation to change management process
+- [ ] Notify dev team 24 hours before environment changes
+- [ ] Add automated test for key expiration (warn 7 days before)
+```
+
+### Velocity-Based Prediction
+
+**Use actual test completion velocity to predict release readiness**:
+
+```markdown
+## Test Execution Progress
+
+| Week | Tests Executed | Tests Remaining | Velocity (tests/week) |
+|------|----------------|-----------------|----------------------|
+| 1    | 150            | 850             | 150                  |
+| 2    | 200            | 650             | 175 (avg: 162)       |
+| 3    | 180            | 470             | 176 (avg: 176)       |
+| 4    | ?              | ?               | ?                    |
+
+**Prediction** (based on actual velocity):
+- Average velocity: 176 tests/week
+- Remaining: 470 tests
+- **Estimated completion**: 2.7 weeks (not 2 weeks as planned)
+
+**Options**:
+1. Continue at current pace → Release delayed by 1 week
+2. Increase test automation → Accelerate velocity (risky if rushed)
+3. Reduce test scope → Remove low-priority tests (review with stakeholders)
+
+**Honest Recommendation**: Option 1 (realistic timeline based on data)
+```
+
 ## 🎯 Next Phase
 
 **Phase 08: Transition (Deployment)** (`08-transition/`)
 
 ---
 
-**Remember**: Verification checks correctness. Validation checks fitness for purpose. Both are essential! Customer involvement in acceptance testing is mandatory (XP practice).
+**Remember**: 
+- **Verification checks correctness. Validation checks fitness for purpose. Both are essential!**
+- **Customer involvement in acceptance testing is mandatory (XP practice).**
+- **Report test results with courage and honesty - bad news delivered early gives stakeholders maximum reaction time.**
+- **See [Critical Self-Reflection and Honest Reporting Guide](../../docs/critical-self-reflection-honest-reporting.md) for detailed practices.**

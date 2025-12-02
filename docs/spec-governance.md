@@ -1,5 +1,19 @@
 # Spec Governance & Standards Compliance
 
+> **⚠️ DEPRECATED**: This document describes the **legacy file-based governance workflow**.
+>
+> **Current Approach**: Use **GitHub Issues** as the authoritative artifacts with governance via:
+> - Issue templates for ISO/IEC/IEEE standards compliance
+> - Labels and milestones for lifecycle tracking
+> - Project boards for workflow management
+> - Branch protection and required reviews for PRs
+>
+> See: [GitHub Issues Workflow](improvement_ideas/using_github_issues_as_infrastructure_for_REQ_Tracability.md)
+>
+> This document is kept for historical reference only.
+
+---
+
 This document defines how Markdown specifications act as the authoritative software engineering artifacts while remaining compliant with ISO/IEC/IEEE standards (29148, 12207, 42010, 1016, 1012) using a spec-driven + AI-assisted workflow.
 
 ## Objectives

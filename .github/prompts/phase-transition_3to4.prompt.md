@@ -1,21 +1,17 @@
 ## Phase 04: Detailed Design - Standards-Compliant Transition
 
-> Include IEEE 1016 compliant Software Design Description files with YAML front matter:
-> ```yaml
-> ---
-> title: "Software Design Description"
-> specType: design
-> version: 0.1.0
-> status: draft
-> author: <name>
-> date: <YYYY-MM-DD>
-> relatedArchitecture:
->   - ARC-C-001
-> relatedRequirements:
->   - REQ-F-001
-> ---
+> **GitHub Issues Workflow**: Update architecture component issues (ARC-C) with detailed design specifications. Add design comments to architecture issues or create supplementary design documentation that references issues. Maintain traceability via issue references: #REQ → #ARC-C → code implementation → #TEST.
+> 
+> **Design Documentation**: You may create supplementary design markdown files in `04-design/components/`, but they MUST reference the canonical GitHub Issues using `#N` syntax:
+> ```markdown
+> # Component Design: User Authentication
+> 
+> **Architecture Issue**: #45 (ARC-C-AUTH-001: Authentication Service)
+> **Requirements**: #23 (REQ-F-AUTH-001), #24 (REQ-NF-SECU-002)
+> 
+> ## Component Structure
+> [Detailed design content here...]
 > ```
-> Use unique IDs for new design elements: DES-C-### (components), DES-I-### (interfaces), DES-D-### (data models). Maintain traceability: REQ-* → ARC-C-* → DES-* → TEST-*.
 
 **Context**: I have completed Phase 03 (Architecture Design) following ISO/IEC/IEEE 42010:2011 standards and am ready to transition to Phase 04 (Detailed Design) following IEEE 1016-2009 standards.
 

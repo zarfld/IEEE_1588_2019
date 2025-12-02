@@ -17,54 +17,214 @@ applyTo: "05-implementation/**"
 5. Practice pair programming and collective ownership
 6. Refactor continuously to improve design
 
-## ⚠️ MANDATORY: Implementation Compliance and Traceability
+## 📋 Code Traceability to GitHub Issues
 
-CRITICAL: While YAML front matter applies to specification documents (Phases 02–04), the implementation phase MUST enforce code-level traceability, test structure, and CI quality gates.
+### ⭐ PRIMARY: Link Code to GitHub Issues
 
-Scope: Applies to `05-implementation/**` (code, tests, and implementation docs under this phase).
+**Every source file and test MUST reference the GitHub Issues it implements or verifies.**
 
-1) Code Header Traceability (required in source files)
+#### Code Header Traceability (Required)
 
-Each source file MUST include a top-of-file comment block with traceability to design and requirements.
+Each source file MUST include a top-of-file comment block with GitHub Issue links.
 
-Example (TypeScript/JavaScript):
+**Example (TypeScript/JavaScript)**:
 ```typescript
-/*
-Module: src/application/user/UserService.ts
-Phase: 05-implementation
-Traceability:
-  Design: DES-C-001
-  Requirements: REQ-F-001, REQ-NF-004
-  Tests: TEST-UNIT-UserService, TEST-INT-UserWorkflow
-Notes: Keep IDs current when refactoring; maintain links in tests.
-*/
+/**
+ * User Service - Handles user authentication and profile management
+ * 
+ * @module UserService
+ * @implements #45 REQ-F-AUTH-001: User Login
+ * @implements #46 REQ-NF-SECU-002: Session Security
+ * @architecture #78 ADR-SECU-001: JWT Authentication
+ * @architecture #79 ARC-C-AUTH: User Authentication Service
+ * @verifiedBy #120 TEST-AUTH-LOGIN
+ * 
+ * @see https://github.com/zarfld/copilot-instructions-template/issues/45
+ * @see https://github.com/zarfld/copilot-instructions-template/issues/78
+ */
+export class UserService {
+  // Implementation
+}
 ```
 
-Example (Python):
+**Example (Python)**:
 ```python
 """
-Module: src/app/user/service.py
-Phase: 05-implementation
-Traceability:
-  Design: DES-C-001
-  Requirements: REQ-F-001, REQ-NF-004
-  Tests: TEST-UNIT-user-service, TEST-INT-user-workflow
-Notes: Keep IDs current when refactoring; maintain links in tests.
+User Service - Handles user authentication and profile management
+
+Implements: #45 REQ-F-AUTH-001: User Login
+Implements: #46 REQ-NF-SECU-002: Session Security
+Architecture: #78 ADR-SECU-001: JWT Authentication
+Architecture: #79 ARC-C-AUTH: User Authentication Service
+Verified by: #120 TEST-AUTH-LOGIN
+
+See: https://github.com/zarfld/copilot-instructions-template/issues/45
+See: https://github.com/zarfld/copilot-instructions-template/issues/78
 """
+
+class UserService:
+    """User authentication and profile management service."""
+    pass
 ```
 
-2) Test Structure and Naming (required)
+#### Test Traceability (Required)
 
-- Co-locate unit tests with code or place under `tests/unit/**` using `<module>.spec.(ts|js|py)` naming.
-- Integration tests under `tests/integration/**` using `<feature>.int.spec.(ts|js|py)` naming.
-- Each test file MUST include a header block listing traced IDs (REQ-*, DES-*) and a stable test identifier (e.g., `TEST-UNIT-<Name>`).
+Every test MUST reference the requirement(s) it verifies using `@verifies` or `Verifies:` syntax.
 
-3) CI Quality Gates (required)
+**Example (Jest/TypeScript)**:
+```typescript
+describe('User Login (Verifies #45)', () => {
+  /**
+   * @verifies #45 REQ-F-AUTH-001: User Login
+   * @scenario Given valid credentials, When user logs in, Then auth token is returned
+   */
+  it('should authenticate user with valid credentials', async () => {
+    // Arrange
+    const credentials = { email: 'user@example.com', password: 'SecurePass123!' };
+    
+    // Act
+    const result = await userService.login(credentials);
+    
+    // Assert
+    expect(result.accessToken).toBeDefined();
+    expect(result.refreshToken).toBeDefined();
+  });
+  
+  /**
+   * @verifies #45 REQ-F-AUTH-001: User Login (error handling)
+   * @scenario Given invalid password, When user logs in, Then error is returned
+   */
+  it('should reject login with invalid password', async () => {
+    const credentials = { email: 'user@example.com', password: 'wrong' };
+    
+    await expect(userService.login(credentials))
+      .rejects.toThrow('Invalid credentials');
+  });
+});
+```
 
-- Lint and type check: must pass on every push and PR.
-- Tests: 100% of unit tests must pass; integration tests must pass for changed areas.
-- Coverage threshold: ≥ 80% lines/branches for changed code; fail build if below.
-- Fast red/green feedback: fix broken builds immediately (target ≤ 10 minutes).
+**Example (pytest/Python)**:
+```python
+"""
+Test User Login functionality
+
+Verifies: #45 REQ-F-AUTH-001: User Login
+Test Suite: TEST-AUTH-LOGIN
+Priority: P0 (Critical)
+"""
+
+def test_user_login_with_valid_credentials():
+    """
+    Verifies: #45 REQ-F-AUTH-001: User Login
+    Scenario: Given valid credentials, When user logs in, Then auth token is returned
+    """
+    # Arrange
+    credentials = {'email': 'user@example.com', 'password': 'SecurePass123!'}
+    
+    # Act
+    result = user_service.login(credentials)
+    
+    # Assert
+    assert result['accessToken'] is not None
+    assert result['refreshToken'] is not None
+
+def test_user_login_with_invalid_password():
+    """
+    Verifies: #45 REQ-F-AUTH-001: User Login (error handling)
+    Scenario: Given invalid password, When user logs in, Then error is returned
+    """
+    credentials = {'email': 'user@example.com', 'password': 'wrong'}
+    
+    with pytest.raises(InvalidCredentialsError):
+        user_service.login(credentials)
+```
+
+#### Pull Request Workflow (Required)
+
+**Every PR MUST link to the implementing issue(s) using `Fixes` or `Implements` keywords.**
+
+**PR Title Format**:
+```
+feat(auth): Implement user login with JWT (#45)
+```
+
+**PR Description Template**:
+```markdown
+## Description
+Implements user authentication with JWT tokens as specified in requirements and architecture decisions.
+
+## Related Issues
+Fixes #45 (REQ-F-AUTH-001: User Login)
+Implements #46 (REQ-NF-SECU-002: Session Security)
+Part of #78 (ADR-SECU-001: JWT Authentication)
+
+## Implementation Details
+- Added UserService with login/logout methods
+- Integrated jsonwebtoken library for JWT generation
+- Added bcrypt for password hashing
+- Implemented refresh token mechanism
+
+## Testing
+- ✅ Unit tests: 15 tests added, all passing
+- ✅ Integration tests: 8 tests added, all passing
+- ✅ Coverage: 92% lines, 88% branches
+- ✅ Manual testing: Tested in dev environment
+
+## Traceability
+- **Requirements**: #45, #46
+- **Architecture**: #78, #79
+- **Tests**: #120 (TEST-AUTH-LOGIN)
+- **Documentation**: Updated API docs
+
+## Checklist
+- [x] Code follows project style guide
+- [x] All tests pass locally
+- [x] Coverage meets threshold (≥80%)
+- [x] Traceability links added to code
+- [x] Documentation updated
+- [x] No new lint/type errors
+- [x] Reviewed own code
+```
+
+**Commit Message Format**:
+```bash
+feat(auth): Implement JWT-based user login (#45)
+
+- Add UserService with login/logout methods
+- Integrate jsonwebtoken and bcrypt libraries
+- Implement refresh token mechanism
+- Add comprehensive unit and integration tests
+
+Implements: #45, #46
+Architecture: #78
+Verified by: #120
+
+Breaking changes: None
+```
+
+**GitHub Actions Validation**:
+The CI workflow automatically:
+- ✅ Validates that PR links to at least one issue
+- ✅ Checks that linked issues exist and are open
+- ✅ Verifies all tests pass
+- ✅ Checks code coverage (≥80%)
+- ✅ Runs lint and type checks
+- ✅ Comments on PR with traceability summary
+
+#### Test Structure and Naming (Required)
+
+- **Unit tests**: Co-locate with code or place under `tests/unit/**` using `<module>.spec.(ts|js|py)` naming
+- **Integration tests**: Under `tests/integration/**` using `<feature>.int.spec.(ts|js|py)` naming
+- Each test file MUST include a header block with GitHub Issue links (`Verifies: #N`)
+- Create TEST issues for complex test suites that verify multiple requirements
+
+#### CI Quality Gates (Required)
+
+- **Lint and type check**: Must pass on every push and PR
+- **Tests**: 100% of unit tests must pass; integration tests must pass for changed areas
+- **Coverage threshold**: ≥ 80% lines/branches for changed code; fail build if below
+- **Issue links**: PR must link to issues using `Fixes` or `Implements` keywords
+- **Fast feedback**: Fix broken builds immediately (target ≤ 10 minutes)
 
 4) Reliability Hooks (alignment with IEEE 1633)
 

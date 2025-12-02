@@ -17,23 +17,83 @@ applyTo: "08-transition/**"
 5. Conduct operational readiness review
 6. Transition system to operations team
 
+## 📋 Deployment Tracking via GitHub
+
+### Release Issues
+
+Create a release issue for each deployment:
+
+**Title**: Release v1.2.0 - User Authentication Feature
+
+**Features Deployed**:
+```markdown
+- #45 (REQ-F-AUTH-001: User Login) ✅
+- #46 (REQ-NF-SECU-002: Session Security) ✅
+- #79 (ARC-C-AUTH: Auth Service) ✅
+```
+
+**Deployment Checklist**:
+- [ ] All tests passing (100%)
+- [ ] Security scan completed
+- [ ] Performance benchmarks met
+- [ ] Database migrations tested
+- [ ] Rollback plan documented
+- [ ] Monitoring dashboards configured
+- [ ] Documentation updated
+- [ ] Training materials prepared
+- [ ] Operations team notified
+- [ ] Deploy to staging ✅
+- [ ] Staging smoke tests ✅
+- [ ] Deploy to production
+- [ ] Production smoke tests
+- [ ] Monitor for 24 hours
+
+**Verified by**:
+- #120, #121, #122 (TEST issues)
+
+**Documentation**:
+- User Guide: [link]
+- API Docs: [link]
+- Runbook: [link]
+
+### Closing Implemented Requirements
+
+After successful deployment:
+1. **Update requirement issues** with deployment info:
+   ```markdown
+   ## Deployment Status
+   ✅ Deployed: v1.2.0 on 2025-11-12
+   Environment: Production
+   Release: #150
+   ```
+
+2. **Close implemented issues** using release PR:
+   ```bash
+   git commit -m "Release v1.2.0
+
+   Closes #45, #46
+   Release: #150"
+   ```
+
+3. **Update stakeholder issues** with completion status
+
 ## 📋 ISO/IEC/IEEE 12207:2017 Compliance
 
 ### Transition Process Activities
 
-1. **Transition Planning**
+1. **Transition Planning** (tracked via release issues)
    - Define deployment strategy
    - Identify training needs
    - Plan documentation
    - Establish support structure
 
-2. **Deployment**
+2. **Deployment** (tracked via release issue checklist)
    - Deploy to production
-   - Verify deployment
+   - Verify deployment (smoke tests)
    - Conduct smoke tests
    - Monitor initial operation
 
-3. **Training**
+3. **Training** (documented in release issue)
    - Train end users
    - Train operators
    - Train support staff

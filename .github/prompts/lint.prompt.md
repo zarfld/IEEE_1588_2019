@@ -4,14 +4,24 @@ mode: agent
 
 # Specification Linting and Optimization
 
-Optimize specification files for clarity, conciseness, and AI coding agent comprehension.
+> **⚠️ NOTE**: This template now uses **GitHub Issues** as the single source of truth for requirements, architecture, and tests. This prompt can still be used to lint **supplementary documentation** files, but the primary artifacts are now GitHub Issue bodies.
+> 
+> **Primary Use**: Lint GitHub Issue bodies and supplementary markdown documentation
+> **Deprecated Use**: ~~Linting file-based specification files as primary artifacts~~
+> 
+> For GitHub Issues workflow, see:
+> - Root instructions: `.github/copilot-instructions.md` (Issue-Driven Development section)
+> - Phase instructions: `.github/instructions/phase-NN-*.instructions.md`
+
+Optimize GitHub Issue bodies and supplementary documentation for clarity, conciseness, and AI coding agent comprehension.
 
 ## Objectives
 
-- **Clarity**: Make specifications unambiguous and easy to understand
+- **Clarity**: Make issue bodies and documentation unambiguous and easy to understand
 - **Conciseness**: Remove redundancy while preserving all important details
-- **Consistency**: Standardize terminology and structure
+- **Consistency**: Standardize terminology and structure across issues and docs
 - **AI-Friendliness**: Optimize for GitHub Copilot and other AI coding agents
+- **Traceability**: Ensure supplementary docs reference canonical GitHub Issues via `#N` syntax
 
 ## Linting Rules
 
@@ -51,10 +61,11 @@ Standardize vocabulary across the specification:
 While optimizing, DO NOT remove:
 - Technical requirements
 - Acceptance criteria
-- Traceability IDs (REQ-XXX, StR-XXX, etc.)
+- Traceability links to GitHub Issues (`#N` syntax, "Traces to: #N", "Implements: #N", "Verifies: #N")
+- GitHub Issue references in supplementary documentation
 - Quality attributes
 - Constraints
-- Design decisions (ADRs)
+- Design decisions (ADR issues)
 
 ### 5. Structural Consistency
 

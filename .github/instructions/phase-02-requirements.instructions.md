@@ -16,31 +16,20 @@ applyTo: "02-requirements/**"
 4. Establish requirements traceability
 5. Define testable acceptance criteria
 
-## ⚠️ MANDATORY: YAML Front Matter Schema Compliance
+## 📋 Requirements Capture Method
 
-CRITICAL: All requirements specification files MUST use EXACT YAML front matter format defined in authoritative schema:
+### GitHub Issues (Primary and Recommended)
 
-Authoritative Schema: `spec-kit-templates/schemas/requirements-spec.schema.json`
+**All requirements MUST be captured as GitHub Issues** using the Functional Requirement (REQ-F) or Non-Functional Requirement (REQ-NF) templates.
 
-Required YAML Front Matter Format:
-```yaml
----
-specType: requirements
-standard: 29148
-phase: 02-requirements
-version: 1.0.0
-author: [Your Name]
-date: 2025-MM-DD
-status: draft  # draft | review | approved | deprecated
-traceability:
----
-```
-
-ENFORCEMENT:
-- Do NOT use full standard names like "ISO/IEC/IEEE 29148:2018" - use "29148" only
-- Do NOT modify schema patterns - match them exactly
-- Reference authoritative schema file for any questions
-- Validation will FAIL if format deviates from schema
+**Benefits**:
+- ✅ No YAML front matter required - metadata captured via issue fields, labels, and project columns
+- ✅ Traceability via `#N` syntax in issue bodies
+- ✅ ISO/IEC/IEEE 29148:2018 compliance via issue templates
+- ✅ Automated validation via GitHub Actions
+- ✅ Real-time collaboration and discussion
+- ✅ Integration with pull requests and CI/CD
+- ✅ Searchable and filterable with labels and milestones
 
 ## 📋 ISO/IEC/IEEE 29148:2018 Compliance
 
@@ -91,69 +80,212 @@ Acceptance Criteria:
 - Make acceptance criteria executable
 - Customer defines acceptance tests
 
-## 📝 Required Deliverables
+## 📝 Requirements Documentation Approach
 
-### 1. System Requirements Specification (SyRS)
-**Location**: `system-requirements-specification.md`
+### ⭐ PRIMARY: GitHub Issues (Recommended)
 
+**System requirements should be captured as GitHub Issues** using the Functional Requirement (REQ-F) or Non-Functional Requirement (REQ-NF) templates.
+
+#### Creating Functional Requirements as GitHub Issues
+
+1. **Navigate to Issues → New Issue**
+2. **Select Template**: "Functional Requirement (REQ-F)"
+3. **Complete Required Fields**:
+   - **Title**: Clear capability statement (e.g., "User can export data to CSV format")
+   - **Parent Stakeholder Requirement**: Link to parent StR issue using `#N` syntax
+   - **Requirement Description**: What the system shall do (use "shall" for mandatory)
+   - **Acceptance Criteria**: Testable conditions (Given-When-Then format)
+   - **Priority**: Critical (P0) / High (P1) / Medium (P2) / Low (P3)
+   - **Integrity Level**: 1 (highest) through 4 (lowest) per IEEE 1012-2016
+   - **Dependencies**: Other requirements this depends on
+   - **Verification Method**: Inspection / Analysis / Demonstration / Test
+   
+4. **Apply Labels**:
+   - `functional-requirement` (auto-applied by template)
+   - `phase-02` (lifecycle phase)
+   - `priority-*` and `integrity-*` labels
+   
+5. **Submit** → GitHub assigns issue number (e.g., #45)
+
+#### Creating Non-Functional Requirements as GitHub Issues
+
+1. **Navigate to Issues → New Issue**
+2. **Select Template**: "Non-Functional Requirement (REQ-NF)"
+3. **Complete Required Fields**:
+   - **Title**: Quality attribute with metric (e.g., "System response time under 200ms for 95th percentile")
+   - **Parent Stakeholder Requirement**: Link to parent StR issue (`#N`)
+   - **Quality Attribute Category**: Performance / Security / Usability / Reliability / Maintainability / Portability
+   - **Requirement Description**: Specific quality constraint
+   - **Measurable Criteria**: Objective metrics and targets
+   - **Verification Method**: How to test/measure compliance
+   - **Priority** and **Integrity Level**
+   
+4. **Apply Labels**:
+   - `non-functional-requirement`
+   - `phase-02`
+   - Category-specific labels if available
+
+#### Example: Creating REQ-F Issue
+
+**Title**: User can filter product list by multiple categories
+
+**Parent Stakeholder Requirement**:
 ```markdown
-# System Requirements Specification
-
-## 1. Introduction
-### 1.1 Purpose
-### 1.2 Scope
-### 1.3 Definitions, Acronyms, Abbreviations
-### 1.4 References
-### 1.5 Overview
-
-## 2. Functional Requirements
-### 2.1 [Feature Category 1]
-#### REQ-F-001: [Requirement Title]
-- **Trace to**: StR-XXX
-- **Description**: [What the system shall do]
-- **Priority**: Critical/High/Medium/Low
-- **Rationale**: [Why needed]
-- **Acceptance Criteria**:
-  - Given [precondition]
-  - When [action]
-  - Then [expected result]
-- **Dependencies**: REQ-XXX
-- **Assumptions**: [If any]
-
-## 3. Non-Functional Requirements
-### 3.1 Performance Requirements
-#### REQ-NF-001: [Performance Requirement]
-- **Trace to**: StR-XXX
-- **Metric**: [Measurable metric]
-- **Target**: [Specific value]
-- **Acceptance Test**: [How to verify]
-
-### 3.2 Security Requirements
-### 3.3 Usability Requirements
-### 3.4 Reliability Requirements
-### 3.5 Maintainability Requirements
-### 3.6 Portability Requirements
-### 3.7 Scalability Requirements
-
-## 4. System Interfaces
-### 4.1 User Interfaces
-### 4.2 Hardware Interfaces
-### 4.3 Software Interfaces
-### 4.4 Communication Interfaces
-
-## 5. Constraints
-### 5.1 Design Constraints
-### 5.2 Implementation Constraints
-### 5.3 Interface Constraints
-
-## 6. Traceability Matrix
-| System Req | Stakeholder Req | Priority | Status |
-|------------|----------------|----------|--------|
-| REQ-F-001  | StR-001        | High     | Draft  |
+**Traces to**: #1 (StR: Improve product discovery experience)
 ```
 
-### 2. Use Cases
+**Requirement Description**:
+```markdown
+The system **shall** allow users to:
+1. Select multiple product categories simultaneously (e.g., "Electronics" AND "Sale Items")
+2. Apply filters with AND/OR logic
+3. See real-time count of matching products
+4. Clear all filters with single action
+5. Save filter combinations for future use
+```
+
+**Acceptance Criteria**:
+```markdown
+### Scenario 1: Apply multiple filters
+**Given** user is on product listing page  
+**And** at least 100 products exist across 5+ categories  
+**When** user selects "Electronics" AND "Sale Items" filters  
+**Then** system displays only products matching both categories  
+**And** product count updates to show "23 items"  
+**And** response time is < 500ms
+
+### Scenario 2: Clear filters
+**Given** user has 3 filters applied  
+**When** user clicks "Clear All Filters" button  
+**Then** all filters are removed  
+**And** full product list is displayed  
+**And** filter count shows "0 active filters"
+
+### Scenario 3: Save filter combination
+**Given** user has applied 2+ filters  
+**When** user clicks "Save Filters" and enters name "My Electronics Deals"  
+**Then** filter combination is saved to user profile  
+**And** appears in "Saved Filters" dropdown on next visit
+```
+
+**Priority**: High (P1)  
+**Integrity Level**: 2 (high criticality)  
+**Dependencies**: REQ-F-012 (Product catalog API), REQ-NF-015 (Database query performance)  
+**Verification Method**: Test (automated integration tests + manual UAT)
+
+**Labels**: `functional-requirement`, `phase-02`, `priority-high`, `integrity-2`
+
+After submission → Issue #45 created
+
+#### Example: Creating REQ-NF Issue
+
+**Title**: Search results return within 200ms for 95% of queries
+
+**Parent Stakeholder Requirement**:
+```markdown
+**Traces to**: #2 (StR: Fast, responsive user experience)
+```
+
+**Quality Attribute Category**: Performance
+
+**Requirement Description**:
+```markdown
+The system **shall** return search results with the following performance characteristics:
+- **95th percentile**: ≤ 200ms response time
+- **99th percentile**: ≤ 500ms response time
+- **Average**: ≤ 100ms response time
+- **Database queries**: Maximum 3 queries per search
+- **Concurrent users**: Performance maintained under 1000 concurrent users
+```
+
+**Measurable Criteria**:
+```markdown
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| P95 response time | ≤ 200ms | APM tool (New Relic) |
+| P99 response time | ≤ 500ms | APM tool |
+| Average response | ≤ 100ms | APM tool |
+| Query count | ≤ 3 queries | Database profiler |
+| Load capacity | 1000 concurrent | Load testing (JMeter) |
+```
+
+**Verification Method**:
+```markdown
+1. **Performance Testing**: JMeter load test with 1000 virtual users
+2. **Production Monitoring**: APM tool continuous monitoring
+3. **Acceptance Criteria**: All metrics met for 7 consecutive days in production
+```
+
+**Priority**: Critical (P0)  
+**Integrity Level**: 1 (highest - customer-facing performance)
+
+**Labels**: `non-functional-requirement`, `phase-02`, `priority-critical`, `integrity-1`
+
+After submission → Issue #46 created
+
+#### Traceability via GitHub Issues
+
+Requirements trace to parent stakeholder requirements:
+```markdown
+## Traceability
+- **Traces to**: #1, #2 (parent StR issues)
+- **Depends on**: #12, #15 (prerequisite requirements)
+- **Refined by**: #78, #79 (child design decisions in Phase 03)
+- **Implemented by**: #PR-25 (pull request)
+- **Verified by**: #120, #121 (test case issues)
+```
+
+**Automated Validation**: GitHub Actions validates:
+- Every REQ-F/REQ-NF has at least one parent StR link
+- Parent issues exist and are labeled `stakeholder-requirement`
+- No circular dependencies
+- All dependencies resolved before marking requirement complete
+
+#### Querying Requirements
+
+Use GitHub search:
+```
+# All functional requirements
+is:issue label:functional-requirement label:phase-02
+
+# High priority non-functional requirements
+is:issue label:non-functional-requirement label:priority-high
+
+# Performance requirements
+is:issue label:non-functional-requirement "performance" in:title
+
+# Requirements tracing to specific StR
+is:issue label:functional-requirement "#1" in:body
+```
+
+Or use GitHub MCP via Copilot:
+```
+List all functional requirements for Phase 02
+Show non-functional requirements with priority critical
+```
+
+#### Generate Requirements Specification from Issues
+
+```bash
+# Generate System Requirements Specification document
+python scripts/github-traceability-report.py --type requirements --output SyRS.md
+```
+
+Produces ISO/IEC/IEEE 29148-compliant specification document from issues.
+
+### 📝 Supplementary Documentation Files
+
+While **GitHub Issues are the single source of truth**, you may create supplementary markdown files in `02-requirements/` folders for:
+- Detailed use case descriptions (reference issue #N)
+- Complex domain models and diagrams
+- Background research and analysis
+- Reference documentation
+
+**Critical Rule**: All supplementary files MUST reference the canonical GitHub Issue(s) using `#N` syntax.
+
+### 1. Use Cases (Optional Supplements to Issues)
 **Location**: `use-cases/UC-XXX-[name].md`
+**References**: Must link to REQ-F issue(s)
 
 Follow "Writing Effective Use Cases" (Alistair Cockburn) format:
 
