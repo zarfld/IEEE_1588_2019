@@ -106,9 +106,11 @@ int main() {
     (void)msg1; (void)msg2; (void)msg3;  // Verify enum values compile
     std::cout << "✅ MessageType Enums: PASS (Sync, Announce, Delay_Req) (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
-    // Test 4: Message Type Aliases
-    [[maybe_unused]] using AnnounceMessage = IEEE::_1588::PTP::_2019::Clocks::AnnounceMessage;
-    [[maybe_unused]] using SyncMessage = IEEE::_1588::PTP::_2019::Clocks::SyncMessage;
+    // Test 4: Message Type Aliases (verify compilation only)
+    using AnnounceMessage = IEEE::_1588::PTP::_2019::Clocks::AnnounceMessage;
+    using SyncMessage = IEEE::_1588::PTP::_2019::Clocks::SyncMessage;
+    (void)sizeof(AnnounceMessage);  // Verify type exists
+    (void)sizeof(SyncMessage);      // Verify type exists
     std::cout << "✅ Message Type Aliases: PASS (TEST-CLOCKS-ENUMS-001)" << std::endl;
     
     // Test 5: PTPResult Usage
