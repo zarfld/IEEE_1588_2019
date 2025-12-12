@@ -14,6 +14,9 @@ add_subdirectory(06-dcf77-terrestrial-radio)   # DCF77 time source (radio, Europ
 add_subdirectory(07-rtc-module)                # RTC time source (I2C, fallback)
 add_subdirectory(08-multi-source-bmca)         # Multi-source BMCA selection
 
+# Hardware Integration Examples
+add_subdirectory(12-intel-avb-windows)         # Intel AVB Filter Driver (Windows)
+
 # Time-sensitive types example
 add_executable(time_sensitive_types_example
     time_sensitive_types_example.cpp
