@@ -440,21 +440,33 @@ bool GpsAdapter::parse_nmea_sentence(const char* sentence, GpsData* gps_data)
 bool GpsAdapter::parse_gprmc(const char* sentence, GpsData* gps_data)
 {
     // $GPRMC,hhmmss.ss,A,ddmm.mm,N,dddmm.mm,E,speed,course,ddmmyy,...
-    // Manual parsing to handle empty fields (course is often empty)
+    // Manual CSV parsing to preserve empty fields (course is often empty)
     
-    // Make a copy for tokenization
-    char buffer[128];
-    strncpy(buffer, sentence, sizeof(buffer) - 1);
-    buffer[sizeof(buffer) - 1] = '\0';
-    
-    char* fields[15];  // GPRMC has ~12 fields
+    char* fields[15] = {nullptr};  // GPRMC has ~12 fields
     int field_count = 0;
     
-    // Split by commas
-    char* token = strtok(buffer, ",");
-    while (token && field_count < 15) {
-        fields[field_count++] = token;
-        token = strtok(NULL, ",");
+    // Manual CSV parse - don't skip empty fields
+    const char* start = sentence;
+    const char* current = sentence;
+    
+    static char field_buffer[15][32];  // Storage for field strings
+    
+    while (*current && field_count < 15) {
+        // Find next comma or end of string
+        if (*current == ',' || *current == '*' || *current == '\0') {
+            // Extract field
+            size_t len = current - start;
+            if (len >= sizeof(field_buffer[0])) len = sizeof(field_buffer[0]) - 1;
+            memcpy(field_buffer[field_count], start, len);
+            field_buffer[field_count][len] = '\0';
+            fields[field_count] = field_buffer[field_count];
+            field_count++;
+            
+            if (*current == '*' || *current == '\0') break;  // Stop at checksum or end
+            
+            start = current + 1;  // Move past comma
+        }
+        current++;
     }
     
     // Debug: Show parsed GPRMC fields
@@ -467,21 +479,21 @@ bool GpsAdapter::parse_gprmc(const char* sentence, GpsData* gps_data)
         std::cout << "\n";
     }
     
-    // Need at least: $GPRMC, time(1), status(2), ... date(9)
+    // Need at least: $GPRMC(0), time(1), status(2), lat(3), NS(4), lon(5), EW(6), speed(7), course(8), date(9)
     if (field_count < 10) {
         gps_data->time_valid = false;
         return false;
     }
     
     // Check status field (index 2) - must be 'A' for valid
-    if (fields[2][0] != 'A') {
+    if (!fields[2] || fields[2][0] != 'A') {
         gps_data->time_valid = false;
         return false;
     }
     
     // Parse time field (index 1): hhmmss.ss
     const char* time_str = fields[1];
-    if (strlen(time_str) < 6) {
+    if (!time_str || strlen(time_str) < 6) {
         gps_data->time_valid = false;
         return false;
     }
@@ -492,7 +504,7 @@ bool GpsAdapter::parse_gprmc(const char* sentence, GpsData* gps_data)
 
     // Parse date field (index 9): ddmmyy
     const char* date_str = fields[9];
-    if (strlen(date_str) < 6) {
+    if (!date_str || strlen(date_str) < 6) {
         gps_data->time_valid = false;
         return false;
     }
