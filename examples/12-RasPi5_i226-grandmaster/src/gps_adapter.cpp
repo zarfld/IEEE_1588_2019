@@ -398,15 +398,15 @@ bool GpsAdapter::update()
         gps_updated = true;
     }
     
-    // Fetch PPS timestamp periodically (every 500ms to catch 1Hz pulses)
-    // Don't fetch on every loop iteration to avoid 100ms timeout blocking
+    // Fetch PPS timestamp periodically (every 1.1 seconds for 1Hz pulses)
+    // Slightly longer than 1s interval ensures we always get a NEW pulse
     if (pps_handle_ >= 0) {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         uint64_t now_ms = now.tv_sec * 1000ULL + now.tv_nsec / 1000000ULL;
         
-        // Fetch PPS every 500ms (catches every pulse with margin)
-        if (now_ms - last_pps_fetch_ms_ >= 500) {
+        // Fetch PPS every 1100ms (guarantees new pulse each fetch)
+        if (now_ms - last_pps_fetch_ms_ >= 1100) {
             update_pps_data();
             last_pps_fetch_ms_ = now_ms;
         }
