@@ -178,6 +178,7 @@ private:
     bool open_serial_port();
     bool open_pps_device();
     bool initialize_pps();
+    bool update_pps_data();
     bool read_gps_data(GpsData* gps_data);
     bool parse_nmea_sentence(const char* sentence, GpsData* gps_data);
     bool parse_gprmc(const char* sentence, GpsData* gps_data);

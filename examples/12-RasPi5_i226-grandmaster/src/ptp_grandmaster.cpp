@@ -140,6 +140,9 @@ int main(int argc, char* argv[])
     // Main loop
     uint64_t announce_counter = 0;
     uint64_t sync_counter = 0;
+    uint64_t drift_measurement_start_time = 0;
+    uint64_t rtc_discipline_interval = 3600;  // Measure drift every hour
+    bool rtc_drift_measured = false;
     
     while (g_running) {
         // Update GPS data (read NMEA sentences and PPS)
@@ -167,6 +170,48 @@ int main(int argc, char* argv[])
 
             // Synchronize RTC to GPS time (for holdover)
             rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds);
+            
+            // RTC drift measurement and discipline
+            // Start measurement after 10 minutes of GPS lock
+            if (drift_measurement_start_time == 0 && sync_counter > 600) {
+                drift_measurement_start_time = gps_seconds;
+                std::cout << "[RTC Discipline] Starting drift measurement (1 hour)...\n";
+            }
+            
+            // After 1 hour of measurement, calculate and apply drift correction
+            if (drift_measurement_start_time > 0 && !rtc_drift_measured) {
+                uint64_t measurement_duration = gps_seconds - drift_measurement_start_time;
+                
+                if (measurement_duration >= rtc_discipline_interval) {
+                    // Get RTC time
+                    uint64_t rtc_seconds = 0;
+                    uint32_t rtc_nanoseconds = 0;
+                    
+                    if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
+                        // Calculate drift
+                        uint64_t gps_time_ns = gps_seconds * 1000000000ULL + gps_nanoseconds;
+                        uint64_t rtc_time_ns = rtc_seconds * 1000000000ULL + rtc_nanoseconds;
+                        
+                        double drift_ppm = rtc_adapter.measure_drift_ppm(gps_time_ns, rtc_time_ns, 
+                                                                         static_cast<uint32_t>(measurement_duration));
+                        
+                        std::cout << "[RTC Discipline] Measured drift: " << drift_ppm << " ppm\n";
+                        std::cout << "[RTC Discipline] Applying aging offset correction...\n";
+                        
+                        // Apply frequency discipline
+                        if (rtc_adapter.apply_frequency_discipline(drift_ppm)) {
+                            std::cout << "[RTC Discipline] ✓ Aging offset applied successfully\n";
+                            std::cout << "[RTC Discipline] Current aging offset: " 
+                                     << static_cast<int>(rtc_adapter.read_aging_offset()) << "\n";
+                            std::cout << "[RTC Discipline] RTC temperature: " 
+                                     << rtc_adapter.get_temperature() << "°C\n";
+                            rtc_drift_measured = true;
+                        } else {
+                            std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
+                        }
+                    }
+                }
+            }
 
         } else {
             // GPS unavailable - use RTC for holdover

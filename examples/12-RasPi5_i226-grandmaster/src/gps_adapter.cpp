@@ -392,10 +392,68 @@ bool GpsAdapter::update()
     
     if (read_gps_data(&temp_gps_data)) {
         gps_data_ = temp_gps_data;  // Update if successful
+        
+        // Fetch PPS timestamp if available
+        if (pps_handle_ >= 0) {
+            update_pps_data();
+        }
+        
         return true;
     }
     
     return false;
+}
+
+bool GpsAdapter::update_pps_data()
+{
+    if (pps_handle_ < 0) {
+        return false;
+    }
+    
+    struct pps_info pps_info{};
+    struct timespec timeout{};
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 100000000;  // 100ms timeout
+    
+    // Fetch PPS event (non-blocking with timeout)
+    if (time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout) < 0) {
+        pps_data_.valid = false;
+        return false;
+    }
+    
+    // Check if we got a new PPS pulse (sequence number incremented)
+    if (pps_info.assert_sequence == pps_data_.sequence) {
+        // No new PPS pulse since last fetch
+        return pps_data_.valid;
+    }
+    
+    // New PPS pulse - update PPS data
+    uint64_t new_assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
+    uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
+    
+    // Calculate jitter from previous pulse (if valid)
+    if (pps_data_.valid && pps_data_.sequence > 0) {
+        // Expected: exactly 1 second between pulses
+        int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
+                             + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
+        int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
+        pps_data_.jitter_nsec = static_cast<uint32_t>(std::abs(jitter_ns));
+    }
+    
+    pps_data_.assert_sec = new_assert_sec;
+    pps_data_.assert_nsec = new_assert_nsec;
+    pps_data_.sequence = pps_info.assert_sequence;
+    pps_data_.valid = true;
+    
+    // Debug output every 10 PPS pulses
+    static uint64_t debug_seq = 0;
+    if (++debug_seq % 10 == 1) {
+        std::cout << "[PPS] seq=" << pps_data_.sequence 
+                  << " time=" << pps_data_.assert_sec << "." << pps_data_.assert_nsec
+                  << " jitter=" << pps_data_.jitter_nsec << "ns\n";
+    }
+    
+    return true;
 }
 
 bool GpsAdapter::initialize_pps()
@@ -423,7 +481,64 @@ bool GpsAdapter::initialize_pps()
         pps_handle_ = -1;
         return false;
     }
+    
+    // Initialize PPS data
+    pps_data_.valid = false;
+    pps_data_.sequence = 0;
+    pps_data_.jitter_nsec = 0;
 
+    return true;
+}
+
+bool GpsAdapter::update_pps_data()
+{
+    if (pps_handle_ < 0) {
+        return false;
+    }
+    
+    struct pps_info pps_info{};
+    struct timespec timeout{};
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 100000000;  // 100ms timeout
+    
+    // Fetch PPS event (non-blocking with timeout)
+    if (time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout) < 0) {
+        pps_data_.valid = false;
+        return false;
+    }
+    
+    // Check if we got a new PPS pulse (sequence number incremented)
+    if (pps_info.assert_sequence == pps_data_.sequence) {
+        // No new PPS pulse since last fetch
+        return pps_data_.valid;
+    }
+    
+    // New PPS pulse - update PPS data
+    uint64_t new_assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
+    uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
+    
+    // Calculate jitter from previous pulse (if valid)
+    if (pps_data_.valid && pps_data_.sequence > 0) {
+        // Expected: exactly 1 second between pulses
+        int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
+                             + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
+        int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
+        pps_data_.jitter_nsec = static_cast<uint32_t>(std::abs(jitter_ns));
+    }
+    
+    pps_data_.assert_sec = new_assert_sec;
+    pps_data_.assert_nsec = new_assert_nsec;
+    pps_data_.sequence = pps_info.assert_sequence;
+    pps_data_.valid = true;
+    
+    // Debug output every 10 PPS pulses
+    static uint64_t debug_seq = 0;
+    if (++debug_seq % 10 == 1) {
+        std::cout << "[PPS] seq=" << pps_data_.sequence 
+                  << " time=" << pps_data_.assert_sec << "." << pps_data_.assert_nsec
+                  << " jitter=" << pps_data_.jitter_nsec << "ns\n";
+    }
+    
     return true;
 }
 
@@ -573,37 +688,45 @@ bool GpsAdapter::read_pps_event(PpsData* pps_data)
 
 bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
-    GpsData gps_data{};
-    PpsData pps_data{};
-
-    // Read GPS time from NMEA
-    if (!read_gps_data(&gps_data) || !gps_data.time_valid) {
+    // Check if we have valid GPS time
+    if (!gps_data_.time_valid) {
         return false;
     }
-
-    // Read PPS event
-    if (!read_pps_event(&pps_data) || !pps_data.valid) {
-        return false;
-    }
-
-    // Convert GPS time to PTP TAI timestamp
-    // PTP epoch: 1 January 1970 00:00:00 TAI
-    // GPS provides UTC, convert to TAI
     
+    // Calculate Unix timestamp from GPS NMEA data
     struct tm gps_tm{};
-    gps_tm.tm_year = gps_data.year - 1900;
-    gps_tm.tm_mon = gps_data.month - 1;
-    gps_tm.tm_mday = gps_data.day;
-    gps_tm.tm_hour = gps_data.hours;
-    gps_tm.tm_min = gps_data.minutes;
-    gps_tm.tm_sec = gps_data.seconds;
-
+    gps_tm.tm_year = gps_data_.year - 1900;
+    gps_tm.tm_mon = gps_data_.month - 1;
+    gps_tm.tm_mday = gps_data_.day;
+    gps_tm.tm_hour = gps_data_.hours;
+    gps_tm.tm_min = gps_data_.minutes;
+    gps_tm.tm_sec = gps_data_.seconds;
+    
     time_t utc_seconds = timegm(&gps_tm);
     
     // Convert UTC to TAI (add leap seconds)
-    *seconds = static_cast<uint64_t>(utc_seconds) + TAI_UTC_OFFSET;
-    *nanoseconds = pps_data.assert_nsec;
-
+    uint64_t tai_seconds = static_cast<uint64_t>(utc_seconds) + TAI_UTC_OFFSET;
+    
+    // Use PPS timestamp for nanosecond precision if available
+    if (pps_data_.valid) {
+        // Correlate PPS pulse with GPS second
+        // PPS pulse should align with GPS second boundary
+        uint64_t pps_tai_seconds = static_cast<uint64_t>(pps_data_.assert_sec) + TAI_UTC_OFFSET;
+        
+        // Check if PPS and GPS agree within 1 second (should be same second)
+        int64_t time_diff = static_cast<int64_t>(pps_tai_seconds) - static_cast<int64_t>(tai_seconds);
+        if (std::abs(time_diff) <= 1) {
+            // Use PPS timestamp for precise nanosecond timing
+            *seconds = pps_tai_seconds;
+            *nanoseconds = pps_data_.assert_nsec;
+            return true;
+        }
+    }
+    
+    // Fall back to GPS time without PPS precision
+    *seconds = tai_seconds;
+    *nanoseconds = 0;
+    
     return true;
 }
 
