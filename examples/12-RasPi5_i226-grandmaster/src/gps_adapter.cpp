@@ -186,6 +186,11 @@ bool GpsAdapter::parse_gpgga(const char* sentence, GpsData* gps_data)
 
     gps_data->fix_quality = static_cast<GpsFixQuality>(quality);
     gps_data->satellites = static_cast<uint8_t>(satellites);
+    
+    // If we have a valid fix (quality > 0), mark data as valid
+    if (quality > 0) {
+        gps_data->position_valid = true;
+    }
 
     return true;
 }
@@ -251,7 +256,7 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
 
 bool GpsAdapter::read_gps_data(GpsData* gps_data)
 {
-    char buffer[256];
+    char buffer[512];
     ssize_t bytes_read = read(serial_fd_, buffer, sizeof(buffer) - 1);
     
     if (bytes_read <= 0) {
@@ -260,20 +265,32 @@ bool GpsAdapter::read_gps_data(GpsData* gps_data)
 
     buffer[bytes_read] = '\0';
 
-    // Find complete NMEA sentence
-    char* sentence_start = strchr(buffer, '$');
-    if (!sentence_start) {
-        return false;
+    // Process all complete NMEA sentences in buffer
+    bool got_valid_data = false;
+    char* current = buffer;
+    
+    while (current && *current) {
+        // Find sentence start
+        char* sentence_start = strchr(current, '$');
+        if (!sentence_start) break;
+        
+        // Find sentence end
+        char* sentence_end = strchr(sentence_start, '\n');
+        if (!sentence_end) break;
+        
+        // Null-terminate sentence
+        *sentence_end = '\0';
+        
+        // Parse this sentence (accumulates data into gps_data)
+        if (parse_nmea_sentence(sentence_start, gps_data)) {
+            got_valid_data = true;
+        }
+        
+        // Move to next sentence
+        current = sentence_end + 1;
     }
 
-    char* sentence_end = strchr(sentence_start, '\n');
-    if (!sentence_end) {
-        return false;
-    }
-
-    *sentence_end = '\0';
-
-    return parse_nmea_sentence(sentence_start, gps_data);
+    return got_valid_data;
 }
 
 bool GpsAdapter::get_ptp_clock_quality(uint8_t* clock_class, 
