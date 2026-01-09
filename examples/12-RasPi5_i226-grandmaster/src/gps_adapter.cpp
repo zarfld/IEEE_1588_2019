@@ -387,21 +387,22 @@ bool GpsAdapter::initialize()
 
 bool GpsAdapter::update()
 {
+    bool gps_updated = false;
+    
     // Read and parse NMEA sentences from GPS
     GpsData temp_gps_data = gps_data_;  // Start with current data
     
     if (read_gps_data(&temp_gps_data)) {
         gps_data_ = temp_gps_data;  // Update if successful
-        
-        // Fetch PPS timestamp if available
-        if (pps_handle_ >= 0) {
-            update_pps_data();
-        }
-        
-        return true;
+        gps_updated = true;
     }
     
-    return false;
+    // ALWAYS fetch PPS timestamp (happens every second, independent of GPS data)
+    if (pps_handle_ >= 0) {
+        update_pps_data();
+    }
+    
+    return gps_updated;
 }
 
 bool GpsAdapter::update_pps_data()
