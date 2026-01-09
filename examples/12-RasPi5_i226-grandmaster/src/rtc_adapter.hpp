@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <string>
+#include <ctime>
 
 namespace IEEE {
 namespace _1588 {
@@ -99,14 +100,17 @@ public:
     bool sync_from_gps(uint64_t gps_seconds, uint32_t gps_nanoseconds);
     
     /**
-     * @brief Get RTC temperature (if supported)
+     * @brief Get RTC temperature (if supported) - public interface
      * @param temperature_c Output: Temperature in Celsius
      * @return true if temperature available, false otherwise
      */
-    bool get_temperature(float* temperature_c);
+    bool get_temperature(float* temperature_c) {
+        *temperature_c = static_cast<float>(get_temperature());
+        return true;
+    }
     
     /**
-     * @brief Calculate holdover clock quality
+     * @brief Calculate holdover clock quality - public interface
      * @param holdover_duration_sec Seconds since GPS was lost
      * @param clock_class Output: PTP clock class
      * @param clock_accuracy Output: PTP clock accuracy
@@ -119,19 +123,42 @@ public:
      */
     bool calculate_holdover_quality(uint32_t holdover_duration_sec,
                                    uint8_t* clock_class,
-                                   uint8_t* clock_accuracy);
+                                   uint8_t* clock_accuracy) {
+        // Map duration to clock class
+        if (holdover_duration_sec < 3600) {  // < 1 hour
+            *clock_class = 7;
+            *clock_accuracy = 0x21;  // Within 100ns
+        } else if (holdover_duration_sec < 86400) {  // < 24 hours
+            *clock_class = 52;
+            *clock_accuracy = 0x22;  // Within 250ns
+        } else {
+            *clock_class = 187;  // Holdover > 24h
+            *clock_accuracy = 0xFE;  // Unknown
+        }
+        return true;
+    }
 
 private:
     std::string rtc_device_;     ///< RTC device path
     int         rtc_fd_;         ///< RTC device file descriptor
+    int         i2c_fd_;         ///< I2C bus file descriptor for DS3231
     
     uint64_t    last_sync_sec_;  ///< Last GPS sync time (seconds)
+    uint64_t    last_sync_nsec_; ///< Last GPS sync time (nanoseconds)
+    uint64_t    last_sync_time_; ///< Last GPS sync combined time
     uint32_t    drift_ppb_;      ///< Estimated RTC drift (parts-per-billion)
+    double      measured_drift_ppm_; ///< Measured drift in PPM
     
     // Private helper methods
     void convert_rtc_to_ptp(const RtcTime& rtc, uint64_t* seconds);
     void convert_ptp_to_rtc(uint64_t seconds, RtcTime* rtc);
     bool update_drift_estimate(uint64_t gps_seconds, uint64_t rtc_seconds);
+    double measure_drift_ppm(uint64_t gps_time_ns, uint64_t rtc_time_ns, uint32_t interval_sec);
+    int8_t calculate_aging_offset(double drift_ppm);
+    bool apply_frequency_discipline(double drift_ppm);
+    int8_t read_aging_offset();
+    double get_temperature();
+    uint32_t calculate_holdover_quality(uint64_t current_time_sec);
 };
 
 } // namespace Linux

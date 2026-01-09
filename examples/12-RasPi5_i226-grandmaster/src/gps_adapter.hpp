@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <string>
+#include <ctime>
 #include <sys/timepps.h>
 
 namespace IEEE {
@@ -152,9 +153,10 @@ public:
      * @brief Calculate clock quality for PTP based on GPS status
      * @param clock_class Output: PTP clock class
      * @param clock_accuracy Output: PTP clock accuracy
+     * @param offset_variance Output: PTP offset variance (optional, can be nullptr)
      * @return true if GPS provides valid clock quality, false otherwise
      */
-    bool get_ptp_clock_quality(uint8_t* clock_class, uint8_t* clock_accuracy);
+    bool get_ptp_clock_quality(uint8_t* clock_class, uint8_t* clock_accuracy, uint16_t* offset_variance = nullptr);
 
 private:
     std::string serial_device_;   ///< GPS serial device path
@@ -170,15 +172,18 @@ private:
     
     char        rx_buffer_[256];  ///< Serial receive buffer
     size_t      rx_buffer_len_;   ///< Buffer length
+    bool        pps_valid_;       ///< PPS validity flag
     
     // Private helper methods
     bool open_serial_port();
     bool open_pps_device();
-    bool parse_nmea_sentence(const char* sentence);
-    bool parse_gprmc(const char* sentence);
-    bool parse_gpgga(const char* sentence);
+    bool initialize_pps();
+    bool read_gps_data(GpsData* gps_data);
+    bool parse_nmea_sentence(const char* sentence, GpsData* gps_data);
+    bool parse_gprmc(const char* sentence, GpsData* gps_data);
+    bool parse_gpgga(const char* sentence, GpsData* gps_data);
     bool validate_nmea_checksum(const char* sentence);
-    bool read_pps_event();
+    bool read_pps_event(PpsData* pps_data);
     void convert_utc_to_tai(uint64_t* seconds);
 };
 

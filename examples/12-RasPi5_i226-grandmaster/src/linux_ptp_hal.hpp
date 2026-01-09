@@ -15,6 +15,7 @@
 
 #include <cstdint>
 #include <string>
+#include <time.h>
 #include <sys/socket.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock.h>
@@ -139,10 +140,15 @@ private:
     int phc_fd_;                     ///< PHC device file descriptor
     
     bool hw_timestamping_enabled_;   ///< Hardware timestamping status
+    HardwareTimestamp last_tx_timestamp_; ///< Last TX timestamp
+    HardwareTimestamp last_rx_timestamp_; ///< Last RX timestamp
     
     // Private helper methods
     bool enable_hardware_timestamping(int sockfd);
     bool join_ptp_multicast(int sockfd);
+    bool join_multicast(int socket_fd, const char* multicast_addr);
+    bool get_tx_timestamp(int socket_fd, HardwareTimestamp* timestamp);
+    bool adjust_phc_offset(int64_t offset_ns);
     int retrieve_tx_timestamp(int sockfd, HardwareTimestamp* timestamp);
     int extract_rx_timestamp(struct msghdr* msg, HardwareTimestamp* timestamp);
 };
