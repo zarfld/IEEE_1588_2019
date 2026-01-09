@@ -57,10 +57,16 @@ bool GpsAdapter::initialize()
     const char* baud_names[] = { "38400", "115200", "9600", "57600", "19200" };
     
     bool configured = false;
+    std::cout << "  Testing baud rates: ";
+    
     for (size_t i = 0; i < 5; i++) {
+        std::cout << baud_names[i] << "...";
+        std::cout.flush();
+        
         // Configure serial port
         struct termios tty{};
         if (tcgetattr(serial_fd_, &tty) != 0) {
+            std::cout << "ERR ";
             continue;
         }
 
@@ -84,9 +90,10 @@ bool GpsAdapter::initialize()
 
         // Read timeout (short for auto-detection)
         tty.c_cc[VMIN] = 0;
-        tty.c_cc[VTIME] = 5; // 0.5 second timeout
+        tty.c_cc[VTIME] = 10; // 1 second timeout
 
         if (tcsetattr(serial_fd_, TCSANOW, &tty) != 0) {
+            std::cout << "CFG_ERR ";
             continue;
         }
         
@@ -94,26 +101,61 @@ bool GpsAdapter::initialize()
         tcflush(serial_fd_, TCIOFLUSH);
         usleep(100000); // 100ms settle time
         
-        // Try to read valid NMEA sentence
-        char test_buffer[256];
+        // Try to read data
+        char test_buffer[512];
         ssize_t bytes = read(serial_fd_, test_buffer, sizeof(test_buffer) - 1);
+        
         if (bytes > 0) {
             test_buffer[bytes] = '\0';
+            
+            // Debug: show first few bytes
+            std::cout << "(" << bytes << "B:";
+            for (int j = 0; j < (bytes < 4 ? bytes : 4); j++) {
+                if (test_buffer[j] >= 32 && test_buffer[j] < 127) {
+                    std::cout << test_buffer[j];
+                } else {
+                    std::cout << ".";
+                }
+            }
+            std::cout << ") ";
+            
             // Check for valid NMEA sentence marker
             if (strchr(test_buffer, '$') && (strstr(test_buffer, "GP") || strstr(test_buffer, "GN"))) {
-                std::cout << "  GPS auto-detected at " << baud_names[i] << " baud\n";
+                std::cout << "✓\n";
+                std::cout << "  GPS detected at " << baud_names[i] << " baud (NMEA mode)\n";
                 baud_rate_ = baud_rates[i];
                 configured = true;
                 break;
             }
+        } else {
+            std::cout << "(0B) ";
         }
     }
+    std::cout << "\n";
     
     if (!configured) {
-        std::cerr << "  Failed to auto-detect GPS baud rate\n";
-        close(serial_fd_);
-        serial_fd_ = -1;
-        return false;
+        std::cerr << "  WARNING: No NMEA data detected. GPS may be in UBX binary mode.\n";
+        std::cerr << "  Attempting to continue with 38400 baud anyway...\n";
+        
+        // Configure for 38400 as fallback (most common)
+        struct termios tty{};
+        tcgetattr(serial_fd_, &tty);
+        cfsetospeed(&tty, B38400);
+        cfsetispeed(&tty, B38400);
+        tty.c_cflag &= ~PARENB;
+        tty.c_cflag &= ~CSTOPB;
+        tty.c_cflag &= ~CSIZE;
+        tty.c_cflag |= CS8;
+        tty.c_cflag &= ~CRTSCTS;
+        tty.c_cflag |= CREAD | CLOCAL;
+        tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+        tty.c_iflag &= ~(IXON | IXOFF | IXANY | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+        tty.c_oflag &= ~OPOST;
+        tty.c_cc[VMIN] = 0;
+        tty.c_cc[VTIME] = 10;
+        tcsetattr(serial_fd_, TCSANOW, &tty);
+        baud_rate_ = B38400;
+        configured = true;  // Allow to continue even without NMEA
     }
 
     // Initialize PPS
