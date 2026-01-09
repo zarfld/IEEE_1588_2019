@@ -398,18 +398,9 @@ bool GpsAdapter::update()
         gps_updated = true;
     }
     
-    // Fetch PPS timestamp periodically (every 1.1 seconds for 1Hz pulses)
-    // Slightly longer than 1s interval ensures we always get a NEW pulse
+    // Fetch PPS timestamp on EVERY update (non-blocking, fast check)
     if (pps_handle_ >= 0) {
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        uint64_t now_ms = now.tv_sec * 1000ULL + now.tv_nsec / 1000000ULL;
-        
-        // Fetch PPS every 1100ms (guarantees new pulse each fetch)
-        if (now_ms - last_pps_fetch_ms_ >= 1100) {
-            update_pps_data();
-            last_pps_fetch_ms_ = now_ms;
-        }
+        update_pps_data();
     }
     
     return gps_updated;
@@ -423,27 +414,20 @@ bool GpsAdapter::update_pps_data()
     
     struct pps_info pps_info{};
     struct timespec timeout{};
-    timeout.tv_sec = 1;  // 1 second timeout - wait for next pulse
-    timeout.tv_nsec = 0;
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 0;  // Non-blocking - return immediately
     
-    // Fetch PPS event (BLOCKING with 1s timeout to wait for new pulse)
+    // Fetch PPS event (non-blocking - returns old data if no new pulse)
     int ret = time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout);
     
-    static int fetch_count = 0;
-    std::cout << "[PPS Fetch #" << ++fetch_count << "] ret=" << ret 
-              << " seq_new=" << pps_info.assert_sequence 
-              << " seq_old=" << pps_data_.sequence << "\n";
-    
     if (ret < 0) {
-        std::cout << "[PPS Fetch] ERROR: " << strerror(errno) << "\n";
         pps_data_.valid = false;
         return false;
     }
     
     // Check if we got a new PPS pulse (sequence number incremented)
     if (pps_info.assert_sequence == pps_data_.sequence) {
-        // No new PPS pulse since last fetch
-        std::cout << "[PPS Fetch] Same sequence - no new pulse\n";
+        // No new PPS pulse since last fetch - this is normal
         return pps_data_.valid;
     }
     
