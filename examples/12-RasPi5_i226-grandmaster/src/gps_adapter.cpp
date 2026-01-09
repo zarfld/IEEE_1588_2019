@@ -435,14 +435,19 @@ bool GpsAdapter::update_pps_data()
     uint64_t new_assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
     uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
     
-    // Calculate jitter from previous pulse (if valid)
+    // Calculate jitter from previous pulse (if valid and consecutive)
     uint32_t current_jitter = 0;
     if (pps_data_.valid && pps_data_.sequence > 0) {
-        // Expected: exactly 1 second between pulses
-        int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
-                             + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
-        int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
-        current_jitter = static_cast<uint32_t>(std::abs(jitter_ns));
+        // Only calculate jitter if this is the immediate next pulse (seq+1)
+        // If we missed a pulse, skip jitter calculation (would show false spike)
+        if (pps_info.assert_sequence == pps_data_.sequence + 1) {
+            // Expected: exactly 1 second between consecutive pulses
+            int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
+                                 + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
+            int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
+            current_jitter = static_cast<uint32_t>(std::abs(jitter_ns));
+        }
+        // else: missed pulse(s) between samples, don't include in jitter stats
     }
     
     // Update PPS data
