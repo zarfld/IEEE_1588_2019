@@ -1,0 +1,51 @@
+[Unit]
+Description=GPS-Disciplined IEEE 1588 PTP Grandmaster
+Documentation=https://github.com/zarfld/IEEE_1588_2019
+After=network.target gpsd.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Configuration file (optional - command-line args take precedence)
+EnvironmentFile=-/etc/ptp-grandmaster.conf
+
+# Main executable with command-line arguments
+# These can reference environment variables from config file
+ExecStart=/usr/local/bin/ptp_grandmaster \
+    --interface=${interface:-eth1} \
+    --phc=${phc:-/dev/ptp0} \
+    --gps=${gps:-/dev/ttyACM0} \
+    --pps=${pps:-/dev/pps0} \
+    --rtc=${rtc:-/dev/rtc1} \
+    --verbose
+
+# Process management
+Restart=on-failure
+RestartSec=10s
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log /var/run
+
+# Resource limits
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+
+# Real-time scheduling for precise timing
+# (optional - requires CAP_SYS_NICE capability)
+# Nice=-10
+# CPUSchedulingPolicy=fifo
+# CPUSchedulingPriority=50
+
+[Install]
+WantedBy=multi-user.target
+Alias=ptp-grandmaster.service
