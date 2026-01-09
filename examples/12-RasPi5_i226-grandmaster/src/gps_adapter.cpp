@@ -224,6 +224,38 @@ bool GpsAdapter::initialize()
                 0x00, 0x00   // Checksum
             };
             
+            // UBX-CFG-MSG: Disable UBX-NAV-PVT message (the binary message we're seeing)
+            unsigned char ubx_disable_nav_pvt[] = {
+                0xB5, 0x62,  // UBX header
+                0x06, 0x01,  // CFG-MSG
+                0x08, 0x00,  // Length = 8 bytes
+                0x01, 0x07,  // UBX-NAV-PVT message class/ID
+                0x00,        // Rate on I2C (0 = disabled)
+                0x00,        // Rate on UART1 (0 = disabled)
+                0x00,        // Rate on UART2 (0 = disabled)
+                0x00,        // Rate on USB (0 = disabled)
+                0x00,        // Rate on SPI (0 = disabled)
+                0x00,        // Reserved
+                0x00, 0x00   // Checksum
+            };
+            
+            // UBX-CFG-PRT: Configure UART port to output NMEA protocol only
+            unsigned char ubx_cfg_prt[] = {
+                0xB5, 0x62,  // UBX header
+                0x06, 0x00,  // CFG-PRT (port configuration)
+                0x14, 0x00,  // Length = 20 bytes
+                0x01,        // Port ID = 1 (UART1)
+                0x00,        // Reserved
+                0x00, 0x00,  // TX ready (not used)
+                0xD0, 0x08, 0x00, 0x00,  // Mode: 8N1 (8 bits, no parity, 1 stop bit)
+                0x00, 0x96, 0x00, 0x00,  // Baud rate = 38400 (0x00009600)
+                0x02, 0x00,  // Input protocols: NMEA only (bit 1)
+                0x02, 0x00,  // Output protocols: NMEA only (bit 1)
+                0x00, 0x00,  // Flags (reserved)
+                0x00, 0x00,  // Reserved
+                0x00, 0x00   // Checksum
+            };
+            
             // UBX-CFG-CFG: Save configuration to BBR/Flash
             unsigned char ubx_save_config[] = {
                 0xB5, 0x62,  // UBX header
@@ -238,6 +270,8 @@ bool GpsAdapter::initialize()
             
             calc_checksum(ubx_enable_gga, sizeof(ubx_enable_gga));
             calc_checksum(ubx_enable_rmc, sizeof(ubx_enable_rmc));
+            calc_checksum(ubx_disable_nav_pvt, sizeof(ubx_disable_nav_pvt));
+            calc_checksum(ubx_cfg_prt, sizeof(ubx_cfg_prt));
             calc_checksum(ubx_save_config, sizeof(ubx_save_config));
             
             // Send GGA enable command
@@ -248,12 +282,22 @@ bool GpsAdapter::initialize()
             write(serial_fd_, ubx_enable_rmc, sizeof(ubx_enable_rmc));
             int ack2 = read_ubx_ack(serial_fd_);
             
+            // Disable UBX-NAV-PVT binary message
+            write(serial_fd_, ubx_disable_nav_pvt, sizeof(ubx_disable_nav_pvt));
+            int ack4 = read_ubx_ack(serial_fd_);
+            
+            // Configure port to NMEA-only protocol
+            write(serial_fd_, ubx_cfg_prt, sizeof(ubx_cfg_prt));
+            int ack5 = read_ubx_ack(serial_fd_);
+            
             // Send save configuration command
             write(serial_fd_, ubx_save_config, sizeof(ubx_save_config));
             int ack3 = read_ubx_ack(serial_fd_);
             
             std::cout << " GGA:" << (ack1 == 1 ? "ACK" : (ack1 == -1 ? "NAK" : "NO_RESP"));
             std::cout << " RMC:" << (ack2 == 1 ? "ACK" : (ack2 == -1 ? "NAK" : "NO_RESP"));
+            std::cout << " DIS_NAV:" << (ack4 == 1 ? "ACK" : (ack4 == -1 ? "NAK" : "NO_RESP"));
+            std::cout << " PRT:" << (ack5 == 1 ? "ACK" : (ack5 == -1 ? "NAK" : "NO_RESP"));
             std::cout << " SAVE:" << (ack3 == 1 ? "ACK" : (ack3 == -1 ? "NAK" : "NO_RESP"));
             
             // If we got at least one ACK, wait for GPS to reconfigure
