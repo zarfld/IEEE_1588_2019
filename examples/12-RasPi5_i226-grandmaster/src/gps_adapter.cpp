@@ -259,34 +259,49 @@ bool GpsAdapter::initialize()
             // If we got at least one ACK, wait for GPS to reconfigure
             if (ack1 == 1 || ack2 == 1) {
                 std::cout << " - Waiting for GPS reconfiguration...\n";
-                usleep(1000000);  // Wait 1 second for GPS to apply changes
+                usleep(2000000);  // Wait 2 seconds for GPS to apply changes and stabilize
                 
-                // Flush and verify NMEA output
-                tcflush(serial_fd_, TCIFLUSH);
-                char verify_buffer[512];
-                ssize_t vbytes = read(serial_fd_, verify_buffer, sizeof(verify_buffer) - 1);
-                
-                if (vbytes > 0) {
-                    verify_buffer[vbytes] = '\0';
+                // Try multiple reads to catch NMEA output (GPS may buffer)
+                bool nmea_found = false;
+                for (int attempt = 0; attempt < 3 && !nmea_found; attempt++) {
+                    tcflush(serial_fd_, TCIFLUSH);
+                    usleep(500000);  // Wait 500ms between attempts
                     
-                    // Debug: show what we received
-                    std::cout << "  Received " << vbytes << " bytes: ";
-                    for (int j = 0; j < (vbytes < 20 ? vbytes : 20); j++) {
-                        if (verify_buffer[j] >= 32 && verify_buffer[j] < 127) {
-                            std::cout << verify_buffer[j];
-                        } else {
-                            std::cout << ".";
+                    char verify_buffer[512];
+                    ssize_t vbytes = read(serial_fd_, verify_buffer, sizeof(verify_buffer) - 1);
+                    
+                    if (vbytes > 0) {
+                        verify_buffer[vbytes] = '\0';
+                        
+                        // Debug: show what we received (all bytes with hex for non-printable)
+                        std::cout << "  Attempt " << (attempt + 1) << ": " << vbytes << " bytes: ";
+                        int show_bytes = vbytes < 60 ? vbytes : 60;
+                        for (int j = 0; j < show_bytes; j++) {
+                            if (verify_buffer[j] >= 32 && verify_buffer[j] < 127) {
+                                std::cout << verify_buffer[j];
+                            } else if (verify_buffer[j] == '\n') {
+                                std::cout << "\\n";
+                            } else if (verify_buffer[j] == '\r') {
+                                std::cout << "\\r";
+                            } else {
+                                printf("<%02X>", (unsigned char)verify_buffer[j]);
+                            }
                         }
-                    }
-                    std::cout << "...\n";
-                    
-                    if (strchr(verify_buffer, '$') && (strstr(verify_buffer, "GP") || strstr(verify_buffer, "GN"))) {
-                        std::cout << "  ✓ NMEA output enabled successfully!\n";
-                        baud_rate_ = ubx_baud_rates[i];
-                        configured = true;
-                        break;
+                        std::cout << (vbytes > 60 ? "...\n" : "\n");
+                        
+                        if (strchr(verify_buffer, '$') && (strstr(verify_buffer, "GP") || strstr(verify_buffer, "GN"))) {
+                            std::cout << "  ✓ NMEA output enabled successfully at " << ubx_baud_names[i] << " baud!\n";
+                            baud_rate_ = ubx_baud_rates[i];
+                            configured = true;
+                            nmea_found = true;
+                            break;
+                        }
+                    } else {
+                        std::cout << "  Attempt " << (attempt + 1) << ": No data received\n";
                     }
                 }
+                
+                if (nmea_found) break;
             } else {
                 std::cout << "\n";
             }
@@ -368,6 +383,14 @@ bool GpsAdapter::parse_gprmc(const char* sentence, GpsData* gps_data)
     int fields = sscanf(sentence, "$GPRMC,%10[^,],%c,%*[^,],%*[^,],%*[^,],%*[^,],%*[^,],%*[^,],%6s",
                        time_str, &status, date_str);
     
+    // Debug: Show parsed GPRMC fields
+    static int rmc_counter = 0;
+    if (++rmc_counter % 50 == 1) {
+        std::cout << "[GPRMC Parse] fields=" << fields << " time=" << (fields >= 1 ? time_str : "N/A")
+                  << " status=" << (fields >= 2 ? status : '?') 
+                  << " date=" << (fields >= 3 ? date_str : "N/A") << "\n";
+    }
+    
     if (fields < 3 || status != 'A') {
         gps_data->time_valid = false;
         return false;
@@ -395,6 +418,13 @@ bool GpsAdapter::parse_gpgga(const char* sentence, GpsData* gps_data)
     
     int fields = sscanf(sentence, "$GPGGA,%10[^,],%*[^,],%*[^,],%*[^,],%*[^,],%d,%d",
                        time_str, &quality, &satellites);
+    
+    // Debug: Show parsed GPGGA fields
+    static int gga_counter = 0;
+    if (++gga_counter % 50 == 1) {
+        std::cout << "[GPGGA Parse] fields=" << fields << " quality=" << quality 
+                  << " sats=" << satellites << "\n";
+    }
     
     if (fields < 3) {
         return false;
@@ -480,6 +510,26 @@ bool GpsAdapter::read_gps_data(GpsData* gps_data)
     }
 
     buffer[bytes_read] = '\0';
+    
+    // Debug: Show raw buffer content (first 80 bytes or first line)
+    static int debug_counter = 0;
+    if (++debug_counter % 50 == 1) {  // Show every 50th read
+        std::cout << "[GPS Raw] " << bytes_read << " bytes: ";
+        int show_bytes = bytes_read < 80 ? bytes_read : 80;
+        for (int i = 0; i < show_bytes; i++) {
+            if (buffer[i] >= 32 && buffer[i] < 127) {
+                std::cout << buffer[i];
+            } else if (buffer[i] == '\n') {
+                std::cout << "\\n";
+                if (i < show_bytes - 1) break;  // Stop at first newline for readability
+            } else if (buffer[i] == '\r') {
+                std::cout << "\\r";
+            } else {
+                printf("<%02X>", (unsigned char)buffer[i]);
+            }
+        }
+        std::cout << "\n";
+    }
 
     // Process all complete NMEA sentences in buffer
     bool got_valid_data = false;
