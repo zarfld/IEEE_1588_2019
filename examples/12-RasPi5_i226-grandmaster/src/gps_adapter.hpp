@@ -173,6 +173,7 @@ private:
     char        rx_buffer_[256];  ///< Serial receive buffer
     size_t      rx_buffer_len_;   ///< Buffer length
     bool        pps_valid_;       ///< PPS validity flag
+    uint64_t    last_pps_fetch_ms_; ///< Last PPS fetch timestamp (ms)
     
     // Private helper methods
     bool open_serial_port();

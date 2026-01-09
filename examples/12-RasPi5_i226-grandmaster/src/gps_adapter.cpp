@@ -31,6 +31,7 @@ GpsAdapter::GpsAdapter(const std::string& serial_device,
     , baud_rate_(baud_rate)
     , serial_fd_(-1)
     , pps_handle_(-1)
+    , last_pps_fetch_ms_(0)
 {
 }
 
@@ -397,9 +398,18 @@ bool GpsAdapter::update()
         gps_updated = true;
     }
     
-    // ALWAYS fetch PPS timestamp (happens every second, independent of GPS data)
+    // Fetch PPS timestamp periodically (every 500ms to catch 1Hz pulses)
+    // Don't fetch on every loop iteration to avoid 100ms timeout blocking
     if (pps_handle_ >= 0) {
-        update_pps_data();
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        uint64_t now_ms = now.tv_sec * 1000ULL + now.tv_nsec / 1000000ULL;
+        
+        // Fetch PPS every 500ms (catches every pulse with margin)
+        if (now_ms - last_pps_fetch_ms_ >= 500) {
+            update_pps_data();
+            last_pps_fetch_ms_ = now_ms;
+        }
     }
     
     return gps_updated;
