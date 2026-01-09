@@ -288,11 +288,15 @@ bool LinuxPtpHal::get_phc_time(uint64_t* seconds, uint32_t* nanoseconds)
 
 bool LinuxPtpHal::set_phc_time(uint64_t seconds, uint32_t nanoseconds)
 {
-    struct ptp_clock_time pct{};
-    pct.sec = seconds;
-    pct.nsec = nanoseconds;
+    // Use POSIX clock_settime() instead of PTP_CLOCK_SETTIME ioctl
+    struct timespec ts;
+    ts.tv_sec = seconds;
+    ts.tv_nsec = nanoseconds;
 
-    if (ioctl(phc_fd_, PTP_CLOCK_SETTIME, &pct) < 0) {
+    // Convert PHC file descriptor to clockid
+    clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
+
+    if (clock_settime(clkid, &ts) < 0) {
         return false;
     }
 
@@ -301,11 +305,18 @@ bool LinuxPtpHal::set_phc_time(uint64_t seconds, uint32_t nanoseconds)
 
 bool LinuxPtpHal::adjust_phc_frequency(int32_t ppb)
 {
-    struct ptp_clock_adj adj{};
-    adj.delta = ppb;
-    adj.flags = PTP_ADJ_FREQUENCY;
+    // Use POSIX clock_adjtime() instead of PTP_CLOCK_ADJTIME ioctl
+    struct timex tx;
+    memset(&tx, 0, sizeof(tx));
 
-    if (ioctl(phc_fd_, PTP_CLOCK_ADJTIME, &adj) < 0) {
+    tx.modes = ADJ_FREQUENCY;
+    // Convert ppb to scaled PPM: freq in units of 2^-16 ppm
+    tx.freq = (long)(((long long)ppb * 65536LL) / 1000LL);
+
+    // Convert PHC file descriptor to clockid
+    clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
+
+    if (clock_adjtime(clkid, &tx) < 0) {
         return false;
     }
 
@@ -314,11 +325,26 @@ bool LinuxPtpHal::adjust_phc_frequency(int32_t ppb)
 
 bool LinuxPtpHal::adjust_phc_offset(int64_t offset_ns)
 {
-    struct ptp_clock_adj adj{};
-    adj.delta = offset_ns;
-    adj.flags = PTP_ADJ_OFFSET;
+    // Use POSIX clock_adjtime() instead of PTP_CLOCK_ADJTIME ioctl
+    struct timex tx;
+    memset(&tx, 0, sizeof(tx));
 
-    if (ioctl(phc_fd_, PTP_CLOCK_ADJTIME, &adj) < 0) {
+    // For small offsets use ADJ_OFFSET, for large ones use ADJ_SETOFFSET
+    if (offset_ns < 500000000LL && offset_ns > -500000000LL) {
+        // Small offset: slew the clock
+        tx.modes = ADJ_OFFSET | ADJ_NANO;
+        tx.offset = offset_ns;
+    } else {
+        // Large offset: step the clock immediately
+        tx.modes = ADJ_SETOFFSET | ADJ_NANO;
+        tx.time.tv_sec = offset_ns / 1000000000LL;
+        tx.time.tv_usec = offset_ns % 1000000000LL;  // tv_usec used for nanoseconds when ADJ_NANO set
+    }
+
+    // Convert PHC file descriptor to clockid
+    clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
+
+    if (clock_adjtime(clkid, &tx) < 0) {
         return false;
     }
 

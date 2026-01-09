@@ -126,6 +126,8 @@ bool RtcAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
 
 bool RtcAdapter::set_ptp_time(uint64_t seconds, uint32_t nanoseconds)
 {
+    (void)nanoseconds;  // RTC doesn't support nanosecond precision
+    
     // Convert PTP timestamp to RTC time
     time_t unix_time = static_cast<time_t>(seconds);
     struct tm* tm_time = gmtime(&unix_time);
@@ -172,13 +174,13 @@ int8_t RtcAdapter::calculate_aging_offset(double drift_ppm)
 {
     // DS3231 aging offset: 0.1 ppm per LSB, range ±127
     // Negative offset increases frequency (compensates for slow clock)
-    int8_t offset = static_cast<int8_t>(-drift_ppm / 0.1);
+    int offset_calc = static_cast<int>(-drift_ppm / 0.1);
     
-    // Clamp to valid range
-    if (offset > 127) offset = 127;
-    if (offset < -127) offset = -127;
+    // Clamp to valid range before converting to int8_t
+    if (offset_calc > 127) offset_calc = 127;
+    if (offset_calc < -127) offset_calc = -127;
     
-    return offset;
+    return static_cast<int8_t>(offset_calc);
 }
 
 bool RtcAdapter::apply_frequency_discipline(double drift_ppm)
