@@ -123,8 +123,26 @@ bool GpsAdapter::initialize()
             if (strchr(test_buffer, '$') && (strstr(test_buffer, "GP") || strstr(test_buffer, "GN"))) {
                 std::cout << "✓\n";
                 std::cout << "  GPS detected at " << baud_names[i] << " baud (NMEA mode)\n";
+                
+                // Check if UBX binary is also present (mixed mode)
+                bool ubx_present = false;
+                for (int j = 0; j < bytes - 1; j++) {
+                    if ((unsigned char)test_buffer[j] == 0xB5 && (unsigned char)test_buffer[j+1] == 0x62) {
+                        ubx_present = true;
+                        break;
+                    }
+                }
+                
+                if (ubx_present) {
+                    std::cout << "  WARNING: UBX binary protocol also detected (mixed mode)\n";
+                    std::cout << "  Attempting to disable UBX binary output...\n";
+                    // Don't set configured=true yet, let UBX disable logic run
+                } else {
+                    std::cout << "  Pure NMEA mode detected\n";
+                    configured = true;
+                }
+                
                 baud_rate_ = baud_rates[i];
-                configured = true;
                 break;
             }
         } else {
@@ -422,30 +440,63 @@ bool GpsAdapter::parse_nmea_sentence(const char* sentence, GpsData* gps_data)
 bool GpsAdapter::parse_gprmc(const char* sentence, GpsData* gps_data)
 {
     // $GPRMC,hhmmss.ss,A,ddmm.mm,N,dddmm.mm,E,speed,course,ddmmyy,...
-    char time_str[16], date_str[16], status;
+    // Manual parsing to handle empty fields (course is often empty)
     
-    int fields = sscanf(sentence, "$GPRMC,%10[^,],%c,%*[^,],%*[^,],%*[^,],%*[^,],%*[^,],%*[^,],%6s",
-                       time_str, &status, date_str);
+    // Make a copy for tokenization
+    char buffer[128];
+    strncpy(buffer, sentence, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+    
+    char* fields[15];  // GPRMC has ~12 fields
+    int field_count = 0;
+    
+    // Split by commas
+    char* token = strtok(buffer, ",");
+    while (token && field_count < 15) {
+        fields[field_count++] = token;
+        token = strtok(NULL, ",");
+    }
     
     // Debug: Show parsed GPRMC fields
     static int rmc_counter = 0;
     if (++rmc_counter % 50 == 1) {
-        std::cout << "[GPRMC Parse] fields=" << fields << " time=" << (fields >= 1 ? time_str : "N/A")
-                  << " status=" << (fields >= 2 ? status : '?') 
-                  << " date=" << (fields >= 3 ? date_str : "N/A") << "\n";
+        std::cout << "[GPRMC Parse] field_count=" << field_count;
+        if (field_count >= 2) std::cout << " time=" << fields[1];
+        if (field_count >= 3) std::cout << " status=" << fields[2];
+        if (field_count >= 10) std::cout << " date=" << fields[9];
+        std::cout << "\n";
     }
     
-    if (fields < 3 || status != 'A') {
+    // Need at least: $GPRMC, time(1), status(2), ... date(9)
+    if (field_count < 10) {
         gps_data->time_valid = false;
         return false;
     }
-
-    // Parse time: hhmmss.ss
+    
+    // Check status field (index 2) - must be 'A' for valid
+    if (fields[2][0] != 'A') {
+        gps_data->time_valid = false;
+        return false;
+    }
+    
+    // Parse time field (index 1): hhmmss.ss
+    const char* time_str = fields[1];
+    if (strlen(time_str) < 6) {
+        gps_data->time_valid = false;
+        return false;
+    }
+    
     gps_data->hours = (time_str[0] - '0') * 10 + (time_str[1] - '0');
     gps_data->minutes = (time_str[2] - '0') * 10 + (time_str[3] - '0');
     gps_data->seconds = (time_str[4] - '0') * 10 + (time_str[5] - '0');
 
-    // Parse date: ddmmyy
+    // Parse date field (index 9): ddmmyy
+    const char* date_str = fields[9];
+    if (strlen(date_str) < 6) {
+        gps_data->time_valid = false;
+        return false;
+    }
+    
     gps_data->day = (date_str[0] - '0') * 10 + (date_str[1] - '0');
     gps_data->month = (date_str[2] - '0') * 10 + (date_str[3] - '0');
     gps_data->year = 2000 + (date_str[4] - '0') * 10 + (date_str[5] - '0');
