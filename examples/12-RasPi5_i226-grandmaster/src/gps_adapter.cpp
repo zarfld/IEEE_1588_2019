@@ -423,11 +423,19 @@ bool GpsAdapter::update_pps_data()
     
     struct pps_info pps_info{};
     struct timespec timeout{};
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 100000000;  // 100ms timeout
+    timeout.tv_sec = 1;  // 1 second timeout - wait for next pulse
+    timeout.tv_nsec = 0;
     
-    // Fetch PPS event (non-blocking with timeout)
-    if (time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout) < 0) {
+    // Fetch PPS event (BLOCKING with 1s timeout to wait for new pulse)
+    int ret = time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout);
+    
+    static int fetch_count = 0;
+    std::cout << "[PPS Fetch #" << ++fetch_count << "] ret=" << ret 
+              << " seq_new=" << pps_info.assert_sequence 
+              << " seq_old=" << pps_data_.sequence << "\n";
+    
+    if (ret < 0) {
+        std::cout << "[PPS Fetch] ERROR: " << strerror(errno) << "\n";
         pps_data_.valid = false;
         return false;
     }
@@ -435,6 +443,7 @@ bool GpsAdapter::update_pps_data()
     // Check if we got a new PPS pulse (sequence number incremented)
     if (pps_info.assert_sequence == pps_data_.sequence) {
         // No new PPS pulse since last fetch
+        std::cout << "[PPS Fetch] Same sequence - no new pulse\n";
         return pps_data_.valid;
     }
     
