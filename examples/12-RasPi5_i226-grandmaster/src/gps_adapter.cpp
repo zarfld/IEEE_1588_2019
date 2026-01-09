@@ -8,6 +8,7 @@
 #include "gps_adapter.hpp"
 #include <cstring>
 #include <cerrno>
+#include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
@@ -51,36 +52,67 @@ bool GpsAdapter::initialize()
         return false;
     }
 
-    // Configure serial port (9600 baud, 8N1)
-    struct termios tty{};
-    if (tcgetattr(serial_fd_, &tty) != 0) {
-        return false;
+    // Try common baud rates to auto-detect GPS configuration
+    const speed_t baud_rates[] = { B38400, B115200, B9600, B57600, B19200 };
+    const char* baud_names[] = { "38400", "115200", "9600", "57600", "19200" };
+    
+    bool configured = false;
+    for (size_t i = 0; i < 5; i++) {
+        // Configure serial port
+        struct termios tty{};
+        if (tcgetattr(serial_fd_, &tty) != 0) {
+            continue;
+        }
+
+        // Set baud rate
+        cfsetospeed(&tty, baud_rates[i]);
+        cfsetispeed(&tty, baud_rates[i]);
+
+        // 8N1, no parity, 1 stop bit
+        tty.c_cflag &= ~PARENB;
+        tty.c_cflag &= ~CSTOPB;
+        tty.c_cflag &= ~CSIZE;
+        tty.c_cflag |= CS8;
+        tty.c_cflag &= ~CRTSCTS;
+        tty.c_cflag |= CREAD | CLOCAL;
+
+        // Raw input
+        tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+        tty.c_iflag &= ~(IXON | IXOFF | IXANY);
+        tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+        tty.c_oflag &= ~OPOST;
+
+        // Read timeout (short for auto-detection)
+        tty.c_cc[VMIN] = 0;
+        tty.c_cc[VTIME] = 5; // 0.5 second timeout
+
+        if (tcsetattr(serial_fd_, TCSANOW, &tty) != 0) {
+            continue;
+        }
+        
+        // Flush any stale data
+        tcflush(serial_fd_, TCIOFLUSH);
+        usleep(100000); // 100ms settle time
+        
+        // Try to read valid NMEA sentence
+        char test_buffer[256];
+        ssize_t bytes = read(serial_fd_, test_buffer, sizeof(test_buffer) - 1);
+        if (bytes > 0) {
+            test_buffer[bytes] = '\0';
+            // Check for valid NMEA sentence marker
+            if (strchr(test_buffer, '$') && (strstr(test_buffer, "GP") || strstr(test_buffer, "GN"))) {
+                std::cout << "  GPS auto-detected at " << baud_names[i] << " baud\n";
+                baud_rate_ = baud_rates[i];
+                configured = true;
+                break;
+            }
+        }
     }
-
-    // Set baud rate
-    speed_t speed = (baud_rate_ == 9600) ? B9600 : B115200;
-    cfsetospeed(&tty, speed);
-    cfsetispeed(&tty, speed);
-
-    // 8N1, no parity, 1 stop bit
-    tty.c_cflag &= ~PARENB;
-    tty.c_cflag &= ~CSTOPB;
-    tty.c_cflag &= ~CSIZE;
-    tty.c_cflag |= CS8;
-    tty.c_cflag &= ~CRTSCTS;
-    tty.c_cflag |= CREAD | CLOCAL;
-
-    // Raw input
-    tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    tty.c_iflag &= ~(IXON | IXOFF | IXANY);
-    tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-    tty.c_oflag &= ~OPOST;
-
-    // Read timeout
-    tty.c_cc[VMIN] = 0;
-    tty.c_cc[VTIME] = 10; // 1 second timeout
-
-    if (tcsetattr(serial_fd_, TCSANOW, &tty) != 0) {
+    
+    if (!configured) {
+        std::cerr << "  Failed to auto-detect GPS baud rate\n";
+        close(serial_fd_);
+        serial_fd_ = -1;
         return false;
     }
 
