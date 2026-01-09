@@ -135,58 +135,9 @@ bool GpsAdapter::initialize()
     
     if (!configured) {
         std::cerr << "  WARNING: No NMEA data detected. GPS may be in UBX binary mode.\n";
-        std::cerr << "  Sending UBX configuration to enable NMEA output...\n";
+        std::cerr << "  Attempting UBX reconfiguration at detected baud rates...\n";
         
-        // Configure for 38400 as fallback (most common for u-blox)
-        struct termios tty{};
-        tcgetattr(serial_fd_, &tty);
-        cfsetospeed(&tty, B38400);
-        cfsetispeed(&tty, B38400);
-        tty.c_cflag &= ~PARENB;
-        tty.c_cflag &= ~CSTOPB;
-        tty.c_cflag &= ~CSIZE;
-        tty.c_cflag |= CS8;
-        tty.c_cflag &= ~CRTSCTS;
-        tty.c_cflag |= CREAD | CLOCAL;
-        tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-        tty.c_iflag &= ~(IXON | IXOFF | IXANY | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-        tty.c_oflag &= ~OPOST;
-        tty.c_cc[VMIN] = 0;
-        tty.c_cc[VTIME] = 10;
-        tcsetattr(serial_fd_, TCSANOW, &tty);
-        tcflush(serial_fd_, TCIOFLUSH);
-        
-        // UBX-CFG-MSG: Enable NMEA GGA message (ID 0xF0 0x00) on UART1
-        const unsigned char ubx_enable_gga[] = {
-            0xB5, 0x62,  // UBX header
-            0x06, 0x01,  // CFG-MSG
-            0x08, 0x00,  // Length
-            0xF0, 0x00,  // NMEA GGA message class/ID
-            0x00,        // I2C rate (0 = disabled)
-            0x01,        // UART1 rate (1 = enabled every epoch)
-            0x00,        // UART2 rate
-            0x00,        // USB rate
-            0x00,        // SPI rate
-            0x00,        // Reserved
-            0x00, 0x00   // Checksum (will calculate)
-        };
-        
-        // UBX-CFG-MSG: Enable NMEA RMC message (ID 0xF0 0x04)
-        const unsigned char ubx_enable_rmc[] = {
-            0xB5, 0x62,  // UBX header
-            0x06, 0x01,  // CFG-MSG
-            0x08, 0x00,  // Length
-            0xF0, 0x04,  // NMEA RMC message class/ID
-            0x00,        // I2C rate
-            0x01,        // UART1 rate (1 = enabled)
-            0x00,        // UART2 rate
-            0x00,        // USB rate
-            0x00,        // SPI rate
-            0x00,        // Reserved
-            0x00, 0x00   // Checksum
-        };
-        
-        // Calculate and set checksums for UBX messages
+        // Lambda to calculate UBX checksums
         auto calc_checksum = [](unsigned char* msg, size_t len) {
             unsigned char ck_a = 0, ck_b = 0;
             for (size_t i = 2; i < len - 2; i++) {  // Skip header and checksum bytes
@@ -197,39 +148,156 @@ bool GpsAdapter::initialize()
             msg[len-1] = ck_b;
         };
         
-        unsigned char cmd_gga[sizeof(ubx_enable_gga)];
-        unsigned char cmd_rmc[sizeof(ubx_enable_rmc)];
-        memcpy(cmd_gga, ubx_enable_gga, sizeof(ubx_enable_gga));
-        memcpy(cmd_rmc, ubx_enable_rmc, sizeof(ubx_enable_rmc));
-        calc_checksum(cmd_gga, sizeof(cmd_gga));
-        calc_checksum(cmd_rmc, sizeof(cmd_rmc));
-        
-        // Send UBX commands
-        write(serial_fd_, cmd_gga, sizeof(cmd_gga));
-        usleep(100000);  // Wait 100ms
-        write(serial_fd_, cmd_rmc, sizeof(cmd_rmc));
-        usleep(200000);  // Wait 200ms for GPS to reconfigure
-        
-        tcflush(serial_fd_, TCIFLUSH);  // Flush any stale data
-        
-        // Verify NMEA output is now enabled
-        char verify_buffer[256];
-        ssize_t vbytes = read(serial_fd_, verify_buffer, sizeof(verify_buffer) - 1);
-        if (vbytes > 0) {
-            verify_buffer[vbytes] = '\0';
-            if (strchr(verify_buffer, '$')) {
-                std::cout << "  ✓ NMEA output enabled successfully\n";
-                configured = true;
-            } else {
-                std::cerr << "  ✗ NMEA enable failed, GPS may need manual configuration\n";
-                configured = true;  // Continue anyway
+        // Lambda to read and parse UBX ACK/NAK response
+        auto read_ubx_ack = [](int fd) -> int {
+            unsigned char ack_buffer[16];
+            usleep(50000);  // Wait 50ms for response
+            ssize_t bytes = read(fd, ack_buffer, sizeof(ack_buffer));
+            if (bytes >= 10) {
+                // Check for UBX-ACK-ACK (0x05 0x01) or UBX-ACK-NAK (0x05 0x00)
+                for (int i = 0; i < bytes - 3; i++) {
+                    if (ack_buffer[i] == 0xB5 && ack_buffer[i+1] == 0x62) {
+                        if (ack_buffer[i+2] == 0x05 && ack_buffer[i+3] == 0x01) {
+                            return 1;  // ACK
+                        } else if (ack_buffer[i+2] == 0x05 && ack_buffer[i+3] == 0x00) {
+                            return -1;  // NAK
+                        }
+                    }
+                }
             }
-        } else {
-            std::cerr << "  ⚠ No response from GPS after UBX configuration\n";
-            configured = true;  // Continue anyway
+            return 0;  // No response or timeout
+        };
+        
+        // Try UBX configuration at each common baud rate
+        speed_t ubx_baud_rates[] = {B9600, B38400, B115200, B57600};
+        const char* ubx_baud_names[] = {"9600", "38400", "115200", "57600"};
+        
+        for (size_t i = 0; i < 4 && !configured; i++) {
+            std::cout << "  Trying UBX config at " << ubx_baud_names[i] << " baud...";
+            
+            struct termios tty{};
+            tcgetattr(serial_fd_, &tty);
+            cfsetospeed(&tty, ubx_baud_rates[i]);
+            cfsetispeed(&tty, ubx_baud_rates[i]);
+            tty.c_cflag &= ~PARENB;
+            tty.c_cflag &= ~CSTOPB;
+            tty.c_cflag &= ~CSIZE;
+            tty.c_cflag |= CS8;
+            tty.c_cflag &= ~CRTSCTS;
+            tty.c_cflag |= CREAD | CLOCAL;
+            tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+            tty.c_iflag &= ~(IXON | IXOFF | IXANY | IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+            tty.c_oflag &= ~OPOST;
+            tty.c_cc[VMIN] = 0;
+            tty.c_cc[VTIME] = 10;
+            tcsetattr(serial_fd_, TCSANOW, &tty);
+            tcflush(serial_fd_, TCIOFLUSH);
+            usleep(100000);
+            
+            // UBX-CFG-MSG: Enable NMEA GGA message (ID 0xF0 0x00)
+            unsigned char ubx_enable_gga[] = {
+                0xB5, 0x62,  // UBX header
+                0x06, 0x01,  // CFG-MSG
+                0x08, 0x00,  // Length = 8 bytes
+                0xF0, 0x00,  // NMEA GGA message class/ID
+                0x01,        // Rate on I2C (1 = every epoch)
+                0x01,        // Rate on UART1 (1 = every epoch)
+                0x01,        // Rate on UART2
+                0x01,        // Rate on USB
+                0x01,        // Rate on SPI
+                0x00,        // Reserved
+                0x00, 0x00   // Checksum (calculated below)
+            };
+            
+            // UBX-CFG-MSG: Enable NMEA RMC message (ID 0xF0 0x04)
+            unsigned char ubx_enable_rmc[] = {
+                0xB5, 0x62,  // UBX header
+                0x06, 0x01,  // CFG-MSG
+                0x08, 0x00,  // Length = 8 bytes
+                0xF0, 0x04,  // NMEA RMC message class/ID
+                0x01,        // Rate on I2C
+                0x01,        // Rate on UART1
+                0x01,        // Rate on UART2
+                0x01,        // Rate on USB
+                0x01,        // Rate on SPI
+                0x00,        // Reserved
+                0x00, 0x00   // Checksum
+            };
+            
+            // UBX-CFG-CFG: Save configuration to BBR/Flash
+            unsigned char ubx_save_config[] = {
+                0xB5, 0x62,  // UBX header
+                0x06, 0x09,  // CFG-CFG
+                0x0D, 0x00,  // Length = 13 bytes
+                0x00, 0x00, 0x00, 0x00,  // Clear mask (none)
+                0x1F, 0x1F, 0x00, 0x00,  // Save mask (ioPort + msgConf + infMsg + navConf + rxmConf)
+                0x1F, 0x1F, 0x00, 0x00,  // Load mask (all)
+                0x17,        // Device mask: BBR + Flash
+                0x00, 0x00   // Checksum
+            };
+            
+            calc_checksum(ubx_enable_gga, sizeof(ubx_enable_gga));
+            calc_checksum(ubx_enable_rmc, sizeof(ubx_enable_rmc));
+            calc_checksum(ubx_save_config, sizeof(ubx_save_config));
+            
+            // Send GGA enable command
+            write(serial_fd_, ubx_enable_gga, sizeof(ubx_enable_gga));
+            int ack1 = read_ubx_ack(serial_fd_);
+            
+            // Send RMC enable command
+            write(serial_fd_, ubx_enable_rmc, sizeof(ubx_enable_rmc));
+            int ack2 = read_ubx_ack(serial_fd_);
+            
+            // Send save configuration command
+            write(serial_fd_, ubx_save_config, sizeof(ubx_save_config));
+            int ack3 = read_ubx_ack(serial_fd_);
+            
+            std::cout << " GGA:" << (ack1 == 1 ? "ACK" : (ack1 == -1 ? "NAK" : "NO_RESP"));
+            std::cout << " RMC:" << (ack2 == 1 ? "ACK" : (ack2 == -1 ? "NAK" : "NO_RESP"));
+            std::cout << " SAVE:" << (ack3 == 1 ? "ACK" : (ack3 == -1 ? "NAK" : "NO_RESP"));
+            
+            // If we got at least one ACK, wait for GPS to reconfigure
+            if (ack1 == 1 || ack2 == 1) {
+                std::cout << " - Waiting for GPS reconfiguration...\n";
+                usleep(1000000);  // Wait 1 second for GPS to apply changes
+                
+                // Flush and verify NMEA output
+                tcflush(serial_fd_, TCIFLUSH);
+                char verify_buffer[512];
+                ssize_t vbytes = read(serial_fd_, verify_buffer, sizeof(verify_buffer) - 1);
+                
+                if (vbytes > 0) {
+                    verify_buffer[vbytes] = '\0';
+                    
+                    // Debug: show what we received
+                    std::cout << "  Received " << vbytes << " bytes: ";
+                    for (int j = 0; j < (vbytes < 20 ? vbytes : 20); j++) {
+                        if (verify_buffer[j] >= 32 && verify_buffer[j] < 127) {
+                            std::cout << verify_buffer[j];
+                        } else {
+                            std::cout << ".";
+                        }
+                    }
+                    std::cout << "...\n";
+                    
+                    if (strchr(verify_buffer, '$') && (strstr(verify_buffer, "GP") || strstr(verify_buffer, "GN"))) {
+                        std::cout << "  ✓ NMEA output enabled successfully!\n";
+                        baud_rate_ = ubx_baud_rates[i];
+                        configured = true;
+                        break;
+                    }
+                }
+            } else {
+                std::cout << "\n";
+            }
         }
         
-        baud_rate_ = B38400;
+        if (!configured) {
+            std::cerr << "  ✗ UBX configuration failed at all baud rates.\n";
+            std::cerr << "  GPS may need manual reconfiguration via u-center or gpsd.\n";
+            configured = true;  // Continue anyway with binary mode
+            baud_rate_ = B38400;  // Default fallback
+        }
     }
 
     // Initialize PPS
