@@ -6,6 +6,7 @@
  */
 
 #include "rtc_adapter.hpp"
+#include <iostream>
 #include <cstring>
 #include <cerrno>
 #include <unistd.h>
@@ -187,16 +188,37 @@ bool RtcAdapter::apply_frequency_discipline(double drift_ppm)
 {
     if (i2c_fd_ < 0) {
         // I2C not available for direct DS3231 access
+        std::cerr << "[RTC Discipline] ERROR: I2C device not open (fd=" << i2c_fd_ << ")\n";
         return false;
     }
 
     int8_t aging_offset = calculate_aging_offset(drift_ppm);
     
+    std::cout << "[RTC Discipline] Calculated aging offset: " << static_cast<int>(aging_offset) 
+              << " (for drift " << drift_ppm << " ppm)\n";
+    
     // Write to DS3231 aging offset register
     uint8_t buffer[2] = { DS3231_AGING_OFFSET_REG, static_cast<uint8_t>(aging_offset) };
     
-    if (write(i2c_fd_, buffer, 2) != 2) {
+    ssize_t bytes_written = write(i2c_fd_, buffer, 2);
+    if (bytes_written != 2) {
+        std::cerr << "[RTC Discipline] ERROR: I2C write failed! fd=" << i2c_fd_ 
+                  << " bytes=" << bytes_written 
+                  << " errno=" << errno << " (" << strerror(errno) << ")\n";
         return false;
+    }
+    
+    std::cout << "[RTC Discipline] ✓ Aging offset written successfully to I2C register 0x" 
+              << std::hex << static_cast<int>(DS3231_AGING_OFFSET_REG) << std::dec << "\n";
+    
+    // Verify write by reading back
+    int8_t readback = read_aging_offset();
+    if (readback != aging_offset) {
+        std::cerr << "[RTC Discipline] WARNING: Readback mismatch! wrote=" 
+                  << static_cast<int>(aging_offset) 
+                  << " read=" << static_cast<int>(readback) << "\n";
+    } else {
+        std::cout << "[RTC Discipline] ✓ Verified aging offset: " << static_cast<int>(readback) << "\n";
     }
 
     measured_drift_ppm_ = drift_ppm;
