@@ -436,25 +436,33 @@ bool GpsAdapter::update_pps_data()
     uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
     
     // Calculate jitter from previous pulse (if valid)
+    uint32_t current_jitter = 0;
     if (pps_data_.valid && pps_data_.sequence > 0) {
         // Expected: exactly 1 second between pulses
         int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
                              + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
         int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
-        pps_data_.jitter_nsec = static_cast<uint32_t>(std::abs(jitter_ns));
+        current_jitter = static_cast<uint32_t>(std::abs(jitter_ns));
     }
     
+    // Update PPS data
     pps_data_.assert_sec = new_assert_sec;
     pps_data_.assert_nsec = new_assert_nsec;
     pps_data_.sequence = pps_info.assert_sequence;
+    pps_data_.jitter_nsec = current_jitter;
     pps_data_.valid = true;
     
-    // Debug output every 10 PPS pulses
-    static uint64_t debug_seq = 0;
-    if (++debug_seq % 10 == 1) {
+    // Debug output every 10 PPS pulses with max jitter over interval
+    static uint64_t pulse_count = 0;
+    static uint32_t max_jitter = 0;
+    
+    max_jitter = std::max(max_jitter, current_jitter);
+    
+    if (++pulse_count % 10 == 0) {
         std::cout << "[PPS] seq=" << pps_data_.sequence 
                   << " time=" << pps_data_.assert_sec << "." << pps_data_.assert_nsec
-                  << " jitter=" << pps_data_.jitter_nsec << "ns\n";
+                  << " max_jitter=" << max_jitter << "ns (last 10 pulses)\n";
+        max_jitter = 0;  // Reset for next interval
     }
     
     return true;
