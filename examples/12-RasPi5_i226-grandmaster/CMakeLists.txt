@@ -50,6 +50,12 @@ else()
     endif()
 endif()
 
+# System libraries required
+target_link_libraries(ptp_grandmaster
+    pthread  # Thread support
+    rt       # Real-time library
+)
+
 # System libraries
 target_link_libraries(ptp_grandmaster
     pthread
