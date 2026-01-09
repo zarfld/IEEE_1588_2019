@@ -92,6 +92,19 @@ bool GpsAdapter::initialize()
     return true;
 }
 
+bool GpsAdapter::update()
+{
+    // Read and parse NMEA sentences from GPS
+    GpsData temp_gps_data = gps_data_;  // Start with current data
+    
+    if (read_gps_data(&temp_gps_data)) {
+        gps_data_ = temp_gps_data;  // Update if successful
+        return true;
+    }
+    
+    return false;
+}
+
 bool GpsAdapter::initialize_pps()
 {
     int pps_fd = open(pps_device_.c_str(), O_RDWR);
