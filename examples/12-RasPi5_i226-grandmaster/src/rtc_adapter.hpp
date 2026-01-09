@@ -153,12 +153,15 @@ private:
     void convert_rtc_to_ptp(const RtcTime& rtc, uint64_t* seconds);
     void convert_ptp_to_rtc(uint64_t seconds, RtcTime* rtc);
     bool update_drift_estimate(uint64_t gps_seconds, uint64_t rtc_seconds);
+    uint32_t calculate_holdover_quality(uint64_t current_time_sec);
+
+public:
+    // RTC frequency discipline methods (public for manual drift measurement)
     double measure_drift_ppm(uint64_t gps_time_ns, uint64_t rtc_time_ns, uint32_t interval_sec);
     int8_t calculate_aging_offset(double drift_ppm);
     bool apply_frequency_discipline(double drift_ppm);
     int8_t read_aging_offset();
     double get_temperature();
-    uint32_t calculate_holdover_quality(uint64_t current_time_sec);
 };
 
 } // namespace Linux

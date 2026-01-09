@@ -490,58 +490,6 @@ bool GpsAdapter::initialize_pps()
     return true;
 }
 
-bool GpsAdapter::update_pps_data()
-{
-    if (pps_handle_ < 0) {
-        return false;
-    }
-    
-    struct pps_info pps_info{};
-    struct timespec timeout{};
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 100000000;  // 100ms timeout
-    
-    // Fetch PPS event (non-blocking with timeout)
-    if (time_pps_fetch(pps_handle_, PPS_TSFMT_TSPEC, &pps_info, &timeout) < 0) {
-        pps_data_.valid = false;
-        return false;
-    }
-    
-    // Check if we got a new PPS pulse (sequence number incremented)
-    if (pps_info.assert_sequence == pps_data_.sequence) {
-        // No new PPS pulse since last fetch
-        return pps_data_.valid;
-    }
-    
-    // New PPS pulse - update PPS data
-    uint64_t new_assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
-    uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
-    
-    // Calculate jitter from previous pulse (if valid)
-    if (pps_data_.valid && pps_data_.sequence > 0) {
-        // Expected: exactly 1 second between pulses
-        int64_t time_diff_ns = (static_cast<int64_t>(new_assert_sec) - static_cast<int64_t>(pps_data_.assert_sec)) * 1000000000LL
-                             + (static_cast<int64_t>(new_assert_nsec) - static_cast<int64_t>(pps_data_.assert_nsec));
-        int64_t jitter_ns = time_diff_ns - 1000000000LL;  // Deviation from 1 second
-        pps_data_.jitter_nsec = static_cast<uint32_t>(std::abs(jitter_ns));
-    }
-    
-    pps_data_.assert_sec = new_assert_sec;
-    pps_data_.assert_nsec = new_assert_nsec;
-    pps_data_.sequence = pps_info.assert_sequence;
-    pps_data_.valid = true;
-    
-    // Debug output every 10 PPS pulses
-    static uint64_t debug_seq = 0;
-    if (++debug_seq % 10 == 1) {
-        std::cout << "[PPS] seq=" << pps_data_.sequence 
-                  << " time=" << pps_data_.assert_sec << "." << pps_data_.assert_nsec
-                  << " jitter=" << pps_data_.jitter_nsec << "ns\n";
-    }
-    
-    return true;
-}
-
 bool GpsAdapter::parse_nmea_sentence(const char* sentence, GpsData* gps_data)
 {
     if (strncmp(sentence, "$GPRMC", 6) == 0) {
