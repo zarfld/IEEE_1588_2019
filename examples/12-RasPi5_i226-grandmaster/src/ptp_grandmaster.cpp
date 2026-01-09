@@ -142,6 +142,16 @@ int main(int argc, char* argv[])
     uint64_t sync_counter = 0;
     
     while (g_running) {
+        // Update GPS data (read NMEA sentences and PPS)
+        gps_adapter.update();
+        
+        if (verbose && (sync_counter % 10 == 0)) {
+            std::cout << "\n[GPS Debug] Fix: " << (gps_adapter.has_fix() ? "YES" : "NO")
+                     << ", Satellites: " << static_cast<int>(gps_adapter.get_satellite_count())
+                     << ", Quality: " << static_cast<int>(gps_adapter.get_fix_quality())
+                     << "\n";
+        }
+        
         // Get GPS time
         uint64_t gps_seconds = 0;
         uint32_t gps_nanoseconds = 0;
