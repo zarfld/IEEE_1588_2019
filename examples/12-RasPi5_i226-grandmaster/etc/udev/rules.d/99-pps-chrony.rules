@@ -1,0 +1,2 @@
+SUBSYSTEM=="pps", KERNEL=="pps[0-9]*", MODE="0660", GROUP="_chrony"
+SUBSYSTEM=="ptp", KERNEL=="ptp[0-9]*", MODE="0660", GROUP="_chrony"

@@ -1,0 +1,14 @@
+[Unit]
+Description=Set system clock from DS1307 RTC (/dev/rtc1)
+DefaultDependencies=no
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+Before=time-set.target time-sync.target chrony.service
+Wants=time-set.target
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/hwclock --hctosys --utc -f /dev/rtc1
+
+[Install]
+WantedBy=sysinit.target

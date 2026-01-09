@@ -1,0 +1,12 @@
+[Unit]
+Description=Write RTC after chrony sync
+Wants=chrony.service
+After=chrony.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chronyc -a 'waitsync 60'
+ExecStart=/sbin/hwclock --systohc --utc -f /dev/rtc1
+
+[Install]
+WantedBy=multi-user.target

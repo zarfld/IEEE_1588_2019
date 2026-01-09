@@ -1,0 +1,13 @@
+[Unit]
+Description=Sync PHC /dev/ptp0 (eth1) from CLOCK_REALTIME
+After=chrony.service
+Wants=chrony.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -O 0 -m
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
