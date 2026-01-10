@@ -1,0 +1,716 @@
+https://github.com/zarfld/IEEE_1588_2019/actions/runs/19868299340/job/56936928377#logs
+
+0s
+Run echo "🔍 Checking for requirements without test issues..."
+  echo "🔍 Checking for requirements without test issues..."
+  mkdir -p reports
+  python scripts/trace_unlinked_requirements.py 2>&1 | tee reports/unlinked-requirements.log || {
+    echo "⚠️ Script execution status: needs GitHub Issues populated"
+    echo "See reports/unlinked-requirements.log for details"
+  }
+  shell: /usr/bin/bash -e {0}
+  env:
+    NODE_VERSION: 20.x
+    PYTHON_VERSION: 3.11
+    MIN_TEST_COVERAGE: 80
+    MAX_CYCLOMATIC_COMPLEXITY: 10
+    MIN_REQ_LINKAGE_COVERAGE: 90
+    pythonLocation: /opt/hostedtoolcache/Python/3.11.14/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib
+    GITHUB_TOKEN: ***
+🔍 Checking for requirements without test issues...
+ERROR: Neither traceability.json nor spec-index.json exists; run spec_parser + build_trace_json first.
+2s
+Run echo "🔍 Checking for orphan code/tests without issue links..."
+🔍 Checking for orphan code/tests without issue links...
+Checking repository: zarfld/IEEE_1588_2019
+
+# Orphaned Requirements Check
+
+Checking for requirements without parent links...
+
+✅ **No orphaned requirements found!**
+
+All requirements properly linked to parent issues.
+2s
+Run echo "📊 Generating GitHub Issues traceability report..."
+  echo "📊 Generating GitHub Issues traceability report..."
+  mkdir -p reports
+  python scripts/github-traceability-report.py 2>&1 | tee reports/github-traceability.md || {
+    echo "⚠️ Report generation complete with warnings"
+  }
+  shell: /usr/bin/bash -e {0}
+  env:
+    NODE_VERSION: 20.x
+    PYTHON_VERSION: 3.11
+    MIN_TEST_COVERAGE: 80
+    MAX_CYCLOMATIC_COMPLEXITY: 10
+    MIN_REQ_LINKAGE_COVERAGE: 90
+    pythonLocation: /opt/hostedtoolcache/Python/3.11.14/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib
+    GITHUB_TOKEN: ***
+📊 Generating GitHub Issues traceability report...
+Generating report for: zarfld/IEEE_1588_2019
+
+# Requirements Traceability Matrix
+
+**Repository**: zarfld/IEEE_1588_2019
+**Generated**: 2025-12-02 17:50:50 UTC
+**Standard**: ISO/IEC/IEEE 29148:2018
+
+## Summary
+
+Total requirements: **209**
+
+### By Type
+
+- **REQ**: 57
+- **REQ-F**: 71
+- **REQ-NF**: 61
+- **StR**: 20
+
+### By State
+
+- **Open**: 209
+- **Closed**: 0
+
+## Traceability Matrix
+
+| Issue | Type | Title | State | Traces To | Depends On | Verified By | Implemented By |
+|-------|------|-------|-------|-----------|------------|-------------|----------------|
+| #9 | REQ | REQ-PPS-001: PPS Pin Autodetection | 🔵 | - | - | - | - |
+| #10 | REQ | REQ-PPS-007: Platform Abstraction (Win/Linux/Em... | 🔵 | - | - | - | - |
+| #11 | REQ | REQ-PPS-002: Sub-Microsecond Timestamp Accuracy | 🔵 | - | - | - | - |
+| #12 | REQ | REQ-PPS-003: 1Hz Frequency Validation | 🔵 | - | - | - | - |
+| #13 | REQ | REQ-PPS-005: Non-Blocking Detection with Timeout | 🔵 | - | - | - | - |
+| #14 | REQ | REQ-PPS-006: Thread-Safe State Transitions | 🔵 | - | - | - | - |
+| #15 | REQ | REQ-PPS-004: Fallback to NMEA-Only Mode | 🔵 | - | - | - | - |
+| #16 | REQ | REQ-STK-PTP-002: Deterministic timing behavior ... | 🔵 | - | - | - | - |
+| #17 | REQ | REQ-STK-PTP-004: Hardware-agnostic cross-platfo... | 🔵 | - | - | - | - |
+| #18 | REQ | REQ-STK-PTP-001: Enterprise-grade timing precis... | 🔵 | - | - | - | - |
+| #19 | REQ | REQ-STK-PTP-010: Enhanced calibration procedure... | 🔵 | - | - | - | - |
+| #20 | REQ | REQ-STK-PTP-009: Scalable multi-domain timing a... | 🔵 | - | - | - | - |
+| #21 | REQ | REQ-STK-PTP-006: Security mechanisms for indust... | 🔵 | - | - | - | - |
+| #22 | REQ | REQ-STK-PTP-008: Management protocol for networ... | 🔵 | - | - | - | - |
+| #23 | REQ | REQ-STK-PTP-007: Transparent clock support for ... | 🔵 | - | - | - | - |
+| #24 | REQ | REQ-STK-PTP-015: Comprehensive error handling w... | 🔵 | - | - | - | - |
+| #25 | REQ | REQ-STK-PTP-011: Backward compatibility with IE... | 🔵 | - | - | - | - |
+| #26 | REQ | REQ-STK-PTP-014: Hardware abstraction for cross... | 🔵 | - | - | - | - |
+| #27 | REQ | REQ-STK-PTP-012: Comprehensive management and d... | 🔵 | - | - | - | - |
+| #28 | REQ | REQ-STK-PTP-013: Deterministic APIs without dyn... | 🔵 | - | - | - | - |
+| #29 | REQ | REQ-STK-PTP-020: Comprehensive validation and c... | 🔵 | - | - | - | - |
+| #30 | REQ | REQ-STK-PTP-016: Bounded execution time for rea... | 🔵 | - | - | - | - |
+| #31 | REQ | REQ-STK-PTP-017: Full IEEE 1588-2019 standards ... | 🔵 | - | - | - | - |
+| #32 | REQ | REQ-STK-PTP-018: Security framework compliance ... | 🔵 | - | - | - | - |
+| #33 | REQ | REQ-STK-PTP-019: Traceability to UTC for regula... | 🔵 | - | - | - | - |
+| #34 | REQ | REQ-SYS-PTP-002: Multi-domain timing architecture | 🔵 | - | - | - | - |
+| #35 | REQ | REQ-SYS-PTP-005: Deterministic design patterns ... | 🔵 | - | - | - | - |
+| #36 | REQ | REQ-SYS-PTP-001: Enterprise-grade timing synchr... | 🔵 | - | - | - | - |
+| #37 | REQ | REQ-SYS-PTP-004: Comprehensive management protocol | 🔵 | - | - | - | - |
+| #38 | REQ | REQ-SYS-PTP-003: Enhanced security mechanisms (... | 🔵 | - | - | - | - |
+| #39 | REQ | REQ-SYS-PTP-007: Bounded execution time for cri... | 🔵 | - | - | - | - |
+| #40 | REQ | REQ-SYS-PTP-008: Predictable memory usage witho... | 🔵 | - | - | - | - |
+| #41 | REQ | REQ-SYS-PTP-010: Professional audio/video timin... | 🔵 | - | - | - | - |
+| #42 | REQ | REQ-SYS-PTP-006: Hardware abstraction layer for... | 🔵 | - | - | - | - |
+| #43 | REQ | REQ-SYS-PTP-009: Integration with IEEE 802.1AS ... | 🔵 | - | - | - | - |
+| #44 | REQ | REQ-SYS-PTP-011: Foundation for advanced TSN fe... | 🔵 | - | - | - | - |
+| #45 | REQ | REQ-SYS-PTP-012: Compatibility with existing Op... | 🔵 | - | - | - | - |
+| #46 | REQ-F | REQ-FUN-PTP-003: CorrectionField with scaled na... | 🔵 | - | - | - | - |
+| #47 | REQ-F | REQ-FUN-PTP-004: All IEEE 1588-2019 integer typ... | 🔵 | - | - | - | - |
+| #48 | REQ-F | REQ-FUN-PTP-002: 48-bit timestamp precision wit... | 🔵 | - | - | - | - |
+| #49 | REQ-F | REQ-FUN-PTP-005: Complete PTP message header st... | 🔵 | - | - | - | - |
+| #50 | REQ-F | REQ-FUN-PTP-001: Fundamental data types (ClockI... | 🔵 | - | - | - | - |
+| #51 | REQ-F | REQ-FUN-PTP-010: Boundary Clock (BC) functional... | 🔵 | - | - | - | - |
+| #52 | REQ-F | REQ-FUN-PTP-008: TLV (Type-Length-Value) framew... | 🔵 | - | - | - | - |
+| #53 | REQ-F | REQ-FUN-PTP-007: Message serialization/deserial... | 🔵 | - | - | - | - |
+| #54 | REQ-F | REQ-FUN-PTP-009: Ordinary Clock (OC) state mach... | 🔵 | - | - | - | - |
+| #55 | REQ-F | REQ-FUN-PTP-006: All PTP message types (Announc... | 🔵 | - | - | - | - |
+| #56 | REQ-F | REQ-FUN-PTP-014: Priority fields and quality in... | 🔵 | - | - | - | - |
+| #57 | REQ-F | REQ-FUN-PTP-015: Grandmaster clock capabilities... | 🔵 | - | - | - | - |
+| #58 | REQ-F | REQ-FUN-PTP-011: Transparent Clock (TC) support... | 🔵 | - | - | - | - |
+| #59 | REQ-F | REQ-FUN-PTP-012: End-to-End Transparent Clock (... | 🔵 | - | - | - | - |
+| #60 | REQ-F | REQ-FUN-PTP-013: Enhanced BMCA with IEEE 1588-2... | 🔵 | - | - | - | - |
+| #61 | REQ-F | REQ-FUN-PTP-016: Clock class and accuracy indic... | 🔵 | - | - | - | - |
+| #62 | REQ-F | REQ-FUN-PTP-020: Servo algorithms for clock syn... | 🔵 | - | - | - | - |
+| #63 | REQ-F | REQ-FUN-PTP-018: Path delay measurement (Peer-t... | 🔵 | - | - | - | - |
+| #64 | REQ-F | REQ-FUN-PTP-019: Frequency adjustment and phase... | 🔵 | - | - | - | - |
+| #65 | REQ-F | REQ-FUN-PTP-017: Offset and delay calculation w... | 🔵 | - | - | - | - |
+| #66 | REQ-F | REQ-FUN-PTP-023: Domain-specific configuration ... | 🔵 | - | - | - | - |
+| #67 | REQ-F | REQ-FUN-PTP-025: Security mechanisms for PTP me... | 🔵 | - | - | - | - |
+| #68 | REQ-F | REQ-FUN-PTP-022: Cross-domain synchronization c... | 🔵 | - | - | - | - |
+| #69 | REQ-F | REQ-FUN-PTP-021: Multiple PTP domains (0-127) w... | 🔵 | - | - | - | - |
+| #70 | REQ-F | REQ-FUN-PTP-024: Alternate master selection per... | 🔵 | - | - | - | - |
+| #71 | REQ-F | REQ-FUN-PTP-028: Security TLV processing for se... | 🔵 | - | - | - | - |
+| #72 | REQ-F | REQ-FUN-PTP-026: Authorization framework for ne... | 🔵 | - | - | - | - |
+| #73 | REQ-F | REQ-FUN-PTP-027: Integrity protection for criti... | 🔵 | - | - | - | - |
+| #74 | REQ-F | REQ-FUN-PTP-029: Security association managemen... | 🔵 | - | - | - | - |
+| #75 | REQ-F | REQ-FUN-PTP-030: Security policy configuration ... | 🔵 | - | - | - | - |
+| #76 | REQ-F | REQ-FUN-PTP-035: Clock and port parameter confi... | 🔵 | - | - | - | - |
+| #77 | REQ-F | REQ-FUN-PTP-034: Management TLV processing for ... | 🔵 | - | - | - | - |
+| #78 | REQ-F | REQ-FUN-PTP-032: Security event logging and mon... | 🔵 | - | - | - | - |
+| #79 | REQ-F | REQ-FUN-PTP-033: PTP management protocol for re... | 🔵 | - | - | - | - |
+| #80 | REQ-F | REQ-FUN-PTP-031: Key management for authenticat... | 🔵 | - | - | - | - |
+| #81 | REQ-F | REQ-FUN-PTP-037: Comprehensive monitoring for P... | 🔵 | - | - | - | - |
+| #82 | REQ-F | REQ-FUN-PTP-040: Fault detection and recovery m... | 🔵 | - | - | - | - |
+| #83 | REQ-F | REQ-FUN-PTP-039: Performance metrics collection... | 🔵 | - | - | - | - |
+| #84 | REQ-F | REQ-FUN-PTP-036: Dataset management and synchro... | 🔵 | - | - | - | - |
+| #85 | REQ-F | REQ-FUN-PTP-038: Diagnostic information for tim... | 🔵 | - | - | - | - |
+| #86 | REQ-F | REQ-FUN-PTP-045: Network packet transmission an... | 🔵 | - | - | - | - |
+| #87 | REQ-F | REQ-FUN-PTP-041: Hardware abstraction interface... | 🔵 | - | - | - | - |
+| #88 | REQ-F | REQ-FUN-PTP-043: Platform-specific timing opera... | 🔵 | - | - | - | - |
+| #89 | REQ-F | REQ-FUN-PTP-044: Hardware timestamp support abs... | 🔵 | - | - | - | - |
+| #90 | REQ-F | REQ-FUN-PTP-042: Dependency injection patterns ... | 🔵 | - | - | - | - |
+| #91 | REQ-F | REQ-FUN-PTP-048: Software timestamping fallback... | 🔵 | - | - | - | - |
+| #92 | REQ-F | REQ-FUN-PTP-046: Hardware timestamping capabili... | 🔵 | - | - | - | - |
+| #93 | REQ-F | REQ-FUN-PTP-047: Network interface configuratio... | 🔵 | - | - | - | - |
+| #94 | REQ-NF | REQ-NFR-PTP-002: Sub-microsecond accuracy with ... | 🔵 | - | - | - | - |
+| #95 | REQ-NF | REQ-NFR-PTP-001: Microsecond-level timing accur... | 🔵 | - | - | - | - |
+| #96 | REQ-NF | REQ-NFR-PTP-004: Deterministic timing behavior ... | 🔵 | - | - | - | - |
+| #97 | REQ-NF | REQ-NFR-PTP-005: Bounded execution time for cri... | 🔵 | - | - | - | - |
+| #98 | REQ-NF | REQ-NFR-PTP-003: Timing accuracy under network ... | 🔵 | - | - | - | - |
+| #99 | REQ-NF | REQ-NFR-PTP-009: Graceful degradation under net... | 🔵 | - | - | - | - |
+| #100 | REQ-NF | REQ-NFR-PTP-008: High-frequency timing operatio... | 🔵 | - | - | - | - |
+| #101 | REQ-NF | REQ-NFR-PTP-007: Predictable CPU usage for real... | 🔵 | - | - | - | - |
+| #102 | REQ-NF | REQ-NFR-PTP-006: No dynamic memory allocation i... | 🔵 | - | - | - | - |
+| #103 | REQ-NF | REQ-NFR-PTP-010: Automatic recovery from synchr... | 🔵 | - | - | - | - |
+| #104 | REQ-NF | REQ-NFR-PTP-011: Redundant master clock configu... | 🔵 | - | - | - | - |
+| #105 | REQ-NF | REQ-NFR-PTP-014: Continuous operation without r... | 🔵 | - | - | - | - |
+| #106 | REQ-NF | REQ-NFR-PTP-015: Comprehensive error detection ... | 🔵 | - | - | - | - |
+| #107 | REQ-NF | REQ-NFR-PTP-012: Operation during partial netwo... | 🔵 | - | - | - | - |
+| #108 | REQ-NF | REQ-NFR-PTP-013: 99.99% availability for profes... | 🔵 | - | - | - | - |
+| #109 | REQ-NF | REQ-NFR-PTP-020: Large-scale industrial and ent... | 🔵 | - | - | - | - |
+| #110 | REQ-NF | REQ-NFR-PTP-018: Scale to 128 PTP domains [Post... | 🔵 | - | - | - | - |
+| #111 | REQ-NF | REQ-NFR-PTP-016: System health monitoring and r... | 🔵 | - | - | - | - |
+| #112 | REQ-NF | REQ-NFR-PTP-019: Handle 10,000+ messages/second... | 🔵 | - | - | - | - |
+| #113 | REQ-NF | REQ-NFR-PTP-017: Support 1000+ PTP-enabled devices | 🔵 | - | - | - | - |
+| #114 | REQ-NF | REQ-NFR-PTP-021: Memory footprint <1MB for embe... | 🔵 | - | - | - | - |
+| #115 | REQ-NF | REQ-NFR-PTP-022: CPU usage <5% for multi-domain... | 🔵 | - | - | - | - |
+| #116 | REQ-NF | REQ-NFR-PTP-024: Support resource-constrained e... | 🔵 | - | - | - | - |
+| #117 | REQ-NF | REQ-NFR-PTP-023: Network bandwidth <1Mbps per d... | 🔵 | - | - | - | - |
+| #118 | REQ-NF | REQ-NFR-PTP-025: Unit test coverage >95% | 🔵 | - | - | - | - |
+| #119 | REQ-NF | REQ-NFR-PTP-027: Comprehensive logging and debu... | 🔵 | - | - | - | - |
+| #120 | REQ-NF | REQ-NFR-PTP-030: Configuration validation and e... | 🔵 | - | - | - | - |
+| #121 | REQ-NF | REQ-NFR-PTP-026: Consistent coding standards an... | 🔵 | - | - | - | - |
+| #122 | REQ-NF | REQ-NFR-PTP-028: Clear API documentation and us... | 🔵 | - | - | - | - |
+| #123 | REQ-NF | REQ-NFR-PTP-029: Runtime configuration changes ... | 🔵 | - | - | - | - |
+| #124 | REQ-NF | REQ-NFR-PTP-033: Secure communication channels ... | 🔵 | - | - | - | - |
+| #125 | REQ-NF | REQ-NFR-PTP-034: Protection against timing-base... | 🔵 | - | - | - | - |
+| #126 | REQ-NF | REQ-NFR-PTP-031: Configuration backup and restore | 🔵 | - | - | - | - |
+| #127 | REQ-NF | REQ-NFR-PTP-032: Configuration version manageme... | 🔵 | - | - | - | - |
+| #128 | REQ-NF | REQ-NFR-PTP-035: Network access control and aut... | 🔵 | - | - | - | - |
+| #129 | REQ-NF | REQ-NFR-PTP-036: Security audit trail and event... | 🔵 | - | - | - | - |
+| #130 | REQ-NF | REQ-NFR-PTP-037: Industry-standard cryptographi... | 🔵 | - | - | - | - |
+| #131 | REQ-NF | REQ-NFR-PTP-038: Secure key management and dist... | 🔵 | - | - | - | - |
+| #132 | REQ-NF | REQ-NFR-PTP-040: Security certificate managemen... | 🔵 | - | - | - | - |
+| #133 | REQ-NF | REQ-NFR-PTP-039: Integrity verification for cri... | 🔵 | - | - | - | - |
+| #134 | REQ-NF | REQ-NFR-PTP-045: Hardware abstraction for timin... | 🔵 | - | - | - | - |
+| #135 | REQ-NF | REQ-NFR-PTP-041: Windows support (Win10/11, Ser... | 🔵 | - | - | - | - |
+| #136 | REQ-NF | REQ-NFR-PTP-043: Embedded platform support (ARM... | 🔵 | - | - | - | - |
+| #137 | REQ-NF | REQ-NFR-PTP-044: Consistent behavior across all... | 🔵 | - | - | - | - |
+| #138 | REQ-NF | REQ-NFR-PTP-042: Linux distribution support (Ub... | 🔵 | - | - | - | - |
+| #139 | REQ-NF | REQ-NFR-PTP-046: Support multiple network inter... | 🔵 | - | - | - | - |
+| #140 | REQ-NF | REQ-NFR-PTP-048: Deployment without vendor-spec... | 🔵 | - | - | - | - |
+| #141 | REQ-NF | REQ-NFR-PTP-047: Fallback for platforms without... | 🔵 | - | - | - | - |
+| #142 | REQ | REQ-STK-ARCH-004: Copyright and IP Compliance | 🔵 | - | - | - | - |
+| #143 | REQ | REQ-STK-ARCH-003: Protocol Correctness and Comp... | 🔵 | - | - | - | - |
+| #144 | REQ | REQ-STK-ARCH-005: Maintainable Architecture Design | 🔵 | - | - | - | - |
+| #145 | REQ | REQ-STK-ARCH-002: Hardware-Agnostic Protocol Im... | 🔵 | - | - | - | - |
+| #146 | REQ | REQ-STK-ARCH-001: Standards-Compliant Software ... | 🔵 | - | - | - | - |
+| #147 | REQ | REQ-SYS-ARCH-005: Protocol Compliance Validatio... | 🔵 | - | - | - | - |
+| #148 | REQ | REQ-SYS-ARCH-001: Hardware Abstraction Interfac... | 🔵 | - | - | - | - |
+| #149 | REQ | REQ-SYS-ARCH-004: Cross-Standard Dependency Man... | 🔵 | - | - | - | - |
+| #150 | REQ | REQ-SYS-ARCH-003: Hierarchical Namespace Structure | 🔵 | - | - | - | - |
+| #151 | REQ | REQ-SYS-ARCH-002: Standards-Only Implementation... | 🔵 | - | - | - | - |
+| #152 | REQ | REQ-SYS-ARCH-009: File Naming Convention Framework | 🔵 | - | - | - | - |
+| #153 | REQ | REQ-SYS-ARCH-008: Documentation and Specificati... | 🔵 | - | - | - | - |
+| #154 | REQ | REQ-SYS-ARCH-010: CMake Build System Integratio... | 🔵 | - | - | - | - |
+| #155 | REQ | REQ-SYS-ARCH-007: Complete Standards Folder Hie... | 🔵 | - | - | - | - |
+| #156 | REQ | REQ-SYS-ARCH-006: Testing and Quality Assurance... | 🔵 | - | - | - | - |
+| #157 | REQ | REQ-SYS-ARCH-012: Build System Integration Fram... | 🔵 | - | - | - | - |
+| #158 | REQ | REQ-SYS-ARCH-011: Cross-Standard Integration an... | 🔵 | - | - | - | - |
+| #159 | REQ-F | REQ-FUNC-ARCH-001: IEEE 1722.1 AVDECC Protocol ... | 🔵 | - | - | - | - |
+| #160 | REQ-F | REQ-FUNC-ARCH-006: Standards Compliance Validation | 🔵 | - | - | - | - |
+| #161 | REQ-F | REQ-FUNC-ARCH-002: IEEE 1722 AVTP Protocol Impl... | 🔵 | - | - | - | - |
+| #162 | REQ-F | REQ-FUNC-ARCH-004: Hardware Abstraction Interfa... | 🔵 | - | - | - | - |
+| #163 | REQ-F | REQ-FUNC-ARCH-003: IEEE 802.1AS gPTP Protocol I... | 🔵 | - | - | - | - |
+| #164 | REQ-F | REQ-FUNC-ARCH-005: Cross-Standard Protocol Inte... | 🔵 | - | - | - | - |
+| #165 | REQ-NF | REQ-NFR-ARCH-003: Portability Requirements | 🔵 | - | - | - | - |
+| #166 | REQ-NF | REQ-NFR-ARCH-005: Testability Requirements | 🔵 | - | - | - | - |
+| #167 | REQ-NF | REQ-NFR-ARCH-001: Performance Requirements | 🔵 | - | - | - | - |
+| #168 | REQ-NF | REQ-NFR-ARCH-002: Memory Management Requirements | 🔵 | - | - | - | - |
+| #169 | REQ-NF | REQ-NFR-ARCH-004: Maintainability Requirements | 🔵 | - | - | - | - |
+| #170 | REQ-F | REQ-FR-PTPA-006: Security Features (IEEE 1588-2... | 🔵 | - | - | - | - |
+| #171 | REQ-F | REQ-FR-PTPA-005: Management Protocol | 🔵 | - | - | - | - |
+| #172 | REQ-F | REQ-FR-PTPA-001: Clock Synchronization | 🔵 | - | - | - | - |
+| #173 | REQ-F | REQ-FR-PTPA-004: Transport Layer Support | 🔵 | - | - | - | - |
+| #174 | REQ-F | REQ-FR-PTPA-002: Best Master Clock Algorithm (B... | 🔵 | - | - | - | - |
+| #175 | REQ-F | REQ-FR-PTPA-007: Multi-Domain Support (IEEE 158... | 🔵 | - | - | - | - |
+| #176 | REQ-F | REQ-FR-PTPA-003: Message Processing | 🔵 | - | - | - | - |
+| #177 | REQ-F | REQ-F-004: PI Controller Clock Adjustment | 🔵 | - | - | - | - |
+| #178 | REQ-F | REQ-F-005: Hardware Abstraction Layer (HAL) Int... | 🔵 | - | - | - | - |
+| #179 | REQ-F | REQ-F-001: IEEE 1588-2019 Message Type Support | 🔵 | - | - | - | - |
+| #180 | REQ-F | REQ-F-003: Clock Offset Calculation | 🔵 | - | - | - | - |
+| #181 | REQ-F | REQ-F-002: Best Master Clock Algorithm (BMCA) a... | 🔵 | - | - | - | - |
+| #182 | REQ | REQ-S-001: Graceful BMCA State Transitions | 🔵 | - | - | - | - |
+| #183 | REQ | REQ-S-004: Interoperability and Configuration C... | 🔵 | - | - | - | - |
+| #184 | REQ | REQ-S-002: Fault Recovery and Graceful Degradation | 🔵 | - | - | - | - |
+| #185 | REQ-NF | REQ-NF-S-001: Input Validation | 🔵 | - | - | - | - |
+| #186 | REQ-NF | REQ-NF-U-001: Learnability and Developer Usability | 🔵 | - | - | - | - |
+| #187 | REQ-NF | REQ-NF-M-002: Build System Portability | 🔵 | - | - | - | - |
+| #188 | REQ-NF | REQ-NF-P-002: Deterministic Timing | 🔵 | - | - | - | - |
+| #189 | REQ-NF | REQ-NF-P-001: Synchronization Accuracy | 🔵 | - | - | - | - |
+| #190 | REQ-NF | REQ-NF-P-003: Resource Efficiency | 🔵 | - | - | - | - |
+| #191 | REQ-NF | REQ-NF-S-002: Memory Safety | 🔵 | - | - | - | - |
+| #192 | REQ-NF | REQ-NF-M-001: Platform Independence | 🔵 | - | - | - | - |
+| #193 | StR | StR-002: Full-Duplex Point-to-Point 802.3 with ... | 🔵 | - | - | - | - |
+| #194 | StR | StR-004: Path Trace TLV Processing and Transmis... | 🔵 | - | - | - | - |
+| #195 | StR | StR-001: P2P Path Delay Mechanism on Full-Duple... | 🔵 | - | - | - | - |
+| #196 | StR | StR-003: BMCA Implementation per 802.1AS with D... | 🔵 | - | - | - | - |
+| #197 | StR | StR-005: Exclusion of Specific PTP Port States | 🔵 | - | - | - | - |
+| #198 | StR | StR-009: Prohibition of MAC PAUSE and PFC on 80... | 🔵 | - | - | - | - |
+| #199 | StR | StR-006: Exclusion of Foreign Master Feature | 🔵 | - | - | - | - |
+| #200 | StR | StR-010: LocalClock Frequency Offset and Measur... | 🔵 | - | - | - | - |
+| #201 | StR | StR-008: Exclusion of IEEE 1588 Integrated Secu... | 🔵 | - | - | - | - |
+| #202 | StR | StR-007: Management via 802.1AS Data Sets and M... | 🔵 | - | - | - | - |
+| #203 | StR | StR-014: Optional One-Step Transmit/Receive Mod... | 🔵 | - | - | - | - |
+| #204 | StR | StR-013: Optional External Port Configuration S... | 🔵 | - | - | - | - |
+| #205 | StR | StR-011: Optional Support for Multiple PTP Doma... | 🔵 | - | - | - | - |
+| #206 | StR | StR-015: Optional Delay Asymmetry Modeling and ... | 🔵 | - | - | - | - |
+| #207 | StR | StR-012: CMLDS Mandatory for Multi-Domain Support | 🔵 | - | - | - | - |
+| #208 | StR | StR-018: IEC/IEEE 60802 Timestamp Accuracy ≤8 ns | 🔵 | - | - | - | - |
+| #209 | StR | StR-019: IEC/IEEE 60802 Convergence <1 µs in <1... | 🔵 | - | - | - | - |
+| #210 | StR | StR-017: IEC/IEEE 60802 CMLDS Mandatory Require... | 🔵 | - | - | - | - |
+| #211 | StR | StR-020: IEC/IEEE 60802 Capability to Disable EEE | 🔵 | - | - | - | - |
+| #212 | StR | StR-016: IEC/IEEE 60802 Four Synchronization Do... | 🔵 | - | - | - | - |
+| #213 | REQ-F | REQ-F-202: Deterministic BMCA per gPTP Constraints | 🔵 | - | - | - | - |
+| #214 | REQ-F | REQ-F-203: Domain 0 Default with External Contr... | 🔵 | - | - | - | - |
+| #215 | REQ-F | REQ-F-201: Profile Strategy Selection (gPTP, In... | 🔵 | - | - | - | - |
+| #216 | REQ-F | REQ-F-205: Dataset/MIB-Based Management (No PTP... | 🔵 | - | - | - | - |
+| #217 | REQ-F | REQ-F-204: Peer-to-Peer Delay Mechanism for Ful... | 🔵 | - | - | - | - |
+
+## Orphaned Requirements
+
+Requirements without parent links (excluding StR which are top-level):
+
+| Issue | Type | Title |
+|-------|------|-------|
+| #216 | REQ-F | REQ-F-205: Dataset/MIB-Based Management (No PTP Mgmt Mess... |
+| #217 | REQ-F | REQ-F-204: Peer-to-Peer Delay Mechanism for Full-Duplex L... |
+| #215 | REQ-F | REQ-F-201: Profile Strategy Selection (gPTP, Industrial, ... |
+| #214 | REQ-F | REQ-F-203: Domain 0 Default with External Control Disabled |
+| #213 | REQ-F | REQ-F-202: Deterministic BMCA per gPTP Constraints |
+| #191 | REQ-NF | REQ-NF-S-002: Memory Safety |
+| #192 | REQ-NF | REQ-NF-M-001: Platform Independence |
+| #190 | REQ-NF | REQ-NF-P-003: Resource Efficiency |
+| #189 | REQ-NF | REQ-NF-P-001: Synchronization Accuracy |
+| #188 | REQ-NF | REQ-NF-P-002: Deterministic Timing |
+| #187 | REQ-NF | REQ-NF-M-002: Build System Portability |
+| #186 | REQ-NF | REQ-NF-U-001: Learnability and Developer Usability |
+| #185 | REQ-NF | REQ-NF-S-001: Input Validation |
+| #184 | REQ | REQ-S-002: Fault Recovery and Graceful Degradation |
+| #182 | REQ | REQ-S-001: Graceful BMCA State Transitions |
+| #183 | REQ | REQ-S-004: Interoperability and Configuration Compatibility |
+| #181 | REQ-F | REQ-F-002: Best Master Clock Algorithm (BMCA) and Passive... |
+| #180 | REQ-F | REQ-F-003: Clock Offset Calculation |
+| #179 | REQ-F | REQ-F-001: IEEE 1588-2019 Message Type Support |
+| #178 | REQ-F | REQ-F-005: Hardware Abstraction Layer (HAL) Interfaces |
+| #177 | REQ-F | REQ-F-004: PI Controller Clock Adjustment |
+| #176 | REQ-F | REQ-FR-PTPA-003: Message Processing |
+| #175 | REQ-F | REQ-FR-PTPA-007: Multi-Domain Support (IEEE 1588-2019 Enh... |
+| #174 | REQ-F | REQ-FR-PTPA-002: Best Master Clock Algorithm (BMCA) |
+| #173 | REQ-F | REQ-FR-PTPA-004: Transport Layer Support |
+| #172 | REQ-F | REQ-FR-PTPA-001: Clock Synchronization |
+| #171 | REQ-F | REQ-FR-PTPA-005: Management Protocol |
+| #170 | REQ-F | REQ-FR-PTPA-006: Security Features (IEEE 1588-2019 Enhanc... |
+| #169 | REQ-NF | REQ-NFR-ARCH-004: Maintainability Requirements |
+| #168 | REQ-NF | REQ-NFR-ARCH-002: Memory Management Requirements |
+| #167 | REQ-NF | REQ-NFR-ARCH-001: Performance Requirements |
+| #166 | REQ-NF | REQ-NFR-ARCH-005: Testability Requirements |
+| #165 | REQ-NF | REQ-NFR-ARCH-003: Portability Requirements |
+| #164 | REQ-F | REQ-FUNC-ARCH-005: Cross-Standard Protocol Integration |
+| #163 | REQ-F | REQ-FUNC-ARCH-003: IEEE 802.1AS gPTP Protocol Implementation |
+| #162 | REQ-F | REQ-FUNC-ARCH-004: Hardware Abstraction Interface Impleme... |
+| #161 | REQ-F | REQ-FUNC-ARCH-002: IEEE 1722 AVTP Protocol Implementation |
+| #160 | REQ-F | REQ-FUNC-ARCH-006: Standards Compliance Validation |
+| #159 | REQ-F | REQ-FUNC-ARCH-001: IEEE 1722.1 AVDECC Protocol Implementa... |
+| #158 | REQ | REQ-SYS-ARCH-011: Cross-Standard Integration and Dependen... |
+| #157 | REQ | REQ-SYS-ARCH-012: Build System Integration Framework |
+| #156 | REQ | REQ-SYS-ARCH-006: Testing and Quality Assurance Framework |
+| #155 | REQ | REQ-SYS-ARCH-007: Complete Standards Folder Hierarchy Fra... |
+| #154 | REQ | REQ-SYS-ARCH-010: CMake Build System Integration Framework |
+| #153 | REQ | REQ-SYS-ARCH-008: Documentation and Specification Compliance |
+| #152 | REQ | REQ-SYS-ARCH-009: File Naming Convention Framework |
+| #151 | REQ | REQ-SYS-ARCH-002: Standards-Only Implementation Layer |
+| #150 | REQ | REQ-SYS-ARCH-003: Hierarchical Namespace Structure |
+| #149 | REQ | REQ-SYS-ARCH-004: Cross-Standard Dependency Management |
+| #148 | REQ | REQ-SYS-ARCH-001: Hardware Abstraction Interface Pattern |
+| #147 | REQ | REQ-SYS-ARCH-005: Protocol Compliance Validation Framework |
+| #146 | REQ | REQ-STK-ARCH-001: Standards-Compliant Software Engineering |
+| #144 | REQ | REQ-STK-ARCH-005: Maintainable Architecture Design |
+| #145 | REQ | REQ-STK-ARCH-002: Hardware-Agnostic Protocol Implementation |
+| #143 | REQ | REQ-STK-ARCH-003: Protocol Correctness and Compliance |
+| #142 | REQ | REQ-STK-ARCH-004: Copyright and IP Compliance |
+| #141 | REQ-NF | REQ-NFR-PTP-047: Fallback for platforms without hardware ... |
+| #140 | REQ-NF | REQ-NFR-PTP-048: Deployment without vendor-specific drive... |
+| #139 | REQ-NF | REQ-NFR-PTP-046: Support multiple network interface types... |
+| #138 | REQ-NF | REQ-NFR-PTP-042: Linux distribution support (Ubuntu, Cent... |
+| #137 | REQ-NF | REQ-NFR-PTP-044: Consistent behavior across all platforms |
+| #135 | REQ-NF | REQ-NFR-PTP-041: Windows support (Win10/11, Server 2019/2... |
+| #136 | REQ-NF | REQ-NFR-PTP-043: Embedded platform support (ARM, embedded... |
+| #134 | REQ-NF | REQ-NFR-PTP-045: Hardware abstraction for timing operations |
+| #133 | REQ-NF | REQ-NFR-PTP-039: Integrity verification for critical timi... |
+| #132 | REQ-NF | REQ-NFR-PTP-040: Security certificate management and vali... |
+| #131 | REQ-NF | REQ-NFR-PTP-038: Secure key management and distribution |
+| #130 | REQ-NF | REQ-NFR-PTP-037: Industry-standard cryptographic algorithms |
+| #129 | REQ-NF | REQ-NFR-PTP-036: Security audit trail and event logging |
+| #128 | REQ-NF | REQ-NFR-PTP-035: Network access control and authorization |
+| #127 | REQ-NF | REQ-NFR-PTP-032: Configuration version management and mig... |
+| #126 | REQ-NF | REQ-NFR-PTP-031: Configuration backup and restore |
+| #125 | REQ-NF | REQ-NFR-PTP-034: Protection against timing-based attacks |
+| #124 | REQ-NF | REQ-NFR-PTP-033: Secure communication channels for PTP me... |
+| #123 | REQ-NF | REQ-NFR-PTP-029: Runtime configuration changes without in... |
+| #122 | REQ-NF | REQ-NFR-PTP-028: Clear API documentation and usage examples |
+| #121 | REQ-NF | REQ-NFR-PTP-026: Consistent coding standards and document... |
+| #120 | REQ-NF | REQ-NFR-PTP-030: Configuration validation and error repor... |
+| #119 | REQ-NF | REQ-NFR-PTP-027: Comprehensive logging and debugging capa... |
+| #118 | REQ-NF | REQ-NFR-PTP-025: Unit test coverage >95% |
+| #117 | REQ-NF | REQ-NFR-PTP-023: Network bandwidth <1Mbps per domain |
+| #116 | REQ-NF | REQ-NFR-PTP-024: Support resource-constrained embedded pl... |
+| #115 | REQ-NF | REQ-NFR-PTP-022: CPU usage <5% for multi-domain operations |
+| #114 | REQ-NF | REQ-NFR-PTP-021: Memory footprint <1MB for embedded appli... |
+| #113 | REQ-NF | REQ-NFR-PTP-017: Support 1000+ PTP-enabled devices |
+| #112 | REQ-NF | REQ-NFR-PTP-019: Handle 10,000+ messages/second per port |
+| #111 | REQ-NF | REQ-NFR-PTP-016: System health monitoring and reporting |
+| #110 | REQ-NF | REQ-NFR-PTP-018: Scale to 128 PTP domains [Post-MVP] |
+| #109 | REQ-NF | REQ-NFR-PTP-020: Large-scale industrial and enterprise ne... |
+| #108 | REQ-NF | REQ-NFR-PTP-013: 99.99% availability for professional app... |
+| #107 | REQ-NF | REQ-NFR-PTP-012: Operation during partial network connect... |
+| #106 | REQ-NF | REQ-NFR-PTP-015: Comprehensive error detection and recovery |
+| #105 | REQ-NF | REQ-NFR-PTP-014: Continuous operation without restarts |
+| #104 | REQ-NF | REQ-NFR-PTP-011: Redundant master clock configurations |
+| #103 | REQ-NF | REQ-NFR-PTP-010: Automatic recovery from synchronization ... |
+| #102 | REQ-NF | REQ-NFR-PTP-006: No dynamic memory allocation in critical... |
+| #101 | REQ-NF | REQ-NFR-PTP-007: Predictable CPU usage for real-time sche... |
+| #100 | REQ-NF | REQ-NFR-PTP-008: High-frequency timing operations (1000+ Hz) |
+| #99 | REQ-NF | REQ-NFR-PTP-009: Graceful degradation under network faults |
+| #98 | REQ-NF | REQ-NFR-PTP-003: Timing accuracy under network load and j... |
+| #97 | REQ-NF | REQ-NFR-PTP-005: Bounded execution time for critical oper... |
+| #96 | REQ-NF | REQ-NFR-PTP-004: Deterministic timing behavior for real-t... |
+| #95 | REQ-NF | REQ-NFR-PTP-001: Microsecond-level timing accuracy (±1μs ... |
+| #94 | REQ-NF | REQ-NFR-PTP-002: Sub-microsecond accuracy with hardware t... |
+| #93 | REQ-F | REQ-FUN-PTP-047: Network interface configuration and mana... |
+| #92 | REQ-F | REQ-FUN-PTP-046: Hardware timestamping capabilities where... |
+| #91 | REQ-F | REQ-FUN-PTP-048: Software timestamping fallback mechanisms |
+| #90 | REQ-F | REQ-FUN-PTP-042: Dependency injection patterns for hardwa... |
+| #89 | REQ-F | REQ-FUN-PTP-044: Hardware timestamp support abstraction |
+| #88 | REQ-F | REQ-FUN-PTP-043: Platform-specific timing operation inter... |
+| #87 | REQ-F | REQ-FUN-PTP-041: Hardware abstraction interface for cross... |
+| #86 | REQ-F | REQ-FUN-PTP-045: Network packet transmission and receptio... |
+| #85 | REQ-F | REQ-FUN-PTP-038: Diagnostic information for timing accura... |
+| #84 | REQ-F | REQ-FUN-PTP-036: Dataset management and synchronization |
+| #83 | REQ-F | REQ-FUN-PTP-039: Performance metrics collection and repor... |
+| #82 | REQ-F | REQ-FUN-PTP-040: Fault detection and recovery mechanisms |
+| #81 | REQ-F | REQ-FUN-PTP-037: Comprehensive monitoring for PTP operations |
+| #80 | REQ-F | REQ-FUN-PTP-031: Key management for authentication mechan... |
+| #79 | REQ-F | REQ-FUN-PTP-033: PTP management protocol for remote confi... |
+| #78 | REQ-F | REQ-FUN-PTP-032: Security event logging and monitoring |
+| #77 | REQ-F | REQ-FUN-PTP-034: Management TLV processing for configurat... |
+| #76 | REQ-F | REQ-FUN-PTP-035: Clock and port parameter configuration c... |
+| #75 | REQ-F | REQ-FUN-PTP-030: Security policy configuration and enforc... |
+| #73 | REQ-F | REQ-FUN-PTP-027: Integrity protection for critical timing... |
+| #74 | REQ-F | REQ-FUN-PTP-029: Security association management for PTP ... |
+| #72 | REQ-F | REQ-FUN-PTP-026: Authorization framework for network acce... |
+| #71 | REQ-F | REQ-FUN-PTP-028: Security TLV processing for security ext... |
+| #70 | REQ-F | REQ-FUN-PTP-024: Alternate master selection per domain [P... |
+| #69 | REQ-F | REQ-FUN-PTP-021: Multiple PTP domains (0-127) with isolat... |
+| #68 | REQ-F | REQ-FUN-PTP-022: Cross-domain synchronization capabilitie... |
+| #67 | REQ-F | REQ-FUN-PTP-025: Security mechanisms for PTP message auth... |
+| #66 | REQ-F | REQ-FUN-PTP-023: Domain-specific configuration and manage... |
+| #65 | REQ-F | REQ-FUN-PTP-017: Offset and delay calculation with enhanc... |
+| #64 | REQ-F | REQ-FUN-PTP-019: Frequency adjustment and phase correctio... |
+| #63 | REQ-F | REQ-FUN-PTP-018: Path delay measurement (Peer-to-Peer and... |
+| #62 | REQ-F | REQ-FUN-PTP-020: Servo algorithms for clock synchronization |
+| #61 | REQ-F | REQ-FUN-PTP-016: Clock class and accuracy indicators |
+| #60 | REQ-F | REQ-FUN-PTP-013: Enhanced BMCA with IEEE 1588-2019 improv... |
+| #59 | REQ-F | REQ-FUN-PTP-012: End-to-End Transparent Clock (E2E TC) me... |
+| #58 | REQ-F | REQ-FUN-PTP-011: Transparent Clock (TC) support for switc... |
+| #57 | REQ-F | REQ-FUN-PTP-015: Grandmaster clock capabilities and selec... |
+| #56 | REQ-F | REQ-FUN-PTP-014: Priority fields and quality indicators f... |
+| #55 | REQ-F | REQ-FUN-PTP-006: All PTP message types (Announce, Sync, F... |
+| #53 | REQ-F | REQ-FUN-PTP-007: Message serialization/deserialization wi... |
+| #52 | REQ-F | REQ-FUN-PTP-008: TLV (Type-Length-Value) framework for pr... |
+| #54 | REQ-F | REQ-FUN-PTP-009: Ordinary Clock (OC) state machines per I... |
+| #51 | REQ-F | REQ-FUN-PTP-010: Boundary Clock (BC) functionality for ne... |
+| #50 | REQ-F | REQ-FUN-PTP-001: Fundamental data types (ClockIdentity, P... |
+| #49 | REQ-F | REQ-FUN-PTP-005: Complete PTP message header structure (I... |
+| #48 | REQ-F | REQ-FUN-PTP-002: 48-bit timestamp precision with seconds ... |
+| #46 | REQ-F | REQ-FUN-PTP-003: CorrectionField with scaled nanosecond r... |
+| #47 | REQ-F | REQ-FUN-PTP-004: All IEEE 1588-2019 integer types with pr... |
+| #45 | REQ | REQ-SYS-PTP-012: Compatibility with existing OpenAvnu com... |
+| #44 | REQ | REQ-SYS-PTP-011: Foundation for advanced TSN features |
+| #43 | REQ | REQ-SYS-PTP-009: Integration with IEEE 802.1AS gPTP imple... |
+| #42 | REQ | REQ-SYS-PTP-006: Hardware abstraction layer for cross-pla... |
+| #41 | REQ | REQ-SYS-PTP-010: Professional audio/video timing requirem... |
+| #40 | REQ | REQ-SYS-PTP-008: Predictable memory usage without dynamic... |
+| #39 | REQ | REQ-SYS-PTP-007: Bounded execution time for critical timi... |
+| #38 | REQ | REQ-SYS-PTP-003: Enhanced security mechanisms (authentica... |
+| #37 | REQ | REQ-SYS-PTP-004: Comprehensive management protocol |
+| #36 | REQ | REQ-SYS-PTP-001: Enterprise-grade timing synchronization ... |
+| #35 | REQ | REQ-SYS-PTP-005: Deterministic design patterns for time-s... |
+| #34 | REQ | REQ-SYS-PTP-002: Multi-domain timing architecture |
+| #33 | REQ | REQ-STK-PTP-019: Traceability to UTC for regulatory compl... |
+| #32 | REQ | REQ-STK-PTP-018: Security framework compliance for critic... |
+| #31 | REQ | REQ-STK-PTP-017: Full IEEE 1588-2019 standards compliance |
+| #30 | REQ | REQ-STK-PTP-016: Bounded execution time for real-time app... |
+| #29 | REQ | REQ-STK-PTP-020: Comprehensive validation and certificati... |
+| #28 | REQ | REQ-STK-PTP-013: Deterministic APIs without dynamic memor... |
+| #27 | REQ | REQ-STK-PTP-012: Comprehensive management and diagnostic ... |
+| #26 | REQ | REQ-STK-PTP-014: Hardware abstraction for cross-platform ... |
+| #25 | REQ | REQ-STK-PTP-011: Backward compatibility with IEEE 1588-20... |
+| #24 | REQ | REQ-STK-PTP-015: Comprehensive error handling without exc... |
+| #23 | REQ | REQ-STK-PTP-007: Transparent clock support for industrial... |
+| #22 | REQ | REQ-STK-PTP-008: Management protocol for network configur... |
+| #21 | REQ | REQ-STK-PTP-006: Security mechanisms for industrial netwo... |
+| #20 | REQ | REQ-STK-PTP-009: Scalable multi-domain timing architecture |
+| #19 | REQ | REQ-STK-PTP-010: Enhanced calibration procedures for prec... |
+| #18 | REQ | REQ-STK-PTP-001: Enterprise-grade timing precision beyond... |
+| #17 | REQ | REQ-STK-PTP-004: Hardware-agnostic cross-platform impleme... |
+| #16 | REQ | REQ-STK-PTP-002: Deterministic timing behavior for real-t... |
+| #15 | REQ | REQ-PPS-004: Fallback to NMEA-Only Mode |
+| #14 | REQ | REQ-PPS-006: Thread-Safe State Transitions |
+| #13 | REQ | REQ-PPS-005: Non-Blocking Detection with Timeout |
+| #12 | REQ | REQ-PPS-003: 1Hz Frequency Validation |
+| #11 | REQ | REQ-PPS-002: Sub-Microsecond Timestamp Accuracy |
+| #10 | REQ | REQ-PPS-007: Platform Abstraction (Win/Linux/Embedded) |
+| #9 | REQ | REQ-PPS-001: PPS Pin Autodetection |
+
+## Requirements Without Tests
+
+Functional and non-functional requirements without verification:
+
+| Issue | Type | Title |
+|-------|------|-------|
+| #216 | REQ-F | REQ-F-205: Dataset/MIB-Based Management (No PTP Mgmt Mess... |
+| #217 | REQ-F | REQ-F-204: Peer-to-Peer Delay Mechanism for Full-Duplex L... |
+| #215 | REQ-F | REQ-F-201: Profile Strategy Selection (gPTP, Industrial, ... |
+| #214 | REQ-F | REQ-F-203: Domain 0 Default with External Control Disabled |
+| #213 | REQ-F | REQ-F-202: Deterministic BMCA per gPTP Constraints |
+| #191 | REQ-NF | REQ-NF-S-002: Memory Safety |
+| #192 | REQ-NF | REQ-NF-M-001: Platform Independence |
+| #190 | REQ-NF | REQ-NF-P-003: Resource Efficiency |
+| #189 | REQ-NF | REQ-NF-P-001: Synchronization Accuracy |
+| #188 | REQ-NF | REQ-NF-P-002: Deterministic Timing |
+| #187 | REQ-NF | REQ-NF-M-002: Build System Portability |
+| #186 | REQ-NF | REQ-NF-U-001: Learnability and Developer Usability |
+| #185 | REQ-NF | REQ-NF-S-001: Input Validation |
+| #181 | REQ-F | REQ-F-002: Best Master Clock Algorithm (BMCA) and Passive... |
+| #180 | REQ-F | REQ-F-003: Clock Offset Calculation |
+| #179 | REQ-F | REQ-F-001: IEEE 1588-2019 Message Type Support |
+| #178 | REQ-F | REQ-F-005: Hardware Abstraction Layer (HAL) Interfaces |
+| #177 | REQ-F | REQ-F-004: PI Controller Clock Adjustment |
+| #176 | REQ-F | REQ-FR-PTPA-003: Message Processing |
+| #175 | REQ-F | REQ-FR-PTPA-007: Multi-Domain Support (IEEE 1588-2019 Enh... |
+| #174 | REQ-F | REQ-FR-PTPA-002: Best Master Clock Algorithm (BMCA) |
+| #173 | REQ-F | REQ-FR-PTPA-004: Transport Layer Support |
+| #172 | REQ-F | REQ-FR-PTPA-001: Clock Synchronization |
+| #171 | REQ-F | REQ-FR-PTPA-005: Management Protocol |
+| #170 | REQ-F | REQ-FR-PTPA-006: Security Features (IEEE 1588-2019 Enhanc... |
+| #169 | REQ-NF | REQ-NFR-ARCH-004: Maintainability Requirements |
+| #168 | REQ-NF | REQ-NFR-ARCH-002: Memory Management Requirements |
+| #167 | REQ-NF | REQ-NFR-ARCH-001: Performance Requirements |
+| #166 | REQ-NF | REQ-NFR-ARCH-005: Testability Requirements |
+| #165 | REQ-NF | REQ-NFR-ARCH-003: Portability Requirements |
+| #164 | REQ-F | REQ-FUNC-ARCH-005: Cross-Standard Protocol Integration |
+| #163 | REQ-F | REQ-FUNC-ARCH-003: IEEE 802.1AS gPTP Protocol Implementation |
+| #162 | REQ-F | REQ-FUNC-ARCH-004: Hardware Abstraction Interface Impleme... |
+| #161 | REQ-F | REQ-FUNC-ARCH-002: IEEE 1722 AVTP Protocol Implementation |
+| #160 | REQ-F | REQ-FUNC-ARCH-006: Standards Compliance Validation |
+| #159 | REQ-F | REQ-FUNC-ARCH-001: IEEE 1722.1 AVDECC Protocol Implementa... |
+| #141 | REQ-NF | REQ-NFR-PTP-047: Fallback for platforms without hardware ... |
+| #140 | REQ-NF | REQ-NFR-PTP-048: Deployment without vendor-specific drive... |
+| #139 | REQ-NF | REQ-NFR-PTP-046: Support multiple network interface types... |
+| #138 | REQ-NF | REQ-NFR-PTP-042: Linux distribution support (Ubuntu, Cent... |
+| #137 | REQ-NF | REQ-NFR-PTP-044: Consistent behavior across all platforms |
+| #135 | REQ-NF | REQ-NFR-PTP-041: Windows support (Win10/11, Server 2019/2... |
+| #136 | REQ-NF | REQ-NFR-PTP-043: Embedded platform support (ARM, embedded... |
+| #134 | REQ-NF | REQ-NFR-PTP-045: Hardware abstraction for timing operations |
+| #133 | REQ-NF | REQ-NFR-PTP-039: Integrity verification for critical timi... |
+| #132 | REQ-NF | REQ-NFR-PTP-040: Security certificate management and vali... |
+| #131 | REQ-NF | REQ-NFR-PTP-038: Secure key management and distribution |
+| #130 | REQ-NF | REQ-NFR-PTP-037: Industry-standard cryptographic algorithms |
+| #129 | REQ-NF | REQ-NFR-PTP-036: Security audit trail and event logging |
+| #128 | REQ-NF | REQ-NFR-PTP-035: Network access control and authorization |
+| #127 | REQ-NF | REQ-NFR-PTP-032: Configuration version management and mig... |
+| #126 | REQ-NF | REQ-NFR-PTP-031: Configuration backup and restore |
+| #125 | REQ-NF | REQ-NFR-PTP-034: Protection against timing-based attacks |
+| #124 | REQ-NF | REQ-NFR-PTP-033: Secure communication channels for PTP me... |
+| #123 | REQ-NF | REQ-NFR-PTP-029: Runtime configuration changes without in... |
+| #122 | REQ-NF | REQ-NFR-PTP-028: Clear API documentation and usage examples |
+| #121 | REQ-NF | REQ-NFR-PTP-026: Consistent coding standards and document... |
+| #120 | REQ-NF | REQ-NFR-PTP-030: Configuration validation and error repor... |
+| #119 | REQ-NF | REQ-NFR-PTP-027: Comprehensive logging and debugging capa... |
+| #118 | REQ-NF | REQ-NFR-PTP-025: Unit test coverage >95% |
+| #117 | REQ-NF | REQ-NFR-PTP-023: Network bandwidth <1Mbps per domain |
+| #116 | REQ-NF | REQ-NFR-PTP-024: Support resource-constrained embedded pl... |
+| #115 | REQ-NF | REQ-NFR-PTP-022: CPU usage <5% for multi-domain operations |
+| #114 | REQ-NF | REQ-NFR-PTP-021: Memory footprint <1MB for embedded appli... |
+| #113 | REQ-NF | REQ-NFR-PTP-017: Support 1000+ PTP-enabled devices |
+| #112 | REQ-NF | REQ-NFR-PTP-019: Handle 10,000+ messages/second per port |
+| #111 | REQ-NF | REQ-NFR-PTP-016: System health monitoring and reporting |
+| #110 | REQ-NF | REQ-NFR-PTP-018: Scale to 128 PTP domains [Post-MVP] |
+| #109 | REQ-NF | REQ-NFR-PTP-020: Large-scale industrial and enterprise ne... |
+| #108 | REQ-NF | REQ-NFR-PTP-013: 99.99% availability for professional app... |
+| #107 | REQ-NF | REQ-NFR-PTP-012: Operation during partial network connect... |
+| #106 | REQ-NF | REQ-NFR-PTP-015: Comprehensive error detection and recovery |
+| #105 | REQ-NF | REQ-NFR-PTP-014: Continuous operation without restarts |
+| #104 | REQ-NF | REQ-NFR-PTP-011: Redundant master clock configurations |
+| #103 | REQ-NF | REQ-NFR-PTP-010: Automatic recovery from synchronization ... |
+| #102 | REQ-NF | REQ-NFR-PTP-006: No dynamic memory allocation in critical... |
+| #101 | REQ-NF | REQ-NFR-PTP-007: Predictable CPU usage for real-time sche... |
+| #100 | REQ-NF | REQ-NFR-PTP-008: High-frequency timing operations (1000+ Hz) |
+| #99 | REQ-NF | REQ-NFR-PTP-009: Graceful degradation under network faults |
+| #98 | REQ-NF | REQ-NFR-PTP-003: Timing accuracy under network load and j... |
+| #97 | REQ-NF | REQ-NFR-PTP-005: Bounded execution time for critical oper... |
+| #96 | REQ-NF | REQ-NFR-PTP-004: Deterministic timing behavior for real-t... |
+| #95 | REQ-NF | REQ-NFR-PTP-001: Microsecond-level timing accuracy (±1μs ... |
+| #94 | REQ-NF | REQ-NFR-PTP-002: Sub-microsecond accuracy with hardware t... |
+| #93 | REQ-F | REQ-FUN-PTP-047: Network interface configuration and mana... |
+| #92 | REQ-F | REQ-FUN-PTP-046: Hardware timestamping capabilities where... |
+| #91 | REQ-F | REQ-FUN-PTP-048: Software timestamping fallback mechanisms |
+| #90 | REQ-F | REQ-FUN-PTP-042: Dependency injection patterns for hardwa... |
+| #89 | REQ-F | REQ-FUN-PTP-044: Hardware timestamp support abstraction |
+| #88 | REQ-F | REQ-FUN-PTP-043: Platform-specific timing operation inter... |
+| #87 | REQ-F | REQ-FUN-PTP-041: Hardware abstraction interface for cross... |
+| #86 | REQ-F | REQ-FUN-PTP-045: Network packet transmission and receptio... |
+| #85 | REQ-F | REQ-FUN-PTP-038: Diagnostic information for timing accura... |
+| #84 | REQ-F | REQ-FUN-PTP-036: Dataset management and synchronization |
+| #83 | REQ-F | REQ-FUN-PTP-039: Performance metrics collection and repor... |
+| #82 | REQ-F | REQ-FUN-PTP-040: Fault detection and recovery mechanisms |
+| #81 | REQ-F | REQ-FUN-PTP-037: Comprehensive monitoring for PTP operations |
+| #80 | REQ-F | REQ-FUN-PTP-031: Key management for authentication mechan... |
+| #79 | REQ-F | REQ-FUN-PTP-033: PTP management protocol for remote confi... |
+| #78 | REQ-F | REQ-FUN-PTP-032: Security event logging and monitoring |
+| #77 | REQ-F | REQ-FUN-PTP-034: Management TLV processing for configurat... |
+| #76 | REQ-F | REQ-FUN-PTP-035: Clock and port parameter configuration c... |
+| #75 | REQ-F | REQ-FUN-PTP-030: Security policy configuration and enforc... |
+| #73 | REQ-F | REQ-FUN-PTP-027: Integrity protection for critical timing... |
+| #74 | REQ-F | REQ-FUN-PTP-029: Security association management for PTP ... |
+| #72 | REQ-F | REQ-FUN-PTP-026: Authorization framework for network acce... |
+| #71 | REQ-F | REQ-FUN-PTP-028: Security TLV processing for security ext... |
+| #70 | REQ-F | REQ-FUN-PTP-024: Alternate master selection per domain [P... |
+| #69 | REQ-F | REQ-FUN-PTP-021: Multiple PTP domains (0-127) with isolat... |
+| #68 | REQ-F | REQ-FUN-PTP-022: Cross-domain synchronization capabilitie... |
+| #67 | REQ-F | REQ-FUN-PTP-025: Security mechanisms for PTP message auth... |
+| #66 | REQ-F | REQ-FUN-PTP-023: Domain-specific configuration and manage... |
+| #65 | REQ-F | REQ-FUN-PTP-017: Offset and delay calculation with enhanc... |
+| #64 | REQ-F | REQ-FUN-PTP-019: Frequency adjustment and phase correctio... |
+| #63 | REQ-F | REQ-FUN-PTP-018: Path delay measurement (Peer-to-Peer and... |
+| #62 | REQ-F | REQ-FUN-PTP-020: Servo algorithms for clock synchronization |
+| #61 | REQ-F | REQ-FUN-PTP-016: Clock class and accuracy indicators |
+| #60 | REQ-F | REQ-FUN-PTP-013: Enhanced BMCA with IEEE 1588-2019 improv... |
+| #59 | REQ-F | REQ-FUN-PTP-012: End-to-End Transparent Clock (E2E TC) me... |
+| #58 | REQ-F | REQ-FUN-PTP-011: Transparent Clock (TC) support for switc... |
+| #57 | REQ-F | REQ-FUN-PTP-015: Grandmaster clock capabilities and selec... |
+| #56 | REQ-F | REQ-FUN-PTP-014: Priority fields and quality indicators f... |
+| #55 | REQ-F | REQ-FUN-PTP-006: All PTP message types (Announce, Sync, F... |
+| #53 | REQ-F | REQ-FUN-PTP-007: Message serialization/deserialization wi... |
+| #52 | REQ-F | REQ-FUN-PTP-008: TLV (Type-Length-Value) framework for pr... |
+| #54 | REQ-F | REQ-FUN-PTP-009: Ordinary Clock (OC) state machines per I... |
+| #51 | REQ-F | REQ-FUN-PTP-010: Boundary Clock (BC) functionality for ne... |
+| #50 | REQ-F | REQ-FUN-PTP-001: Fundamental data types (ClockIdentity, P... |
+| #49 | REQ-F | REQ-FUN-PTP-005: Complete PTP message header structure (I... |
+| #48 | REQ-F | REQ-FUN-PTP-002: 48-bit timestamp precision with seconds ... |
+| #46 | REQ-F | REQ-FUN-PTP-003: CorrectionField with scaled nanosecond r... |
+| #47 | REQ-F | REQ-FUN-PTP-004: All IEEE 1588-2019 integer types with pr... |
+
+## Legend
+
+- **StR**: Stakeholder Requirement (top-level business need)
+- **REQ-F**: Functional Requirement (system SHALL behavior)
+- **REQ-NF**: Non-Functional Requirement (quality attribute)
+- **ADR**: Architecture Decision Record
+- **ARC-C**: Architecture Component
+- **QA-SC**: Quality Attribute Scenario (ATAM)
+- **TEST**: Test Case
+
+- 🔵: Open issue
+- ✅: Closed issue
+
+---
+
+*Generated by `scripts/github-traceability-report.py`*
+
+
+
+https://github.com/zarfld/IEEE_1588_2019/actions/runs/19868299340/job/56936928385
+
+
+Run echo "📊 Generating traceability.json from GitHub Issues..."
+  echo "📊 Generating traceability.json from GitHub Issues..."
+  python scripts/github-issues-to-traceability-json.py
+  shell: /usr/bin/bash -e {0}
+  env:
+    NODE_VERSION: 20.x
+    PYTHON_VERSION: 3.11
+    MIN_TEST_COVERAGE: 80
+    MAX_CYCLOMATIC_COMPLEXITY: 10
+    MIN_REQ_LINKAGE_COVERAGE: 90
+    pythonLocation: /opt/hostedtoolcache/Python/3.11.14/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib
+    GITHUB_TOKEN: ***
+    GITHUB_REPOSITORY: zarfld/IEEE_1588_2019
+📊 Generating traceability.json from GitHub Issues...
+/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/scripts/github-issues-to-traceability-json.py:252: DeprecationWarning: Argument login_or_token is deprecated, please use auth=github.Auth.Token(...) instead
+  g = Github(token)
+Fetching issues from zarfld/IEEE_1588_2019...
+Found 209 requirement issues
+
+✅ Generated /home/runner/work/IEEE_1588_2019/IEEE_1588_2019/build/traceability.json
+   Total items: 209
+   Requirements: 151
+   Overall coverage: 17.9%
+   ADR linkage: 0.0%
+   Scenario linkage: 0.0%
+   Test linkage: 0.0%
+5s
+Run echo "🔍 Scanning for high-priority requirements..."
+  echo "🔍 Scanning for high-priority requirements..."
+  python scripts/github-issues-integrity-scan.py
+  shell: /usr/bin/bash -e {0}
+  env:
+    NODE_VERSION: 20.x
+    PYTHON_VERSION: 3.11
+    MIN_TEST_COVERAGE: 80
+    MAX_CYCLOMATIC_COMPLEXITY: 10
+    MIN_REQ_LINKAGE_COVERAGE: 90
+    pythonLocation: /opt/hostedtoolcache/Python/3.11.14/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.14/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.14/x64/lib
+    GITHUB_TOKEN: ***
+    GITHUB_REPOSITORY: zarfld/IEEE_1588_2019
+🔍 Scanning for high-priority requirements...
+/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/scripts/github-issues-integrity-scan.py:48: DeprecationWarning: Argument login_or_token is deprecated, please use auth=github.Auth.Token(...) instead
+  g = Github(token)
+Scanning zarfld/IEEE_1588_2019 for high-priority requirements...
+  priority:p0: 85 requirements
+  priority:p1: 96 requirements
+
+✅ Integrity scan complete
+   High integrity present: True
+   Total P0/P1 requirements: 181
+   Output: /home/runner/work/IEEE_1588_2019/IEEE_1588_2019/build/integrity-scan.json
