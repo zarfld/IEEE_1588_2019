@@ -65,14 +65,23 @@ bool RtcAdapter::initialize()
         // Don't fail initialization - RTC time still works via /dev/rtc1
     } else {
         // Set I2C slave address to DS3231 (0x68)
-        if (ioctl(i2c_fd_, I2C_SLAVE, DS3231_I2C_ADDR) < 0) {
+        // Use I2C_SLAVE_FORCE because kernel RTC driver (rtc-ds1307) has claimed the device
+        // This is SAFE because:
+        //   - Kernel driver only accesses time registers (0x00-0x06)
+        //   - We only access aging offset register (0x10)
+        //   - No register overlap, no conflicts
+        if (ioctl(i2c_fd_, I2C_SLAVE_FORCE, DS3231_I2C_ADDR) < 0) {
             std::cerr << "[RTC Init] ERROR: Failed to set I2C slave address 0x" 
                       << std::hex << (int)DS3231_I2C_ADDR << std::dec
                       << " errno=" << errno << " (" << strerror(errno) << ")\n";
+            std::cerr << "[RTC Init] Note: Kernel RTC driver conflict - aging offset discipline unavailable\n";
             close(i2c_fd_);
             i2c_fd_ = -1;
         } else {
-            std::cout << "[RTC Init] I2C device " << i2c_device << " opened successfully (fd=" << i2c_fd_ << ")\n";
+            std::cout << "[RTC Init] ✓ I2C device " << i2c_device 
+                      << " opened successfully (fd=" << i2c_fd_ << ")\n";
+            std::cout << "[RTC Init] ✓ I2C slave address 0x" << std::hex << (int)DS3231_I2C_ADDR 
+                      << std::dec << " set (using I2C_SLAVE_FORCE)\n";
         }
     }
 
