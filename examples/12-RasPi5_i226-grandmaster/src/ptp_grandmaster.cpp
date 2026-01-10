@@ -252,24 +252,36 @@ int main(int argc, char* argv[])
                             }
                             
                             // Phase 2: Sync RTC time only if absolute error exceeds tolerance
+                            // NOTE: RTC has 1-second resolution, so we expect ~1 sec constant offset
+                            // Only sync if error changes significantly (indicates actual drift)
                             if (std::abs(time_error_ns) > time_sync_tolerance_ns) {
-                                std::cout << "[RTC Sync] ⚠ Time error " << (time_error_ns / 1000000.0) 
-                                         << " ms exceeds ±" << (time_sync_tolerance_ns / 1000000.0) 
-                                         << " ms threshold\n";
-                                std::cout << "[RTC Sync] Synchronizing RTC to GPS time...\n";
+                                // Check if this is just the expected 1-second quantization
+                                double error_ms = time_error_ns / 1000000.0;
+                                double abs_error_ms = std::abs(error_ms);
                                 
-                                if (rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds)) {
-                                    std::cout << "[RTC Sync] ✓ RTC synchronized\n";
+                                // If error is close to 1 second (±50ms tolerance), it's just quantization
+                                bool is_quantization_error = (abs_error_ms > 950.0 && abs_error_ms < 1050.0);
+                                
+                                if (!is_quantization_error) {
+                                    std::cout << "[RTC Sync] ⚠ Time error " << error_ms
+                                             << " ms exceeds ±" << (time_sync_tolerance_ns / 1000000.0) 
+                                             << " ms threshold (not quantization)\n";
+                                    std::cout << "[RTC Sync] Synchronizing RTC to GPS time...\n";
                                     
-                                    // Clear drift buffer (measurement invalid after time jump)
-                                    drift_buffer_count = 0;
-                                    drift_buffer_index = 0;
-                                    last_drift_calc_time = 0;  // Reset to restart measurement
-                                    // NOTE: Don't clear drift_valid - keep showing last known drift
-                                    std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
-                                } else {
-                                    std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
+                                    if (rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds)) {
+                                        std::cout << "[RTC Sync] ✓ RTC synchronized\n";
+                                        
+                                        // Clear drift buffer (measurement invalid after time jump)
+                                        drift_buffer_count = 0;
+                                        drift_buffer_index = 0;
+                                        last_drift_calc_time = 0;  // Reset to restart measurement
+                                        // NOTE: Don't clear drift_valid - keep showing last known drift
+                                        std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
+                                    } else {
+                                        std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
+                                    }
                                 }
+                                // else: Ignore 1-second quantization error - drift measurement still valid
                             }
                             
                             last_drift_calc_time = gps_seconds;
