@@ -144,8 +144,8 @@ int main(int argc, char* argv[])
     uint64_t announce_counter = 0;
     uint64_t sync_counter = 0;
     
-    // Fast drift tracking with 60-sample moving average (10 minutes @ 10 sec intervals)
-    constexpr size_t drift_buffer_size = 60;         // 60 samples = 600 seconds = 10 minutes
+    // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
+    constexpr size_t drift_buffer_size = 60;         // 60 samples = 60 seconds = 1 minute
     double drift_buffer[drift_buffer_size] = {0};   // Circular buffer for drift rate (ppm)
     size_t drift_buffer_index = 0;                   // Current index
     size_t drift_buffer_count = 0;                   // Valid samples
@@ -189,8 +189,8 @@ int main(int argc, char* argv[])
             // Synchronize PHC to GPS time
             ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
 
-            // Fast drift measurement every 10 seconds (100 iterations @ 100ms)
-            if (sync_counter % 100 == 0) {  // Every 10 sec - no warmup delay for measurement!
+            // Drift measurement every PPS pulse (10 iterations @ 100ms = 1 second)
+            if (sync_counter % 10 == 0) {  // Every 1 sec - measure on every PPS pulse!
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
                     // Calculate drift rate if we have previous measurement
                     if (last_drift_calc_time > 0) {
                         uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
-                        if (elapsed_sec >= 10) {  // Ensure 10 seconds elapsed
+                        if (elapsed_sec >= 1) {  // Ensure 1 second elapsed (PPS pulse interval)
                             // Drift rate = change in error / time interval
                             int64_t error_change_ns = time_error_ns - last_time_error_ns;
                             double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
@@ -229,8 +229,9 @@ int main(int argc, char* argv[])
                             drift_valid = true;
                             
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
-                            // Require at least 6 samples (1 minute) AND 2 minute warmup before adjusting
-                            if (drift_buffer_count >= 6 && sync_counter > 1200 && std::abs(drift_avg) > drift_tolerance_ppm) {
+                            // Require 2 minute warmup (120 sec = 1200 iterations) before adjusting
+                            // Tolerance is aging offset LSB resolution: 0.1 ppm
+                            if (sync_counter > 1200 && std::abs(drift_avg) > drift_tolerance_ppm) {
                                 std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
                                          << drift_tolerance_ppm << " ppm threshold\n";
                                 std::cout << "[RTC Discipline] Applying aging offset correction...\n";
@@ -291,7 +292,7 @@ int main(int argc, char* argv[])
                         // First measurement - initialize
                         last_drift_calc_time = gps_seconds;
                         last_time_error_ns = time_error_ns;
-                        std::cout << "[RTC Discipline] Starting drift monitoring (60-sample moving average @ 10 sec)\n";
+                        std::cout << "[RTC Discipline] Starting drift monitoring (60-sample moving average @ 1 sec)\n";
                         std::cout << "[RTC Discipline] Frequency tolerance: ±" << drift_tolerance_ppm << " ppm\n";
                         std::cout << "[RTC Discipline] Time sync tolerance: ±" 
                                  << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
