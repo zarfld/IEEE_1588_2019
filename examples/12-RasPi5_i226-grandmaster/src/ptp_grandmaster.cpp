@@ -150,7 +150,8 @@ int main(int argc, char* argv[])
     size_t drift_buffer_index = 0;                   // Current index
     size_t drift_buffer_count = 0;                   // Valid samples
     uint64_t last_drift_calc_time = 0;              // Last GPS time when drift was calculated
-    int64_t last_time_error_ns = 0;                 // Last measured time error    
+    int64_t last_time_error_ns = 0;                 // Last measured time error
+    uint64_t drift_measurement_counter = 0;          // Counter for 1-second drift measurement intervals    
     // Latest drift measurements for PPS display
     double current_drift_ppm = 0.0;                 // Most recent drift measurement
     double current_drift_avg = 0.0;                 // Current moving average
@@ -189,8 +190,11 @@ int main(int argc, char* argv[])
             // Synchronize PHC to GPS time
             ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
 
-            // Drift measurement every PPS pulse (10 iterations @ 100ms = 1 second)
-            if (sync_counter % 10 == 0) {  // Every 1 sec - measure on every PPS pulse!
+            // Drift measurement every second (10 iterations @ 100ms = 1 second)
+            drift_measurement_counter++;
+            if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
+                drift_measurement_counter = 0;  // Reset counter
+                
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 
