@@ -190,8 +190,7 @@ int main(int argc, char* argv[])
             ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
 
             // Fast drift measurement every 10 seconds (100 iterations @ 100ms)
-            // Starts after 2 minute warmup
-            if (sync_counter % 100 == 0 && sync_counter > 1200) {  // Every 10 sec, after 2 min warmup
+            if (sync_counter % 100 == 0) {  // Every 10 sec - no warmup delay for measurement!
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 
@@ -230,8 +229,8 @@ int main(int argc, char* argv[])
                             drift_valid = true;
                             
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
-                            // Require at least 6 samples (1 minute) before adjusting
-                            if (drift_buffer_count >= 6 && std::abs(drift_avg) > drift_tolerance_ppm) {
+                            // Require at least 6 samples (1 minute) AND 2 minute warmup before adjusting
+                            if (drift_buffer_count >= 6 && sync_counter > 1200 && std::abs(drift_avg) > drift_tolerance_ppm) {
                                 std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
                                          << drift_tolerance_ppm << " ppm threshold\n";
                                 std::cout << "[RTC Discipline] Applying aging offset correction...\n";
