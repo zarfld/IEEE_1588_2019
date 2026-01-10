@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
                         // First measurement - initialize
                         last_drift_calc_time = gps_seconds;
                         last_time_error_ns = time_error_ns;
-                        std::cout << "[RTC Discipline] Starting drift monitoring (60-sample moving average @ 1 sec)\n";
+                        std::cout << "[RTC Discipline] Starting drift monitoring (60 samples @ 1 sample/sec = 60 sec window)\n";
                         std::cout << "[RTC Discipline] Frequency tolerance: ±" << drift_tolerance_ppm << " ppm\n";
                         std::cout << "[RTC Discipline] Time sync tolerance: ±" 
                                  << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
