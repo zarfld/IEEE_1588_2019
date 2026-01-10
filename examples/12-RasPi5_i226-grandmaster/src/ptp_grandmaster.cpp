@@ -114,10 +114,11 @@ int main(int argc, char* argv[])
     std::cout << "Initializing Linux PTP HAL...\n";
     LinuxPtpHal ptp_hal(interface, phc_device);
     if (!ptp_hal.initialize_sockets()) {
-        std::cerr << "ERROR: Failed to initialize PTP sockets\n";
-        return 1;
+        std::cerr << "WARNING: Failed to initialize PTP sockets (continuing without PTP messaging)\n";
+        std::cerr << "         This is expected if " << interface << " is down or disconnected\n";
+    } else {
+        std::cout << "  ✓ PTP sockets initialized\n";
     }
-    std::cout << "  ✓ PTP sockets initialized\n";
 
     std::cout << "Initializing GPS adapter...\n";
     GpsAdapter gps_adapter(gps_device, pps_device);
