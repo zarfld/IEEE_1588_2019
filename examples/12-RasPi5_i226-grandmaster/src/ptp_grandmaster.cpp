@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
         if (pps_ready) {
             std::cout << "[PPS] seq=" << pps_data.sequence 
                      << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
-                     << " jitter=" << pps_max_jitter_ns << "ns\n";
+                     << " max_jitter=" << pps_max_jitter_ns << "ns (last 10 pulses)\n";
         }
 
         // Send PTP Sync message (every second)
