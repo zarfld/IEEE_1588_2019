@@ -280,13 +280,6 @@ int main(int argc, char* argv[])
             }
         }
         
-        // Always show PPS output when ready (every 10 pulses) - separate from drift measurements
-        if (pps_ready) {
-            std::cout << "[PPS] seq=" << pps_data.sequence 
-                     << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
-                     << " jitter=" << pps_max_jitter_ns << "ns\n";
-        }
-        
         } else {
             // GPS unavailable - use RTC for holdover
             uint64_t rtc_seconds = 0;
@@ -309,6 +302,13 @@ int main(int argc, char* argv[])
             if (verbose) {
                 std::cout << "→ Announce message sent\n";
             }
+        }
+        
+        // Always show PPS output when ready (every 10 pulses) - separate from drift measurements
+        if (pps_ready) {
+            std::cout << "[PPS] seq=" << pps_data.sequence 
+                     << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
+                     << " jitter=" << pps_max_jitter_ns << "ns\n";
         }
 
         // Send PTP Sync message (every second)
