@@ -179,8 +179,8 @@ int main(int argc, char* argv[])
             rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds);
             
             // RTC drift measurement and discipline (continuous with moving average)
-            // Start initial measurement after 10 minutes of GPS lock
-            if (drift_measurement_start_time == 0 && sync_counter > 600) {
+            // Start initial measurement after 10 minutes of GPS lock (6000 iterations @ 100ms)
+            if (drift_measurement_start_time == 0 && sync_counter > 6000) {
                 drift_measurement_start_time = gps_seconds;
                 std::cout << "[RTC Discipline] Starting continuous drift monitoring (1-hour windows)\n";
                 std::cout << "[RTC Discipline] Tolerance: ±" << drift_tolerance_ppm << " ppm\n";
@@ -302,8 +302,10 @@ int main(int argc, char* argv[])
                      << " Variance=0x" << std::hex << offset_variance << std::dec << "\n";
         }
 
-        // Sleep for 1 second
-        sleep(1);
+        // Sleep for 100ms to avoid aliasing with 1 PPS
+        // PPS is read non-blocking (timeout=0) every loop iteration
+        // This gives 10 samples per second, ensuring we never miss a pulse
+        usleep(100000);  // 100ms = 100,000 microseconds
     }
 
     std::cout << "\n=== Shutdown Complete ===\n";
