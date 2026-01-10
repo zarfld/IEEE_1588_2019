@@ -457,20 +457,40 @@ bool GpsAdapter::update_pps_data()
     pps_data_.jitter_nsec = current_jitter;
     pps_data_.valid = true;
     
-    // Debug output every 10 PPS pulses with max jitter over interval
-    static uint64_t pulse_count = 0;
+    // Track max jitter (output handled by caller)
     static uint32_t max_jitter = 0;
-    
     max_jitter = std::max(max_jitter, current_jitter);
     
-    if (++pulse_count % 10 == 0) {
-        std::cout << "[PPS] seq=" << pps_data_.sequence 
-                  << " time=" << pps_data_.assert_sec << "." << pps_data_.assert_nsec
-                  << " max_jitter=" << max_jitter << "ns (last 10 pulses)\n";
-        max_jitter = 0;  // Reset for next interval
+    return true;
+}
+
+bool GpsAdapter::get_pps_data(PpsData* pps_data, uint32_t* max_jitter_ns)
+{
+    if (!pps_data || !max_jitter_ns) {
+        return false;
     }
     
-    return true;
+    if (!pps_data_.valid) {
+        return false;
+    }
+    
+    *pps_data = pps_data_;
+    
+    // Get max jitter from static tracking
+    static uint32_t tracked_max_jitter = 0;
+    static uint64_t last_reported_seq = 0;
+    
+    // Every 10 pulses, report and reset
+    if (pps_data_.sequence - last_reported_seq >= 10) {
+        *max_jitter_ns = tracked_max_jitter;
+        tracked_max_jitter = 0;
+        last_reported_seq = pps_data_.sequence;
+        return true;  // Signal: ready to output
+    }
+    
+    // Update max but don't report yet
+    tracked_max_jitter = std::max(tracked_max_jitter, pps_data_.jitter_nsec);
+    return false;  // Signal: not ready to output yet
 }
 
 bool GpsAdapter::initialize_pps()

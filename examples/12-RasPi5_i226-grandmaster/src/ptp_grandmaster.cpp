@@ -158,6 +158,11 @@ int main(int argc, char* argv[])
         // Update GPS data (read NMEA sentences and PPS)
         gps_adapter.update();
         
+        // Check for PPS output (every 10 pulses)
+        PpsData pps_data;
+        uint32_t pps_max_jitter_ns = 0;
+        bool pps_ready = gps_adapter.get_pps_data(&pps_data, &pps_max_jitter_ns);
+        
         if (verbose && (sync_counter % 10 == 0)) {
             std::cout << "\n[GPS Debug] Fix: " << (gps_adapter.has_fix() ? "YES" : "NO")
                      << ", Satellites: " << static_cast<int>(gps_adapter.get_satellite_count())
@@ -212,15 +217,14 @@ int main(int argc, char* argv[])
                             }
                             drift_avg /= drift_buffer_count;
                             
-                            // Output drift with PPS message (will appear on same line)
-                            // Only show every 60 seconds to reduce clutter
-                            if (sync_counter % 600 == 0) {
-                                std::cout << "[RTC Drift] instant=" << std::fixed << std::setprecision(3) 
-                                         << drift_ppm << "ppm avg=" << drift_avg 
-                                         << "ppm (" << drift_buffer_count << " samples) err=" 
-                                         << std::setprecision(1) << (time_error_ns / 1000000.0) << "ms\n";
-                            }
-                            
+                            // Output drift on SAME LINE as PPS (shown every 10 seconds)
+                            if (pps_ready) {
+                                std::cout << "[PPS] seq=" << pps_data.sequence 
+                                         << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
+                                         << " jitter=" << pps_max_jitter_ns << "ns"
+                                         << " drift=" << std::fixed << std::setprecision(3) << drift_ppm << "ppm"
+                                         << " avg=" << drift_avg << "ppm(" << drift_buffer_count << ")"
+                                         << " err=" << std::setprecision(1) << (time_error_ns / 1000000.0) << "ms\\n";\n            }\n                            
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
                             // Require at least 6 samples (1 minute) before adjusting
                             if (drift_buffer_count >= 6 && std::abs(drift_avg) > drift_tolerance_ppm) {
@@ -275,6 +279,20 @@ int main(int argc, char* argv[])
                         std::cout << "[RTC Discipline] Time sync tolerance: ±" 
                                  << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
                     }
+                } else {
+                    // Drift not calculated yet - show PPS only
+                    if (pps_ready) {
+                        std::cout << "[PPS] seq=" << pps_data.sequence 
+                                 << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
+                                 << " jitter=" << pps_max_jitter_ns << "ns (drift pending...)\n";
+                    }
+                }
+            } else {
+                // No RTC data - show PPS only
+                if (pps_ready) {
+                    std::cout << "[PPS] seq=" << pps_data.sequence 
+                             << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
+                             << " jitter=" << pps_max_jitter_ns << "ns\n";
                 }
             }
 

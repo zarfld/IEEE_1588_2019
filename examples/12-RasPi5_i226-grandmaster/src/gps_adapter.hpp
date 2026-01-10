@@ -118,6 +118,14 @@ public:
     bool has_fix() const { return gps_data_.time_valid; }
     
     /**
+     * @brief Get PPS data including jitter
+     * @param pps_data Output PPS data structure
+     * @param max_jitter_ns Output maximum jitter over last interval
+     * @return true if PPS data available
+     */
+    bool get_pps_data(PpsData* pps_data, uint32_t* max_jitter_ns);
+    
+    /**
      * @brief Get GPS time in PTP format (TAI)
      * @param seconds Output: Seconds since PTP epoch
      * @param nanoseconds Output: Nanoseconds
