@@ -265,7 +265,7 @@ int main(int argc, char* argv[])
                                     drift_buffer_count = 0;
                                     drift_buffer_index = 0;
                                     last_drift_calc_time = 0;  // Reset to restart measurement
-                                    drift_valid = false;  // Invalidate until new measurement
+                                    // NOTE: Don't clear drift_valid - keep showing last known drift
                                     std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
                                 } else {
                                     std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
