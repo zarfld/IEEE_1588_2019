@@ -224,7 +224,9 @@ int main(int argc, char* argv[])
                                          << " jitter=" << pps_max_jitter_ns << "ns"
                                          << " drift=" << std::fixed << std::setprecision(3) << drift_ppm << "ppm"
                                          << " avg=" << drift_avg << "ppm(" << drift_buffer_count << ")"
-                                         << " err=" << std::setprecision(1) << (time_error_ns / 1000000.0) << "ms\\n";\n            }\n                            
+                                         << " err=" << std::setprecision(1) << (time_error_ns / 1000000.0) << "ms\n";
+                            }
+                            
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
                             // Require at least 6 samples (1 minute) before adjusting
                             if (drift_buffer_count >= 6 && std::abs(drift_avg) > drift_tolerance_ppm) {
