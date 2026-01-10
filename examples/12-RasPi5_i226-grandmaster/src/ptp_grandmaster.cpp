@@ -278,8 +278,6 @@ int main(int argc, char* argv[])
                     }
                 }
             }
-        }
-        
         } else {
             // GPS unavailable - use RTC for holdover
             uint64_t rtc_seconds = 0;
