@@ -141,10 +141,15 @@ int main(int argc, char* argv[])
     uint64_t announce_counter = 0;
     uint64_t sync_counter = 0;
     uint64_t drift_measurement_start_time = 0;
-    uint64_t last_discipline_time = 0;
     const uint64_t measurement_duration = 3600;      // 1 hour measurement window
-    const uint64_t discipline_interval = 86400;      // Re-calibrate every 24 hours
-    uint32_t discipline_cycle = 0;                   // Track calibration cycles
+    
+    // Continuous drift tracking with moving average (24-hour window)
+    constexpr size_t drift_history_size = 24;        // 24 measurements (24 hours)
+    double drift_history[drift_history_size] = {0};  // Circular buffer
+    size_t drift_index = 0;                          // Current index in buffer
+    size_t drift_count = 0;                          // Number of valid measurements
+    constexpr double drift_tolerance_ppm = 0.1;      // DS3231 aging offset LSB resolution
+    uint32_t measurement_count = 0;                  // Total measurements taken
     
     while (g_running) {
         // Update GPS data (read NMEA sentences and PPS)
@@ -173,72 +178,79 @@ int main(int argc, char* argv[])
             // Synchronize RTC to GPS time (for holdover)
             rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds);
             
-            // RTC drift measurement and discipline (continuous, temperature-adaptive)
+            // RTC drift measurement and discipline (continuous with moving average)
             // Start initial measurement after 10 minutes of GPS lock
             if (drift_measurement_start_time == 0 && sync_counter > 600) {
                 drift_measurement_start_time = gps_seconds;
-                last_discipline_time = gps_seconds;
-                discipline_cycle++;
-                std::cout << "[RTC Discipline] Cycle #" << discipline_cycle 
-                         << ": Starting drift measurement (1 hour)...\n";
-                std::cout << "[RTC Discipline] Temperature: " << rtc_adapter.get_temperature() << "°C\n";
+                std::cout << "[RTC Discipline] Starting continuous drift monitoring (1-hour windows)\n";
+                std::cout << "[RTC Discipline] Tolerance: ±" << drift_tolerance_ppm << " ppm\n";
             }
             
-            // After 1 hour of measurement, calculate and apply drift correction
-            // Then restart measurement for continuous temperature tracking
+            // After 1 hour of measurement, calculate drift and update moving average
             if (drift_measurement_start_time > 0) {
                 uint64_t elapsed_since_measurement = gps_seconds - drift_measurement_start_time;
-                uint64_t elapsed_since_discipline = gps_seconds - last_discipline_time;
                 
-                // Re-measure and re-calibrate every 24 hours for temperature tracking
+                // Measure drift every hour
                 if (elapsed_since_measurement >= measurement_duration) {
                     // Get RTC time
                     uint64_t rtc_seconds = 0;
                     uint32_t rtc_nanoseconds = 0;
                     
                     if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
-                        // Calculate drift
+                        // Calculate instantaneous drift
                         uint64_t gps_time_ns = gps_seconds * 1000000000ULL + gps_nanoseconds;
                         uint64_t rtc_time_ns = rtc_seconds * 1000000000ULL + rtc_nanoseconds;
                         
                         double drift_ppm = rtc_adapter.measure_drift_ppm(gps_time_ns, rtc_time_ns, 
                                                                          static_cast<uint32_t>(elapsed_since_measurement));
-                        float temperature = rtc_adapter.get_temperature();
                         
-                        std::cout << "\n[RTC Discipline] Cycle #" << discipline_cycle << " Results:\n";
-                        std::cout << "[RTC Discipline]   Measured drift: " << drift_ppm << " ppm\n";
-                        std::cout << "[RTC Discipline]   Temperature: " << temperature << "°C\n";
-                        std::cout << "[RTC Discipline]   Time since last calibration: " 
-                                 << (elapsed_since_discipline / 3600.0) << " hours\n";
-                        std::cout << "[RTC Discipline] Applying aging offset correction...\n";
+                        // Add to circular buffer
+                        drift_history[drift_index] = drift_ppm;
+                        drift_index = (drift_index + 1) % drift_history_size;
+                        if (drift_count < drift_history_size) {
+                            drift_count++;
+                        }
+                        measurement_count++;
                         
-                        // Apply frequency discipline
-                        if (rtc_adapter.apply_frequency_discipline(drift_ppm)) {
-                            int8_t aging_offset = rtc_adapter.read_aging_offset();
-                            std::cout << "[RTC Discipline] ✓ Aging offset applied successfully\n";
-                            std::cout << "[RTC Discipline]   New aging offset: " 
-                                     << static_cast<int>(aging_offset) << " LSB\n";
-                            std::cout << "[RTC Discipline]   Compensation: " 
-                                     << (aging_offset * 0.1) << " ppm\n";
+                        // Calculate moving average
+                        double drift_avg = 0.0;
+                        for (size_t i = 0; i < drift_count; i++) {
+                            drift_avg += drift_history[i];
+                        }
+                        drift_avg /= drift_count;
+                        
+                        std::cout << "\n[RTC Discipline] Measurement #" << measurement_count << ":\n";
+                        std::cout << "[RTC Discipline]   Current drift: " << drift_ppm << " ppm\n";
+                        std::cout << "[RTC Discipline]   Moving average: " << drift_avg 
+                                 << " ppm (over " << drift_count << " hours)\n";
+                        
+                        // Adjust only if average exceeds tolerance
+                        if (std::abs(drift_avg) > drift_tolerance_ppm) {
+                            std::cout << "[RTC Discipline]   ⚠ Drift exceeds tolerance (±" 
+                                     << drift_tolerance_ppm << " ppm)\n";
+                            std::cout << "[RTC Discipline]   Applying aging offset correction...\n";
                             
-                            // Reset measurement window for continuous monitoring
-                            last_discipline_time = gps_seconds;
-                            
-                            // Start next measurement cycle after discipline_interval (24h)
-                            if (elapsed_since_discipline >= discipline_interval) {
-                                drift_measurement_start_time = gps_seconds;
-                                discipline_cycle++;
-                                std::cout << "\n[RTC Discipline] Cycle #" << discipline_cycle 
-                                         << ": Starting next 1-hour measurement...\n";
+                            if (rtc_adapter.apply_frequency_discipline(drift_avg)) {
+                                int8_t aging_offset = rtc_adapter.read_aging_offset();
+                                std::cout << "[RTC Discipline]   ✓ Aging offset applied: " 
+                                         << static_cast<int>(aging_offset) << " LSB\n";
+                                std::cout << "[RTC Discipline]   ✓ Compensation: " 
+                                         << (aging_offset * 0.1) << " ppm\n";
+                                
+                                // Reset history after successful adjustment
+                                drift_count = 0;
+                                drift_index = 0;
+                                std::cout << "[RTC Discipline]   ℹ Drift history reset (re-learning baseline)\n";
                             } else {
-                                // Keep measuring but don't apply correction yet
-                                drift_measurement_start_time = gps_seconds;
+                                std::cerr << "[RTC Discipline]   ✗ Failed to apply aging offset\n";
                             }
                         } else {
-                            std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
-                            // Retry measurement after 1 hour
-                            drift_measurement_start_time = gps_seconds;
+                            std::cout << "[RTC Discipline]   ✓ Drift within tolerance (no adjustment needed)\n";
                         }
+                        
+                        // Start next measurement window
+                        drift_measurement_start_time = gps_seconds;
+                        
                     } else {
                         std::cerr << "[RTC Discipline] ✗ Failed to read RTC time\n";
                         drift_measurement_start_time = gps_seconds;
