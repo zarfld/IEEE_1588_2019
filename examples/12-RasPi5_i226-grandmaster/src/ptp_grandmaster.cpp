@@ -155,7 +155,9 @@ int main(int argc, char* argv[])
     double current_drift_ppm = 0.0;                 // Most recent drift measurement
     double current_drift_avg = 0.0;                 // Current moving average
     double current_time_error_ms = 0.0;             // Current time error in ms
-    bool drift_valid = false;                        // True when drift has been calculated    constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
+    bool drift_valid = false;                        // True when drift has been calculated
+    
+    constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
     constexpr int64_t time_sync_tolerance_ns = 100000000; // 100ms - only sync if error exceeds this
     
     while (g_running) {
