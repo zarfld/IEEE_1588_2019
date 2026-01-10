@@ -46,12 +46,16 @@ RtcAdapter::~RtcAdapter()
 
 bool RtcAdapter::initialize()
 {
-    // Open RTC device
+    // Open RTC device (optional - used for reading time via kernel driver)
+    // If this fails (EBUSY), we can still do I2C-based aging offset discipline
     rtc_fd_ = open(rtc_device_.c_str(), O_RDWR);
     if (rtc_fd_ < 0) {
-        std::cerr << "[RTC Init] ERROR: Failed to open RTC device " << rtc_device_ 
+        std::cerr << "[RTC Init] WARNING: Failed to open RTC device " << rtc_device_ 
                   << " errno=" << errno << " (" << strerror(errno) << ")\n";
-        return false;
+        std::cerr << "[RTC Init] Note: Continuing with I2C-only access (aging offset discipline still available)\n";
+        // Don't fail - I2C access is what we really need for discipline
+    } else {
+        std::cout << "[RTC Init] ✓ RTC device " << rtc_device_ << " opened (fd=" << rtc_fd_ << ")\n";
     }
 
     // Open I2C bus for DS3231 direct access (aging offset)
@@ -90,6 +94,12 @@ bool RtcAdapter::initialize()
 
 bool RtcAdapter::read_time(RtcTime* rtc_time)
 {
+    // If RTC device not available, fail gracefully (I2C-only mode)
+    if (rtc_fd_ < 0) {
+        rtc_time->valid = false;
+        return false;
+    }
+    
     struct rtc_time rt{};
     
     if (ioctl(rtc_fd_, RTC_RD_TIME, &rt) < 0) {
@@ -110,6 +120,11 @@ bool RtcAdapter::read_time(RtcTime* rtc_time)
 
 bool RtcAdapter::set_time(const RtcTime& rtc_time)
 {
+    // If RTC device not available, fail gracefully (I2C-only mode)
+    if (rtc_fd_ < 0) {
+        return false;
+    }
+    
     struct rtc_time rt{};
     rt.tm_sec = rtc_time.seconds;
     rt.tm_min = rtc_time.minutes;
