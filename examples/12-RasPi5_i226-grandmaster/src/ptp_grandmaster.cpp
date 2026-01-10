@@ -150,8 +150,12 @@ int main(int argc, char* argv[])
     size_t drift_buffer_index = 0;                   // Current index
     size_t drift_buffer_count = 0;                   // Valid samples
     uint64_t last_drift_calc_time = 0;              // Last GPS time when drift was calculated
-    int64_t last_time_error_ns = 0;                 // Last measured time error
-    constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
+    int64_t last_time_error_ns = 0;                 // Last measured time error    
+    // Latest drift measurements for PPS display
+    double current_drift_ppm = 0.0;                 // Most recent drift measurement
+    double current_drift_avg = 0.0;                 // Current moving average
+    double current_time_error_ms = 0.0;             // Current time error in ms
+    bool drift_valid = false;                        // True when drift has been calculated    constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
     constexpr int64_t time_sync_tolerance_ns = 100000000; // 100ms - only sync if error exceeds this
     
     while (g_running) {
@@ -217,10 +221,11 @@ int main(int argc, char* argv[])
                             }
                             drift_avg /= drift_buffer_count;
                             
-                            // Output drift measurement (shown every 10 seconds)
-                            std::cout << "[RTC Drift] instant=" << std::fixed << std::setprecision(3) << drift_ppm << "ppm"
-                                     << " avg=" << drift_avg << "ppm(" << drift_buffer_count << ")"
-                                     << " err=" << std::setprecision(1) << (time_error_ns / 1000000.0) << "ms\n";
+                            // Store for PPS display
+                            current_drift_ppm = drift_ppm;
+                            current_drift_avg = drift_avg;
+                            current_time_error_ms = time_error_ns / 1000000.0;
+                            drift_valid = true;
                             
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
                             // Require at least 6 samples (1 minute) before adjusting
@@ -238,6 +243,7 @@ int main(int argc, char* argv[])
                                     // Clear buffer after frequency adjustment
                                     drift_buffer_count = 0;
                                     drift_buffer_index = 0;
+                                    drift_valid = false;  // Invalidate until new measurement
                                     std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
                                 } else {
                                     std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
@@ -258,6 +264,7 @@ int main(int argc, char* argv[])
                                     drift_buffer_count = 0;
                                     drift_buffer_index = 0;
                                     last_drift_calc_time = 0;  // Reset to restart measurement
+                                    drift_valid = false;  // Invalidate until new measurement
                                     std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
                                 } else {
                                     std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
@@ -306,7 +313,15 @@ int main(int argc, char* argv[])
         if (pps_ready) {
             std::cout << "[PPS] seq=" << pps_data.sequence 
                      << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
-                     << " max_jitter=" << pps_max_jitter_ns << "ns (last 10 pulses)\n";
+                     << " max_jitter=" << pps_max_jitter_ns << "ns (last 10 pulses)";
+            
+            // Add drift information if available
+            if (drift_valid) {
+                std::cout << " drift=" << std::fixed << std::setprecision(3) << current_drift_ppm << "ppm"
+                         << " avg=" << current_drift_avg << "ppm(" << drift_buffer_count << ")"
+                         << " err=" << std::setprecision(1) << current_time_error_ms << "ms";
+            }
+            std::cout << "\n";
         }
 
         // Send PTP Sync message (every second)
