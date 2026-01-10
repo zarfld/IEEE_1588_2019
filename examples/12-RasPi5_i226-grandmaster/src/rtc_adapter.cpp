@@ -49,16 +49,30 @@ bool RtcAdapter::initialize()
     // Open RTC device
     rtc_fd_ = open(rtc_device_.c_str(), O_RDWR);
     if (rtc_fd_ < 0) {
+        std::cerr << "[RTC Init] ERROR: Failed to open RTC device " << rtc_device_ 
+                  << " errno=" << errno << " (" << strerror(errno) << ")\n";
         return false;
     }
 
     // Open I2C bus for DS3231 direct access (aging offset)
-    // Assuming /dev/i2c-1 for Raspberry Pi
-    i2c_fd_ = open("/dev/i2c-1", O_RDWR);
-    if (i2c_fd_ >= 0) {
+    // Raspberry Pi 5: DS3231 on GPIO I2C bus 13 (dtoverlay=i2c-rtc-gpio)
+    const char* i2c_device = "/dev/i2c-13";
+    i2c_fd_ = open(i2c_device, O_RDWR);
+    if (i2c_fd_ < 0) {
+        std::cerr << "[RTC Init] ERROR: Failed to open I2C device " << i2c_device 
+                  << " errno=" << errno << " (" << strerror(errno) << ")\n";
+        std::cerr << "[RTC Init] Note: DS3231 aging offset discipline will not be available\n";
+        // Don't fail initialization - RTC time still works via /dev/rtc1
+    } else {
+        // Set I2C slave address to DS3231 (0x68)
         if (ioctl(i2c_fd_, I2C_SLAVE, DS3231_I2C_ADDR) < 0) {
+            std::cerr << "[RTC Init] ERROR: Failed to set I2C slave address 0x" 
+                      << std::hex << (int)DS3231_I2C_ADDR << std::dec
+                      << " errno=" << errno << " (" << strerror(errno) << ")\n";
             close(i2c_fd_);
             i2c_fd_ = -1;
+        } else {
+            std::cout << "[RTC Init] I2C device " << i2c_device << " opened successfully (fd=" << i2c_fd_ << ")\n";
         }
     }
 
