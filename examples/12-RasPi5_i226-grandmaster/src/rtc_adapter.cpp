@@ -303,9 +303,12 @@ bool RtcAdapter::write_aging_offset(int8_t offset)
 
     // Write to DS3231 aging offset register (0x10)
     uint8_t write_data[2] = {DS3231_AGING_OFFSET_REG, static_cast<uint8_t>(offset)};
-    if (write(i2c_fd_, write_data, 2) != 2) {
+    ssize_t bytes_written = write(i2c_fd_, write_data, 2);
+    if (bytes_written != 2) {
         std::cerr << "[RTC Discipline] Failed to write aging offset to I2C register 0x" 
-                  << std::hex << static_cast<int>(DS3231_AGING_OFFSET_REG) << std::dec << "\n";
+                  << std::hex << static_cast<int>(DS3231_AGING_OFFSET_REG) << std::dec 
+                  << " fd=" << i2c_fd_ << " bytes=" << bytes_written 
+                  << " errno=" << errno << " (" << strerror(errno) << ")\n";
         return false;
     }
     
