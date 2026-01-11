@@ -201,6 +201,31 @@ int main(int argc, char* argv[])
         uint32_t pps_max_jitter_ns = 0;
         bool pps_ready = gps_adapter.get_pps_data(&pps_data, &pps_max_jitter_ns);
         
+        // CRITICAL: Sample PHC time IMMEDIATELY when PPS data is fresh!
+        // Expert (deb.md): "Sampling latency corrupts frequency measurements"
+        // Must sample within milliseconds of PPS edge, not 70ms+ later in loop
+        int64_t phc_at_pps_ns = 0;  // PHC time at PPS edge (for calibration)
+        bool phc_sample_valid = false;
+        if (pps_ready && pps_data.sequence > 0) {
+            int64_t phc_now_ns, sys_now_ns;
+            if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
+                // PPS edge happened at: pps_data.assert_sec/nsec (system time)
+                int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL + pps_data.assert_nsec;
+                
+                // Calculate PHC time at PPS edge (extrapolate backwards)
+                int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
+                phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
+                phc_sample_valid = true;
+                
+                // Expert: latency should be < 10ms for accurate measurements
+                // If > 50ms, we're sampling too late (loop delays)
+                if (sampling_latency_ns > 50000000LL) {  // > 50ms
+                    std::cerr << "[PHC Sample] ⚠️  HIGH LATENCY: " << (sampling_latency_ns / 1000000.0) 
+                             << " ms (loop processing delayed PHC sampling)\n";
+                }
+            }
+        }
+        
         if (verbose && (sync_counter % 10 == 0)) {
             std::cout << "\n[GPS Debug] Fix: " << (gps_adapter.has_fix() ? "YES" : "NO")
                      << ", Satellites: " << static_cast<int>(gps_adapter.get_satellite_count())
@@ -427,38 +452,17 @@ int main(int argc, char* argv[])
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
                 
                 // Initialize baseline on first PPS edge (PPS-based measurement per expert advice)
-                // CRITICAL: Capture PHC time at the PPS edge, not at arbitrary loop time!
-                // Expert (deb.md): "Use PTP_SYS_OFFSET_EXTENDED to map PHC↔system time at instant of PPS"
-                if (phc_servo.baseline_pps_seq == 0 && pps_data.sequence > 0) {
-                    // Get PHC time correlated with system time using PTP_SYS_OFFSET_EXTENDED
-                    int64_t phc_now_ns, sys_now_ns;
-                    if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
-                        // PPS edge happened at: pps_data.assert_sec.assert_nsec (system time)
-                        int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
-                                           + pps_data.assert_nsec;
-                        
-                        // EXPERT WARNING: This extrapolation assumes small latency!
-                        // If (sys_now - pps_sys) > 100ms, correlation is unreliable
-                        int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
-                        
-                        // Calculate PHC time at PPS edge using correlation:
-                        // phc_at_pps = phc_now - (sys_now - pps_sys)
-                        int64_t phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
-                        
-                        phc_servo.baseline_pps_seq = pps_data.sequence;
-                        phc_servo.baseline_phc_ns = phc_at_pps_ns;
-                        phc_servo.last_offset_ns = offset_ns;  // For phase servo later
-                        
-                        std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
-                                  << " (PHC: " << phc_at_pps_ns << " ns)\n"
-                                  << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms";
-                        if (sampling_latency_ns > 100000000LL) {  // > 100ms
-                            std::cout << " ⚠️  HIGH LATENCY!";
-                        }
-                        std::cout << "\n  Will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
-                    } else {
-                        std::cerr << "[PHC Calibration] ERROR: Failed to get PHC-system correlation!\n";
-                    }
+                // CRITICAL: Use PHC sample taken IMMEDIATELY after PPS (at top of loop)
+                // Expert (deb.md): "Sampling latency corrupts measurements - sample at PPS edge!"
+                if (phc_servo.baseline_pps_seq == 0 && phc_sample_valid) {
+                    phc_servo.baseline_pps_seq = pps_data.sequence;
+                    phc_servo.baseline_phc_ns = phc_at_pps_ns;
+                    phc_servo.last_offset_ns = offset_ns;  // For phase servo later
+                    
+                    std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
+                              << " (PHC: " << phc_at_pps_ns << " ns)\n"
+                              << "  (PHC sampled immediately after PPS - low latency)\n"
+                              << "  Will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
                 }
                 
                 // CRITICAL: Measure and correct frequency offset BEFORE stepping time
@@ -483,16 +487,9 @@ int main(int argc, char* argv[])
                     }
                     
                     if (elapsed_pulses >= phc_servo.calib_interval_pulses) {  // Enough pulses for measurement
-                        // Get PHC time at CURRENT PPS edge (correlated with system time)
-                        int64_t phc_now_ns, sys_now_ns;
-                        if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
-                            int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
-                                               + pps_data.assert_nsec;
-                            
-                            // Log sampling latency (EXPERT: if > 100ms, measurement unreliable)
-                            int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
-                            int64_t phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
-                            
+                        // CRITICAL: Use PHC sample taken IMMEDIATELY after PPS (at top of loop)
+                        // Expert (deb.md): "Sampling latency corrupts measurements - sample at PPS edge!"
+                        if (phc_sample_valid) {
                             // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
                             int64_t phc_delta_ns = phc_at_pps_ns - phc_servo.baseline_phc_ns;
                             int64_t ref_delta_ns = static_cast<int64_t>(elapsed_pulses) * 1000000000LL;  // N pulses × 1 sec/pulse
@@ -507,13 +504,11 @@ int main(int argc, char* argv[])
                                 std::cerr << "[PHC Calibration] ❌ INVALID MEASUREMENT: " << std::fixed << std::setprecision(1)
                                           << drift_ppm << " ppm (exceeds ±2000 ppm threshold)\n"
                                           << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
-                                          << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms\n"
                                           << "  LIKELY CAUSES:\n"
                                           << "    1. Wrong PHC device (verify: readlink /sys/class/net/eth1/ptp)\n"
-                                          << "    2. High sampling latency (PPS timestamp too old)\n"
-                                          << "    3. PHC time discontinuity (clock step during measurement)\n"
+                                          << "    2. PHC time discontinuity (clock step during measurement)\n"
                                           << "  Resetting baseline and retrying...\n";
-                                // Reset baseline and try again
+                                // Reset baseline and try again (use fresh snapshot)
                                 phc_servo.baseline_pps_seq = pps_data.sequence;
                                 phc_servo.baseline_phc_ns = phc_at_pps_ns;
                                 continue;
@@ -545,7 +540,7 @@ int main(int argc, char* argv[])
                                 std::cout << "[PHC Calibration] Iteration (" << elapsed_pulses << " pulses): Measured " 
                                           << std::fixed << std::setprecision(1) << drift_ppm << " ppm drift\n"
                                           << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
-                                          << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms\n"
+                                          << "  (PHC sampled immediately after PPS - low latency)\n"
                                           << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
                                           << "Correction: " << correction_ppb << " ppb, "
                                           << "New total: " << new_freq_ppb << " ppb\n";

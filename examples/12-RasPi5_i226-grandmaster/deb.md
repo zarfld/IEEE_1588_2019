@@ -1,149 +1,145 @@
-You fixed **one** class of ambiguity (you now lock “NMEA labels LAST PPS”), but the log still proves you have a **second, independent off-by-one** in the way you *apply* that association to the value you call `gps_sec` (and/or how you compute `err`).
+Your latest run confirms two things:
 
-### What is now unambiguous from the new log
+1. **The build is clean** (link succeeds, executable rebuilt).
+2. The **PHC calibration window is now effectively 20 seconds** (20 PPS pulses).
 
-1. **Association lock looks correct**
+You can see this directly in the log:
 
-   * `PPS-UTC Lock … NMEA labels LAST PPS (avg_dt=200ms)`
-   * `avg_dt≈200ms` is a perfectly plausible “RMC comes ~200 ms after PPS” pattern.
+* `Will measure over 20 pulses...`
+* `Progress: 5/20` at PPS `#37014`
+* `Progress: 10/20` at PPS `#37019`
+* `Progress: 15/20` at PPS `#37024`
+* `Progress: 20/20` at PPS `#37029`
 
-2. **The ±1 second flip is still present**
-
-   * `err=-1002.2ms` for long stretches
-   * then occasionally `err=-2.2ms`
-   * difference is exactly **1000 ms**.
-
-3. **The huge drift spikes (±200000 ppm) are still artifacts**
-
-   * `200000 ppm` corresponds to “I saw a 1 s step over ~5 s” in your estimator.
-   * That’s not a DS3231 frequency problem; it’s a labeling/unwrap problem.
-
-So: **your “LAST PPS” lock is not being used consistently downstream**, or the code still sometimes compares the RTC against `gps_sec` that is effectively **one second ahead** of “PPS second”.
+That is a **20-pulse span**, i.e. **20 seconds** at 1PPS.
 
 ---
 
-## The most likely remaining bug (and where to look)
+## However: the measured PHC “drift” is still pathological
 
-You likely have two time variables:
+Example (first completed iteration):
 
-* **`gps_sec`** (derived from NMEA / RMC)
-* **`pps_seq`** (from PPS device)
+```
+Measured -56920.5 ppm drift
+PHC delta: 18861590790 ns, Ref delta: 20000000000 ns
+```
 
-And somewhere you compute an “expected UTC for this PPS” as something like:
+That ratio is:
 
-* `expected = gps_sec` sometimes
-* `expected = gps_sec + 1` (or `gps_sec - 1`) other times
-* or you implicitly shift because `gps_sec` is being updated on RMC arrival, not latched to a specific PPS.
+* 18.861590790 s / 20.000000000 s ≈ **0.9430795395**
+* which corresponds to roughly **-56,920 ppm** (≈ **-5.7%**)
 
-Your new debug lines reinforce this suspicion:
+An i226 PHC should not be off by **percent-level**. Normal PHC frequency error is typically **single-digit ppm** (or at worst tens of ppm), not **tens of thousands of ppm**.
 
-* `[Measurement Timing] gps_sec=1768125931 pps_seq=96598`
-* and later you can see the `err` toggling without a corresponding new association lock event.
+### Why your correction never converges
 
-That strongly suggests you are still doing a *soft coupling* (“current gps_sec”) instead of a *hard binding* (“gps_sec_for_pps_seq”).
+You also clamp/limit correction:
 
----
+```
+Current total: 0 ppb, Correction: 500000 ppb, New total: 500000 ppb
+```
 
-## The correct, race-free model on Linux
+* `500000 ppb` = **500 ppm**
+* but you “need” on the order of **~57,000 ppm** (≈ **57,000,000 ppb**) if that drift were real
 
-You need a single mapping of **PPS sequence → UTC second**.
-
-Implement it as a base pair:
-
-* `base_pps_seq`
-* `base_utc_sec`  (UTC seconds since epoch that correspond to `base_pps_seq`)
-
-Then for **any** PPS event with sequence `s`, compute:
-
-* `utc_at_pps(s) = base_utc_sec + (s - base_pps_seq)`
-
-### How to update the base pair using RMC (labels LAST PPS)
-
-When RMC arrives with `utc_rmc` and you have `last_pps_seq` at receive time:
-
-* If you locked “labels LAST PPS”:
-
-  * set `base_pps_seq = last_pps_seq`
-  * set `base_utc_sec = utc_rmc`
-* If you ever support “labels NEXT PPS”:
-
-  * set `base_pps_seq = last_pps_seq + 1`
-  * set `base_utc_sec = utc_rmc`
-
-**Critical rule:** once this is in place, your code must **never** use a “free-running `gps_sec`” for error computation. It must use `utc_at_pps(current_seq)`.
+So the loop saturates and will keep printing ~-60k ppm forever.
 
 ---
 
-## What to add to your logs (to pinpoint the exact +1)
+## Most likely root causes (ranked)
 
-Right where you print `err=...`, also print:
+### A) You are not measuring “PHC at the PPS edge” consistently
 
-* `pps_seq`
-* `utc_at_pps` (computed via base mapping)
-* `rtc_sec` (DS3231 time as epoch seconds)
-* `delta_sec = rtc_sec - utc_at_pps`
+If your “PHC sample” is taken **not tightly bound to the PPS event**, the measured delta can be wrong by a large fraction of a second over a 20 s window (phase wander / blocking delays / scheduling).
+That can easily produce a bogus “frequency error”.
 
-You will immediately see whether the persistent `-1002 ms` corresponds to:
+**What to do**
 
-* `delta_sec = -1` (RTC second is behind your UTC label by 1)
-* or `delta_sec = 0` but your millisecond portion is being computed with the wrong sign/convention.
+* Ensure the PHC timestamp used for calibration is captured **immediately after each PPS fetch**, and preferably using a method that provides a **coherent snapshot**.
 
-Given `-1002.2ms` vs `-2.2ms`, the simplest truth is: **sometimes you compare against `utc_at_pps + 1`**.
+Best practice on Linux is to use one of:
 
----
+* `PTP_SYS_OFFSET_PRECISE` (or `PTP_SYS_OFFSET_EXTENDED`) to get near-simultaneous system + PHC timestamps, or
+* a dedicated “sample PHC right after PPS edge” loop with strict error checks and rejection of late samples.
 
-## RTC sync: ensure you set the RTC to the same second you later compare against
-
-Your current line:
-
-* `[RTC Sync] Initial sync … (error=-1002.22ms)`
-* followed by “RTC synchronized”
-* but then `err=-1002.2ms` continues
-
-This indicates one of these is true:
-
-1. **RTC set uses a different reference second** than your error computation
-   (e.g., you set RTC to `utc_at_pps`, but you later compare to `utc_at_pps + 1`).
-
-2. **RTC set is correct, but your `utc_at_pps` is wrong by +1** during measurement.
-
-To eliminate this class entirely, do this:
-
-* Compute `utc_target = utc_at_pps(last_pps_seq)` (or `utc_at_pps(last_pps_seq)+1` if you intentionally set to next second — but then also compare that way).
-* Use **the same `utc_target` variable** for:
-
-  * the I²C write into DS3231
-  * the subsequent error computation reference.
-
-No recomputation, no alternate path.
+At minimum, log the **latency** between PPS event and PHC read (in ns). If you sometimes read PHC hundreds of ms late, your frequency estimate becomes meaningless.
 
 ---
 
-## Fix your drift estimator to be immune to ±1 s steps
+### B) Wrong PHC device (or mismapped interface → /dev/ptpX)
 
-Even after the labeling bug is fixed, RTC reads are quantized and can “walk” across a second boundary. Your estimator should:
+Even though you print:
 
-1. **unwrap phase error** into a stable interval, e.g. `[-500ms, +500ms]`
-2. **reject samples** where `abs(err_ms) > 200 ms` (or your tolerance)
-3. compute drift only from consecutive accepted samples
+```
+Interface: eth1
+PHC: /dev/ptp0
+```
 
-This prevents garbage “200000 ppm” even if something steps once.
+you should **prove** that `/dev/ptp0` is the PHC for `eth1` at runtime (don’t assume).
+
+**Verify with sysfs**
+
+```bash
+readlink -f /sys/class/net/eth1/ptp
+ls -l /dev/ptp*
+cat /sys/class/ptp/ptp0/clock_name
+ethtool -T eth1
+```
+
+If that link doesn’t point to `ptp0`, you are calibrating the wrong clock.
+
+**Hardening suggestion (code)**
+Resolve the PHC device from `/sys/class/net/<if>/ptp` and open that, rather than hardcoding or taking “first PHC found”.
 
 ---
 
-## Quick checklist (minimal changes that will stop the ±1000 ms flip)
+### C) PHC read path / clockid conversion bug
 
-* [ ] Replace any usage of “current `gps_sec`” in the RTC error path with `utc_at_pps(pps_seq)`.
-* [ ] Maintain `base_pps_seq/base_utc_sec` updated atomically when RMC arrives.
-* [ ] In the RTC set path, compute `utc_target` once and reuse it for both set and error reference.
-* [ ] Add log: `pps_seq, base_pps_seq, base_utc_sec, utc_at_pps, rtc_sec, delta_sec`.
+If you construct the `clockid_t` incorrectly (e.g., `FD_TO_CLOCKID(fd)` misuse, fd lifetime issues, wrong fd), `clock_gettime()` can silently give you the *wrong* clock (or you ignore errors).
+
+**Hardening suggestion**
+
+* Check return codes from every `clock_gettime(phc_clkid, …)` and print `errno` on failure.
+* Log a one-time sanity check: read PHC twice with `sleep(20)` and verify delta ~ 20 s.
 
 ---
 
-### If you paste the 30–60 lines around:
+## Quick sanity tests you can run immediately
 
-* where `PPS-UTC Lock` sets the association,
-* where `Measurement Timing` is printed,
-* and where `err=` is computed,
+### 1) Does PHC advance ~1 second per second?
 
-I can tell you exactly which variable is drifting by +1 (and whether it is a race, a sign error, or a “+1” applied in the wrong place).
+```bash
+sudo phc_ctl /dev/ptp0 get
+sleep 20
+sudo phc_ctl /dev/ptp0 get
+```
+
+The difference should be ~20 seconds (plus/minus tiny).
+If you see ~18.8 seconds consistently here, you have a **kernel/driver/clock selection** issue. If it is ~20 s, your **calibration sampling logic** is the culprit.
+
+### 2) Confirm eth1 ↔ PHC mapping
+
+```bash
+readlink -f /sys/class/net/eth1/ptp
+```
+
+This should end in `/sys/class/ptp/ptp0` if your printed PHC is correct.
+
+---
+
+## Recommended guardrails in the code (to prevent “bad calibration”)
+
+1. **Reject unrealistic drift estimates** before applying correction. Example:
+
+* if `abs(drift_ppm) > 2000` → treat as invalid sample (log and skip)
+
+  * 2000 ppm is already extremely generous; real PHC should be far below that.
+
+2. **Require PPS-UTC lock** before starting baseline and measurement.
+   You currently start calibration very early; if the system isn’t properly locked/mapped yet, you can end up mixing inconsistent epochs/phases.
+
+3. **Measure and log sample latency** (PPS timestamp vs time you read PHC). If latency isn’t bounded tightly, the estimate is not trustworthy.
+
+---
+
+If you paste the relevant calibration block (the part that captures PPS, reads PHC, computes `PHC delta`), I can point to the exact line where the sampling is likely decoupled from the PPS edge and propose a deterministic sampling strategy (ideally `PTP_SYS_OFFSET_PRECISE` based) that removes scheduler-phase error from the calibration.
