@@ -285,6 +285,8 @@ int main(int argc, char* argv[])
                                         drift_buffer_count = 0;
                                         drift_buffer_index = 0;
                                         drift_valid = false;  // Invalidate until new measurement
+                                        last_drift_calc_time = 0;  // Reset measurement baseline
+                                        last_time_error_ns = 0;    // Reset error baseline
                                         std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
                                     } else {
                                         std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
@@ -326,6 +328,7 @@ int main(int argc, char* argv[])
                                         drift_buffer_count = 0;
                                         drift_buffer_index = 0;
                                         last_drift_calc_time = 0;  // Reset to restart measurement
+                                        last_time_error_ns = 0;    // Reset error baseline (prevent false drift from old error)
                                         // NOTE: Don't clear drift_valid - keep showing last known drift
                                         std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
                                     } else {
