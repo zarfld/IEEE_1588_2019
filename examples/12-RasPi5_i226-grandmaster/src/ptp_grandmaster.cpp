@@ -203,8 +203,11 @@ int main(int argc, char* argv[])
                 
                 if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
                     // Calculate time error (RTC - GPS)
+                    // NOTE: RTC is set to GPS+1 second (see sync_from_gps in rtc_adapter.cpp)
+                    // to compensate for I2C write latency and 1-second RTC resolution.
+                    // Therefore, we must compare RTC to (GPS+1) for accurate drift measurement.
                     int64_t rtc_time_ns = static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds;
-                    int64_t gps_time_ns = static_cast<int64_t>(gps_seconds) * 1000000000LL + gps_nanoseconds;
+                    int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;  // GPS+1
                     int64_t time_error_ns = rtc_time_ns - gps_time_ns;
                     
                     // Calculate drift rate if we have previous measurement
