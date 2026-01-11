@@ -285,26 +285,16 @@ int LinuxPtpHal::receive_message(void* buffer, size_t buffer_size, HardwareTimes
 
 bool LinuxPtpHal::get_phc_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
-    struct ptp_clock_time pct{};
+    // Convert PHC file descriptor to clockid (same as set_phc_time)
+    clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
     
-    if (ioctl(phc_fd_, PTP_SYS_OFFSET_PRECISE, &pct) < 0) {
-        // Fallback to PTP_CLOCK_GETCAPS if PRECISE not supported
-        struct ptp_clock_caps caps{};
-        if (ioctl(phc_fd_, PTP_CLOCK_GETCAPS, &caps) < 0) {
-            return false;
-        }
-        
-        // Use basic gettime
-        struct timespec ts{};
-        if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
-            return false;
-        }
-        pct.sec = ts.tv_sec;
-        pct.nsec = ts.tv_nsec;
+    struct timespec ts{};
+    if (clock_gettime(clkid, &ts) < 0) {
+        return false;
     }
 
-    *seconds = pct.sec;
-    *nanoseconds = pct.nsec;
+    *seconds = ts.tv_sec;
+    *nanoseconds = ts.tv_nsec;
     return true;
 }
 
