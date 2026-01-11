@@ -198,6 +198,12 @@ int main(int argc, char* argv[])
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
                 
+                // CRITICAL: Force fresh PPS fetch to ensure GPS time has advanced
+                // Without this, gps_seconds may be stale from earlier in the loop,
+                // causing elapsed_sec=0 and skipping drift measurements
+                gps_adapter.update();  // Fetch latest PPS if available
+                gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);  // Get fresh GPS time
+                
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 
