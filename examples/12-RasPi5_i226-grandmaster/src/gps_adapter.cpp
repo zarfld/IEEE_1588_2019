@@ -697,8 +697,8 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         if (pps_utc_locked_) {
             // Locked: increment UTC second monotonically on each PPS
             utc_sec_for_last_pps_ += 1;
-        } else if (gps_data_.time_valid) {
-            // Not locked: use NMEA to establish initial UTC label
+        } else if (gps_data_.time_valid && utc_sec_for_last_pps_ == 0) {
+            // Not locked AND no valid UTC yet: use NMEA to establish initial UTC label
             
             // Calculate NMEA UTC second
             struct tm gps_tm{};
@@ -757,6 +757,10 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                 // Not enough samples - use tentative label (assume last PPS)
                 utc_sec_for_last_pps_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
             }
+        } else if (utc_sec_for_last_pps_ > 0) {
+            // Already have valid UTC but not locked yet: increment monotonically
+            // (don't wait for lock to start incrementing - prevents NMEA stale data issue)
+            utc_sec_for_last_pps_ += 1;
         }
         // Note: last_pps_seq_ already updated at start of new_pps block
     }
