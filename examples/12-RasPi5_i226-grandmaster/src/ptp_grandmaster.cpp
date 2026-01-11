@@ -155,6 +155,7 @@ int main(int argc, char* argv[])
         uint64_t last_gps_seconds = 0;  // Last GPS time for frequency measurement
         bool locked = false;          // True when PHC is locked to GPS
         bool freq_calibrated = false; // True when iterative frequency calibration complete
+        int32_t cumulative_freq_ppb = 0;  // SOFTWARE TRACKING: Total frequency adjustment applied
         const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
         const int32_t freq_max_ppb = 500000;        // ±500ppm per adjustment (safe iterative steps)
     } phc_servo;
@@ -434,15 +435,9 @@ int main(int argc, char* argv[])
                         
                         // Check if still drifting significantly
                         if (std::abs(drift_ppm) > 100) {  // Still needs calibration
-                            // CRITICAL FIX: Read current frequency first (read-modify-write pattern)
-                            // adjust_phc_frequency() sets ABSOLUTE value, not cumulative!
-                            int32_t current_freq_ppb = 0;
-                            if (!ptp_hal.get_phc_frequency(&current_freq_ppb)) {
-                                std::cerr << "[PHC ERROR] Failed to read current frequency!\n";
-                                phc_servo.last_offset_ns = offset_ns;
-                                phc_servo.last_gps_seconds = gps_seconds;
-                                continue;
-                            }
+                            // CRITICAL FIX: Track cumulative frequency in SOFTWARE
+                            // Linux kernel doesn't provide a way to READ current frequency!
+                            // get_phc_frequency() returns limits (±62.5 ppm), not actual frequency.
                             
                             // Calculate correction needed (clamped per iteration)
                             int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
@@ -452,8 +447,8 @@ int main(int argc, char* argv[])
                                 correction_ppb = -phc_servo.freq_max_ppb;
                             }
                             
-                            // Calculate new TOTAL frequency (cumulative)
-                            int32_t new_freq_ppb = current_freq_ppb + correction_ppb;
+                            // Calculate new TOTAL frequency (cumulative in software)
+                            int32_t new_freq_ppb = phc_servo.cumulative_freq_ppb + correction_ppb;
                             
                             // Clamp total frequency to hardware limits (±500,000 ppb = ±500 ppm)
                             const int32_t max_total_freq = 500000;  // i226 hardware limit
@@ -461,12 +456,15 @@ int main(int argc, char* argv[])
                             if (new_freq_ppb < -max_total_freq) new_freq_ppb = -max_total_freq;
                             
                             std::cout << "[PHC Calibration] Iteration: Measured " << drift_ppm << " ppm drift\n"
-                                      << "  Current freq: " << current_freq_ppb << " ppb, "
+                                      << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
                                       << "Correction: " << correction_ppb << " ppb, "
                                       << "New total: " << new_freq_ppb << " ppb\n";
                             
                             // Apply new TOTAL frequency (absolute set)
                             ptp_hal.adjust_phc_frequency(new_freq_ppb);
+                            
+                            // Update our software tracker
+                            phc_servo.cumulative_freq_ppb = new_freq_ppb;
                             
                             // Reset baseline for next iteration
                             phc_servo.last_offset_ns = offset_ns;
@@ -512,7 +510,9 @@ int main(int argc, char* argv[])
                         phc_servo.integral = -phc_servo.integral_max;
                     }
                     
-                    // Calculate frequency adjustment
+                    // Calculate frequency adjustment from PI controller
+                    // CRITICAL: This is the TOTAL frequency needed, not incremental!
+                    // The PI servo integrates over time, so the output IS the total correction.
                     double adjustment = phc_servo.kp * offset_ns + phc_servo.ki * phc_servo.integral;
                     int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
                     
@@ -523,7 +523,16 @@ int main(int argc, char* argv[])
                         freq_ppb = -phc_servo.freq_max_ppb;
                     }
                     
-                    ptp_hal.adjust_phc_frequency(freq_ppb);
+                    // PI servo output is TOTAL frequency (calibration already applied)
+                    // Add to calibrated base frequency for final adjustment
+                    int32_t total_freq_ppb = phc_servo.cumulative_freq_ppb + freq_ppb;
+                    
+                    // Clamp total to hardware limits
+                    const int32_t max_total_freq = 500000;
+                    if (total_freq_ppb > max_total_freq) total_freq_ppb = max_total_freq;
+                    if (total_freq_ppb < -max_total_freq) total_freq_ppb = -max_total_freq;
+                    
+                    ptp_hal.adjust_phc_frequency(total_freq_ppb);
                     
                     // Lock detection at 1µs threshold (looser than original 100ns)
                     if (std::abs(offset_ns) < 1000 && !phc_servo.locked) {
