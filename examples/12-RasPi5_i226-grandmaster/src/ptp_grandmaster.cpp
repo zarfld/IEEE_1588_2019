@@ -441,6 +441,15 @@ int main(int argc, char* argv[])
                     // Calculate elapsed PPS pulses (each pulse = exactly 1 second)
                     uint32_t elapsed_pulses = pps_data.sequence - phc_servo.baseline_pps_seq;
                     
+                    // Progress logging every 5 pulses during calibration
+                    static uint32_t last_progress_pulses = 0;
+                    if (elapsed_pulses > 0 && elapsed_pulses % 5 == 0 && elapsed_pulses != last_progress_pulses) {
+                        std::cout << "[PHC Calibration] Progress: " << elapsed_pulses << "/" 
+                                  << phc_servo.calib_interval_pulses << " pulses (PPS #" 
+                                  << pps_data.sequence << ")...\n";
+                        last_progress_pulses = elapsed_pulses;
+                    }
+                    
                     if (elapsed_pulses >= phc_servo.calib_interval_pulses) {  // Enough pulses for measurement
                         // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
                         int64_t phc_delta_ns = phc_time_ns - phc_servo.baseline_phc_ns;
@@ -496,12 +505,16 @@ int main(int argc, char* argv[])
                                       << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";
                             phc_servo.freq_calibrated = true;
                         }
+                    } else if (elapsed_pulses > 0) {
+                        // Show we're waiting for enough pulses, but don't skip servo entirely
+                        // This allows the calibration check to run on every iteration
                     }
                 }
                 
-                // During frequency calibration, skip step corrections to avoid corrupting measurement
+                // During frequency calibration, skip PHASE corrections to avoid corrupting frequency measurement
+                // But we still need to check calibration progress above!
                 if (!phc_servo.freq_calibrated) {
-                    continue;  // Skip this iteration, let PHC drift naturally for measurement
+                    continue;  // Skip phase servo, let PHC drift naturally for frequency measurement
                 }
                 
                 // After calibration complete on first iteration, step time once to eliminate accumulated offset
