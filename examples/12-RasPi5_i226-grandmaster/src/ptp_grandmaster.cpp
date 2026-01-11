@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
                             phc_servo.integral = 0.0;
                             phc_servo.last_offset_ns = 0;
                             phc_servo.last_gps_seconds = gps_seconds;
-                            return;  // Skip servo this iteration
+                            continue;  // Skip servo this iteration
                         } else {
                             std::cout << "[PHC Calibration] Frequency offset acceptable: " << drift_ppm << " ppm\n";
                             phc_servo.freq_calibrated = true;
