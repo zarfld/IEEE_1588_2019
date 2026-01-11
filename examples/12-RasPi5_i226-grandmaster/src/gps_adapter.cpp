@@ -686,21 +686,16 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
     // - Atomic pairing prevents association ambiguity
     
     if (!pps_data_.valid) {
-        printf("[get_ptp_time] PPS not valid, returning false\n");
         return false;  // No PPS = no reliable time
     }
     
     // Check if we have a new PPS pulse (not needed for locked mode, but keep for unlock)
     bool new_pps = (pps_data_.sequence != base_pps_seq_);
     
-    printf("[get_ptp_time] locked=%d new_pps=%d pps_seq=%lu base_pps=%lu\n",
-           pps_utc_locked_, new_pps, pps_data_.sequence, base_pps_seq_);
-    
     if (pps_utc_locked_) {
         // LOCKED: Use base mapping model UTC(seq) = base_utc + (seq - base_seq)
         // This is race-free and handles all PPS updates atomically
         // No per-PPS updates needed!
-        printf("[get_ptp_time] LOCKED path - using base mapping\n");
     } else if (new_pps && gps_data_.time_valid) {
             // Not locked: process NMEA for association detection or UTC initialization
             
@@ -784,12 +779,9 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
         *nanoseconds = pps_data_.assert_nsec;
-        printf("[get_ptp_time] Returning TRUE: seconds=%lu (base_utc=%lu + seq_diff=%ld)\n",
-               *seconds, base_utc_sec_, (int64_t)(pps_data_.sequence - base_pps_seq_));
         return true;
     }
     
-    printf("[get_ptp_time] base_utc_sec=0, returning FALSE\n");
     return false;  // Not initialized yet
 }
 

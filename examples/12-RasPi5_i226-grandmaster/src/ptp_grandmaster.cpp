@@ -23,7 +23,6 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <cmath>
-#include <chrono>
 
 using namespace IEEE::_1588::PTP::_2019::Linux;
 
@@ -152,7 +151,7 @@ int main(int argc, char* argv[])
     size_t drift_buffer_count = 0;                   // Valid samples
     uint64_t last_drift_calc_time = 0;              // Last GPS time when drift was calculated
     int64_t last_time_error_ns = 0;                 // Last measured time error
-    uint64_t drift_measurement_counter = 0;          // Counter for 1-second drift measurement intervals    
+    
     // Latest drift measurements for PPS display
     double current_drift_ppm = 0.0;                 // Most recent drift measurement
     double current_drift_avg = 0.0;                 // Current moving average
@@ -165,13 +164,7 @@ int main(int argc, char* argv[])
     uint64_t last_aging_offset_adjustment_time = 0;  // GPS time of last aging offset adjustment
     bool rtc_initial_sync_done = false;              // Flag to force initial RTC sync on GPS lock
     
-    // DEBUG: Track actual loop timing
-    auto loop_start_time = std::chrono::steady_clock::now();
-    uint64_t loop_iteration = 0;
-    
     while (g_running) {
-        loop_iteration++;
-        
         // Update GPS data (read NMEA sentences and PPS)
         gps_adapter.update();
         
@@ -200,189 +193,176 @@ int main(int argc, char* argv[])
             // Synchronize PHC to GPS time
             ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
 
-            // Drift measurement every second (10 iterations @ 100ms = 1 second)
-            drift_measurement_counter++;
-            
-            // DEBUG: Measure actual loop timing
-            auto now = std::chrono::steady_clock::now();
-            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - loop_start_time).count();
-            printf("[Drift Debug] counter=%lu loop_iter=%lu elapsed_total=%ldms (avg=%.1fms/iter)\n", 
-                   drift_measurement_counter, loop_iteration, elapsed_ms, (double)elapsed_ms / loop_iteration);
-            
-            if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
-                drift_measurement_counter = 0;  // Reset counter
-                printf("[Drift Debug] ✓ Counter triggered after %ldms! Re-reading GPS time...\n", elapsed_ms);
+            // Drift measurement based on ACTUAL elapsed GPS time (not iteration counter)
+            // Loop timing varies (NMEA I/O overhead), so iteration count is unreliable
+            // Use actual GPS time difference for precise 1-second drift measurements
+            if (last_drift_calc_time > 0) {
+                uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
                 
-                // Re-fetch GPS time from already-updated PPS data
-                // DO NOT call update() again - that would fetch a NEW PPS pulse!
-                // The update() at start of loop already fetched the current PPS
-                gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);  // Re-read from existing PPS data
-                printf("[Drift Debug] GPS time re-read: gps_seconds=%lu\n", gps_seconds);
+                // Only perform drift measurement when GPS time has advanced (1+ seconds)
+                if (elapsed_sec >= 1) {
+                    uint64_t rtc_seconds = 0;
+                    uint32_t rtc_nanoseconds = 0;
+                    
+                    if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
+                        // Calculate time error (RTC - GPS)
+                        // NOTE: RTC is set to GPS+1 second (see sync_from_gps in rtc_adapter.cpp)
+                        // to compensate for I2C write latency and 1-second RTC resolution.
+                        // Therefore, we must compare RTC to (GPS+1) for accurate drift measurement.
+                        int64_t rtc_time_ns = static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds;
+                        int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;  // GPS+1
+                        int64_t time_error_ns = rtc_time_ns - gps_time_ns;
+                        
+                        // Drift rate = change in error / time interval
+                        int64_t error_change_ns = time_error_ns - last_time_error_ns;
+                        double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
+                        
+                        // Add to circular buffer
+                        drift_buffer[drift_buffer_index] = drift_ppm;
+                        drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
+                        if (drift_buffer_count < drift_buffer_size) {
+                            drift_buffer_count++;
+                        }
+                        
+                        // Calculate moving average
+                        double drift_avg = 0.0;
+                        for (size_t i = 0; i < drift_buffer_count; i++) {
+                            drift_avg += drift_buffer[i];
+                        }
+                        drift_avg /= drift_buffer_count;
+                        
+                        // Store for PPS display
+                        current_drift_ppm = drift_ppm;
+                        current_drift_avg = drift_avg;
+                        current_time_error_ms = time_error_ns / 1000000.0;
+                        drift_valid = true;
+                        
+                        // Phase 1: Adjust aging offset if average drift exceeds tolerance
+                        // Best practice: small incremental adjustments, not full recalculation
+                        // Wait minimum interval between adjustments to allow settling
+                        uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
+                            ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
+                        
+                        if (sync_counter > 1200 && 
+                            std::abs(drift_avg) > drift_tolerance_ppm &&
+                            time_since_last_adjustment >= min_adjustment_interval_sec) {
+                            
+                            // Read current aging offset from register
+                            int8_t current_offset = rtc_adapter.read_aging_offset();
+                            
+                            // Calculate small adjustment (±1 or ±2 LSB max)
+                            // drift_avg is in ppm, each LSB = 0.1 ppm
+                            int8_t adjustment = 0;
+                            if (drift_avg > 0.15) {
+                                adjustment = -2;  // Speeding up too much, slow down
+                            } else if (drift_avg > 0.05) {
+                                adjustment = -1;
+                            } else if (drift_avg < -0.15) {
+                                adjustment = 2;   // Slowing down too much, speed up
+                            } else if (drift_avg < -0.05) {
+                                adjustment = 1;
+                            }
+                            
+                            if (adjustment != 0) {
+                                int8_t new_offset = current_offset + adjustment;
+                                
+                                std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
+                                         << drift_tolerance_ppm << " ppm threshold\n";
+                                std::cout << "[RTC Discipline] Applying incremental aging offset adjustment...\n";
+                                std::cout << "[RTC Discipline] Current offset: " << static_cast<int>(current_offset) 
+                                         << " LSB → New: " << static_cast<int>(new_offset) 
+                                         << " LSB (Δ=" << static_cast<int>(adjustment) << ")\n";
+                                
+                                if (rtc_adapter.write_aging_offset(new_offset)) {
+                                    std::cout << "[RTC Discipline] ✓ Aging offset adjusted: " 
+                                             << static_cast<int>(new_offset) << " LSB (" 
+                                             << (new_offset * 0.1) << " ppm)\n";
+                                    
+                                    last_aging_offset_adjustment_time = gps_seconds;
+                                    
+                                    // Clear buffer after frequency adjustment
+                                    drift_buffer_count = 0;
+                                    drift_buffer_index = 0;
+                                    drift_valid = false;  // Invalidate until new measurement
+                                    last_drift_calc_time = 0;  // Reset measurement baseline
+                                    last_time_error_ns = 0;    // Reset error baseline
+                                    std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
+                                } else {
+                                    std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
+                                }
+                            }
+                        }
+                        
+                        // Phase 2: Sync RTC time only if absolute error exceeds tolerance
+                        // NOTE: RTC has 1-second resolution, so we expect ~1 sec constant offset
+                        // Only sync if error changes significantly (indicates actual drift)
+                        
+                        // Force initial sync when GPS first locks (during warmup phase)
+                        bool force_sync = !rtc_initial_sync_done;
+                        bool sync_happened = false;  // Track if we synced
+                        if (force_sync || std::abs(time_error_ns) > time_sync_tolerance_ns) {
+                            // Check if this is just the expected 1-second quantization
+                            double error_ms = time_error_ns / 1000000.0;
+                            double abs_error_ms = std::abs(error_ms);
+                            
+                            // If error is close to 1 second (±50ms tolerance), it's just quantization
+                            // BUT: always sync on first GPS lock (force_sync=true)
+                            bool is_quantization_error = !force_sync && (abs_error_ms > 950.0 && abs_error_ms < 1050.0);
+                            
+                            if (!is_quantization_error) {
+                                if (force_sync) {
+                                    std::cout << "[RTC Sync] Initial sync to GPS time (error=" << error_ms << "ms)\n";
+                                } else {
+                                    std::cout << "[RTC Sync] ⚠ Time error " << error_ms
+                                             << " ms exceeds ±" << (time_sync_tolerance_ns / 1000000.0) 
+                                             << " ms threshold (not quantization)\n";
+                                }
+                                std::cout << "[RTC Sync] Synchronizing RTC to GPS time...\n";
+                                
+                                if (rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds)) {
+                                    std::cout << "[RTC Sync] ✓ RTC synchronized\n";
+                                    rtc_initial_sync_done = true;  // Mark initial sync complete
+                                    sync_happened = true;  // Mark that sync occurred
+                                    
+                                    // Clear drift buffer (measurement invalid after time jump)
+                                    drift_buffer_count = 0;
+                                    drift_buffer_index = 0;
+                                    last_drift_calc_time = 0;  // Reset to restart measurement
+                                    last_time_error_ns = 0;    // Reset error baseline (prevent false drift from old error)
+                                    // NOTE: Don't clear drift_valid - keep showing last known drift
+                                    std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
+                                } else {
+                                    std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
+                                }
+                            }
+                            // else: Ignore 1-second quantization error - drift measurement still valid
+                        }
+                        
+                        // Only update baseline if we didn't just sync (sync already reset to 0)
+                        if (!sync_happened) {
+                            last_drift_calc_time = gps_seconds;
+                            last_time_error_ns = time_error_ns;
+                        }
+                    } else {
+                        // RTC read failed - skip this measurement
+                    }
+                }
+                // else: GPS time hasn't advanced yet, skip measurement
+            } else {
+                // First measurement - initialize baseline
+                last_drift_calc_time = gps_seconds;
                 
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
-                
                 if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
-                    // Calculate time error (RTC - GPS)
-                    // NOTE: RTC is set to GPS+1 second (see sync_from_gps in rtc_adapter.cpp)
-                    // to compensate for I2C write latency and 1-second RTC resolution.
-                    // Therefore, we must compare RTC to (GPS+1) for accurate drift measurement.
                     int64_t rtc_time_ns = static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds;
-                    int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;  // GPS+1
-                    int64_t time_error_ns = rtc_time_ns - gps_time_ns;
-                    
-                    // Calculate drift rate if we have previous measurement
-                    if (last_drift_calc_time > 0) {
-                        uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
-                        printf("[Drift Debug] last_drift_calc_time=%lu elapsed_sec=%lu\n", 
-                               last_drift_calc_time, elapsed_sec);
-                        if (elapsed_sec >= 1) {  // Ensure 1 second elapsed (PPS pulse interval)
-                            printf("[Drift Debug] ✓ elapsed_sec >= 1, executing drift measurement!\n");
-                            // Drift rate = change in error / time interval
-                            int64_t error_change_ns = time_error_ns - last_time_error_ns;
-                            double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
-                            
-                            // Add to circular buffer
-                            drift_buffer[drift_buffer_index] = drift_ppm;
-                            drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
-                            if (drift_buffer_count < drift_buffer_size) {
-                                drift_buffer_count++;
-                            }
-                            
-                            // Calculate moving average
-                            double drift_avg = 0.0;
-                            for (size_t i = 0; i < drift_buffer_count; i++) {
-                                drift_avg += drift_buffer[i];
-                            }
-                            drift_avg /= drift_buffer_count;
-                            
-                            // Store for PPS display
-                            current_drift_ppm = drift_ppm;
-                            current_drift_avg = drift_avg;
-                            current_time_error_ms = time_error_ns / 1000000.0;
-                            drift_valid = true;
-                            
-                            // Phase 1: Adjust aging offset if average drift exceeds tolerance
-                            // Best practice: small incremental adjustments, not full recalculation
-                            // Wait minimum interval between adjustments to allow settling
-                            uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
-                                ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
-                            
-                            if (sync_counter > 1200 && 
-                                std::abs(drift_avg) > drift_tolerance_ppm &&
-                                time_since_last_adjustment >= min_adjustment_interval_sec) {
-                                
-                                // Read current aging offset from register
-                                int8_t current_offset = rtc_adapter.read_aging_offset();
-                                
-                                // Calculate small adjustment (±1 or ±2 LSB max)
-                                // drift_avg is in ppm, each LSB = 0.1 ppm
-                                int8_t adjustment = 0;
-                                if (drift_avg > 0.15) {
-                                    adjustment = -2;  // Speeding up too much, slow down
-                                } else if (drift_avg > 0.05) {
-                                    adjustment = -1;
-                                } else if (drift_avg < -0.15) {
-                                    adjustment = 2;   // Slowing down too much, speed up
-                                } else if (drift_avg < -0.05) {
-                                    adjustment = 1;
-                                }
-                                
-                                if (adjustment != 0) {
-                                    int8_t new_offset = current_offset + adjustment;
-                                    
-                                    std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
-                                             << drift_tolerance_ppm << " ppm threshold\n";
-                                    std::cout << "[RTC Discipline] Applying incremental aging offset adjustment...\n";
-                                    std::cout << "[RTC Discipline] Current offset: " << static_cast<int>(current_offset) 
-                                             << " LSB → New: " << static_cast<int>(new_offset) 
-                                             << " LSB (Δ=" << static_cast<int>(adjustment) << ")\n";
-                                    
-                                    if (rtc_adapter.write_aging_offset(new_offset)) {
-                                        std::cout << "[RTC Discipline] ✓ Aging offset adjusted: " 
-                                                 << static_cast<int>(new_offset) << " LSB (" 
-                                                 << (new_offset * 0.1) << " ppm)\n";
-                                        
-                                        last_aging_offset_adjustment_time = gps_seconds;
-                                        
-                                        // Clear buffer after frequency adjustment
-                                        drift_buffer_count = 0;
-                                        drift_buffer_index = 0;
-                                        drift_valid = false;  // Invalidate until new measurement
-                                        last_drift_calc_time = 0;  // Reset measurement baseline
-                                        last_time_error_ns = 0;    // Reset error baseline
-                                        std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
-                                    } else {
-                                        std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
-                                    }
-                                }
-                            }
-                            
-                            // Phase 2: Sync RTC time only if absolute error exceeds tolerance
-                            // NOTE: RTC has 1-second resolution, so we expect ~1 sec constant offset
-                            // Only sync if error changes significantly (indicates actual drift)
-                            
-                            // Force initial sync when GPS first locks (during warmup phase)
-                            bool force_sync = !rtc_initial_sync_done;
-                            bool sync_happened = false;  // Track if we synced
-                            
-                            if (force_sync || std::abs(time_error_ns) > time_sync_tolerance_ns) {
-                                // Check if this is just the expected 1-second quantization
-                                double error_ms = time_error_ns / 1000000.0;
-                                double abs_error_ms = std::abs(error_ms);
-                                
-                                // If error is close to 1 second (±50ms tolerance), it's just quantization
-                                // BUT: always sync on first GPS lock (force_sync=true)
-                                bool is_quantization_error = !force_sync && (abs_error_ms > 950.0 && abs_error_ms < 1050.0);
-                                
-                                if (!is_quantization_error) {
-                                    if (force_sync) {
-                                        std::cout << "[RTC Sync] Initial sync to GPS time (error=" << error_ms << "ms)\n";
-                                    } else {
-                                        std::cout << "[RTC Sync] ⚠ Time error " << error_ms
-                                                 << " ms exceeds ±" << (time_sync_tolerance_ns / 1000000.0) 
-                                                 << " ms threshold (not quantization)\n";
-                                    }
-                                    std::cout << "[RTC Sync] Synchronizing RTC to GPS time...\n";
-                                    
-                                    if (rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds)) {
-                                        std::cout << "[RTC Sync] ✓ RTC synchronized\n";
-                                        rtc_initial_sync_done = true;  // Mark initial sync complete
-                                        sync_happened = true;  // Mark that sync occurred
-                                        
-                                        // Clear drift buffer (measurement invalid after time jump)
-                                        drift_buffer_count = 0;
-                                        drift_buffer_index = 0;
-                                        last_drift_calc_time = 0;  // Reset to restart measurement
-                                        last_time_error_ns = 0;    // Reset error baseline (prevent false drift from old error)
-                                        // NOTE: Don't clear drift_valid - keep showing last known drift
-                                        std::cout << "[RTC Sync] ℹ Drift buffer cleared (time discontinuity)\n";
-                                    } else {
-                                        std::cerr << "[RTC Sync] ✗ Failed to sync RTC\n";
-                                    }
-                                }
-                                // else: Ignore 1-second quantization error - drift measurement still valid
-                            }
-                            
-                            // Only update baseline if we didn't just sync (sync already reset to 0)
-                            if (!sync_happened) {
-                                printf("[Drift Debug] Updating baseline: last_drift_calc_time=%lu → %lu\n",
-                                       last_drift_calc_time, gps_seconds);
-                                last_drift_calc_time = gps_seconds;
-                                last_time_error_ns = time_error_ns;
-                            }
-                        } else {
-                            printf("[Drift Debug] ✗ SKIPPED! elapsed_sec=%lu < 1\n", elapsed_sec);
-                        }
-                    } else {
-                        // First measurement - initialize baseline
-                        printf("[Drift Debug] First measurement, initializing baseline: gps_seconds=%lu\n", 
-                               gps_seconds);
-                        last_drift_calc_time = gps_seconds;
-                        last_time_error_ns = time_error_ns;
-                        std::cout << "[RTC Discipline] Starting drift monitoring (60 samples @ 1 sample/sec = 60 sec window)\n";
-                        std::cout << "[RTC Discipline] Frequency tolerance: ±" << drift_tolerance_ppm << " ppm\n";
-                        std::cout << "[RTC Discipline] Time sync tolerance: ±" 
+                    int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;
+                    last_time_error_ns = rtc_time_ns - gps_time_ns;
+                }
+                
+                std::cout << "[RTC Discipline] Starting drift monitoring (60 samples @ 1 sample/sec = 60 sec window)\n";
+                std::cout << "[RTC Discipline] Frequency tolerance: ±" << drift_tolerance_ppm << " ppm\n";
+                std::cout << "[RTC Discipline] Time sync tolerance: ±" 
                                  << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
                     }
                 }
