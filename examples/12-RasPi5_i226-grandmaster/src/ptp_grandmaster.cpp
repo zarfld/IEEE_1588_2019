@@ -213,6 +213,13 @@ int main(int argc, char* argv[])
                         int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;  // GPS+1
                         int64_t time_error_ns = rtc_time_ns - gps_time_ns;
                         
+                        // DEBUG: Print actual time values to diagnose ±1000ms oscillation
+                        printf("[Drift Debug] GPS=%lu.%09u RTC=%lu.%09u GPS+1=%lu.%09u error_ns=%ld (%.3fms)\n",
+                               gps_seconds, gps_nanoseconds, 
+                               rtc_seconds, rtc_nanoseconds,
+                               gps_seconds + 1, gps_nanoseconds,
+                               time_error_ns, time_error_ns / 1000000.0);
+                        
                         // Drift rate = change in error / time interval
                         int64_t error_change_ns = time_error_ns - last_time_error_ns;
                         double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
