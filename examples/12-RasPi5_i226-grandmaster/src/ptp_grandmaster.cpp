@@ -410,8 +410,8 @@ int main(int argc, char* argv[])
             
             // Initialize common header
             PortIdentity source_port;
-            std::memcpy(source_port.clockIdentity.id, "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8); // Default clock ID
-            source_port.portNumber = detail::host_to_be16(1);
+            std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8); // Default clock ID
+            source_port.port_number = detail::host_to_be16(1);
             
             announce_msg.initialize(MessageType::Announce, 0, source_port);
             announce_msg.header.sequenceId = detail::host_to_be16(static_cast<uint16_t>(announce_counter));
@@ -427,7 +427,7 @@ int main(int argc, char* argv[])
             announce_msg.body.grandmasterClockAccuracy = clock_accuracy;
             announce_msg.body.grandmasterClockVariance = detail::host_to_be16(offset_variance);
             announce_msg.body.grandmasterPriority2 = 128;
-            std::memcpy(announce_msg.body.grandmasterIdentity.id, source_port.clockIdentity.id, 8);
+            std::copy(source_port.clock_identity.begin(), source_port.clock_identity.end(), announce_msg.body.grandmasterIdentity.begin());
             announce_msg.body.stepsRemoved = detail::host_to_be16(0);
             announce_msg.body.timeSource = 0x20; // GPS
             
@@ -463,8 +463,8 @@ int main(int argc, char* argv[])
             
             // Initialize common header (TWO_STEP mode)
             PortIdentity source_port;
-            std::memcpy(source_port.clockIdentity.id, "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
-            source_port.portNumber = detail::host_to_be16(1);
+            std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
+            source_port.port_number = detail::host_to_be16(1);
             
             sync_msg.initialize(MessageType::Sync, 0, source_port);
             sync_msg.header.sequenceId = detail::host_to_be16(static_cast<uint16_t>(sync_counter));
@@ -472,8 +472,8 @@ int main(int argc, char* argv[])
             sync_msg.header.logMessageInterval = 0; // 1 second = 2^0
             
             // Origin timestamp (will be replaced by hardware TX timestamp)
-            sync_msg.body.originTimestamp.secondsField = gps_seconds;
-            sync_msg.body.originTimestamp.nanosecondsField = gps_nanoseconds;
+            sync_msg.body.originTimestamp.setTotalSeconds(gps_seconds);
+            sync_msg.body.originTimestamp.nanoseconds = gps_nanoseconds;
             
             // Send via HAL with hardware TX timestamp
             HardwareTimestamp tx_ts;
@@ -487,8 +487,8 @@ int main(int argc, char* argv[])
                 followup_msg.header.logMessageInterval = 0;
                 
                 // Precise origin timestamp from hardware
-                followup_msg.body.preciseOriginTimestamp.secondsField = tx_ts.seconds;
-                followup_msg.body.preciseOriginTimestamp.nanosecondsField = tx_ts.nanoseconds;
+                followup_msg.body.preciseOriginTimestamp.setTotalSeconds(tx_ts.seconds);
+                followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
                 
                 ptp_hal.send_message(&followup_msg, followup_msg.getMessageSize(), nullptr);
                 
