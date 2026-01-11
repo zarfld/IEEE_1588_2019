@@ -711,11 +711,7 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             
             // Only process if this is NEW NMEA data (not stale)
             if (nmea_utc_sec == last_nmea_time_) {
-                // Stale NMEA - just increment UTC if we have it
-                if (utc_sec_for_last_pps_ > 0) {
-                    utc_sec_for_last_pps_ += 1;
-                }
-                // Don't process association with stale data
+                // Stale NMEA - base mapping still works, nothing to do
             } else {
                 // Fresh NMEA data - update tracking and process association
                 last_nmea_time_ = nmea_utc_sec;
@@ -772,7 +768,6 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             }
             } // End fresh NMEA block
         }
-    }
     
     // Return PPS-UTC pair using BASE MAPPING model
     if (base_utc_sec_ > 0) {
