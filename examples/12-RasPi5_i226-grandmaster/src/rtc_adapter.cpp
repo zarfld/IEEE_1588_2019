@@ -185,6 +185,8 @@ bool RtcAdapter::set_ptp_time(uint64_t seconds, uint32_t nanoseconds)
 
 bool RtcAdapter::sync_from_gps(uint64_t gps_seconds, uint32_t gps_nanoseconds)
 {
+    (void)gps_nanoseconds;  // RTC doesn't support nanosecond precision
+    
     // Best practice from bp.md Section 4:
     // "If PPS indicates the start of a UTC second T, then right after the PPS edge
     //  you want DS3231 to read T+1 (because your code path can't complete instantly)."
