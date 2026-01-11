@@ -109,6 +109,12 @@ int main(int argc, char* argv[])
     std::cout << "GPS: " << gps_device << "\n";
     std::cout << "PPS: " << pps_device << "\n";
     std::cout << "RTC: " << rtc_device << "\n\n";
+    
+    // EXPERT ADVICE (deb.md): Verify PHC device mapping to interface
+    // Check sysfs: /sys/class/net/<if>/ptp should point to our PHC device
+    std::cout << "⚠️  IMPORTANT: Verify PHC mapping with:\n";
+    std::cout << "   readlink -f /sys/class/net/" << interface << "/ptp\n";
+    std::cout << "   (should show: /sys/class/ptp/" << phc_device.substr(5) << ")\n\n";
 
     // Install signal handlers
     signal(SIGINT, signal_handler);
@@ -431,17 +437,25 @@ int main(int argc, char* argv[])
                         int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
                                            + pps_data.assert_nsec;
                         
+                        // EXPERT WARNING: This extrapolation assumes small latency!
+                        // If (sys_now - pps_sys) > 100ms, correlation is unreliable
+                        int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
+                        
                         // Calculate PHC time at PPS edge using correlation:
                         // phc_at_pps = phc_now - (sys_now - pps_sys)
-                        int64_t phc_at_pps_ns = phc_now_ns - (sys_now_ns - pps_sys_ns);
+                        int64_t phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
                         
                         phc_servo.baseline_pps_seq = pps_data.sequence;
                         phc_servo.baseline_phc_ns = phc_at_pps_ns;
                         phc_servo.last_offset_ns = offset_ns;  // For phase servo later
                         
                         std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
-                                  << " (system: " << pps_sys_ns << " ns, PHC: " << phc_at_pps_ns << " ns)\n"
-                                  << "  Will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
+                                  << " (PHC: " << phc_at_pps_ns << " ns)\n"
+                                  << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms";
+                        if (sampling_latency_ns > 100000000LL) {  // > 100ms
+                            std::cout << " ⚠️  HIGH LATENCY!";
+                        }
+                        std::cout << "\n  Will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
                     } else {
                         std::cerr << "[PHC Calibration] ERROR: Failed to get PHC-system correlation!\n";
                     }
@@ -474,7 +488,10 @@ int main(int argc, char* argv[])
                         if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
                             int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
                                                + pps_data.assert_nsec;
-                            int64_t phc_at_pps_ns = phc_now_ns - (sys_now_ns - pps_sys_ns);
+                            
+                            // Log sampling latency (EXPERT: if > 100ms, measurement unreliable)
+                            int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
+                            int64_t phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
                             
                             // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
                             int64_t phc_delta_ns = phc_at_pps_ns - phc_servo.baseline_phc_ns;
@@ -483,6 +500,24 @@ int main(int argc, char* argv[])
                             // Calculate drift in ppm (parts per million)
                             // drift_ppm = ((PHC_measured - reference) / reference) × 10^6
                             double drift_ppm = (static_cast<double>(phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6;
+                            
+                            // EXPERT SANITY CHECK: Reject unrealistic drift (likely sampling error)
+                            // Normal PHC crystal offset: < ±100 ppm, generous threshold: 2000 ppm
+                            if (std::abs(drift_ppm) > 2000) {
+                                std::cerr << "[PHC Calibration] ❌ INVALID MEASUREMENT: " << std::fixed << std::setprecision(1)
+                                          << drift_ppm << " ppm (exceeds ±2000 ppm threshold)\n"
+                                          << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
+                                          << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms\n"
+                                          << "  LIKELY CAUSES:\n"
+                                          << "    1. Wrong PHC device (verify: readlink /sys/class/net/eth1/ptp)\n"
+                                          << "    2. High sampling latency (PPS timestamp too old)\n"
+                                          << "    3. PHC time discontinuity (clock step during measurement)\n"
+                                          << "  Resetting baseline and retrying...\n";
+                                // Reset baseline and try again
+                                phc_servo.baseline_pps_seq = pps_data.sequence;
+                                phc_servo.baseline_phc_ns = phc_at_pps_ns;
+                                continue;
+                            }
                         
                             // Check if still drifting significantly
                             if (std::abs(drift_ppm) > 100) {  // Still needs calibration
@@ -510,6 +545,7 @@ int main(int argc, char* argv[])
                                 std::cout << "[PHC Calibration] Iteration (" << elapsed_pulses << " pulses): Measured " 
                                           << std::fixed << std::setprecision(1) << drift_ppm << " ppm drift\n"
                                           << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
+                                          << "  Sampling latency: " << (sampling_latency_ns / 1000000.0) << " ms\n"
                                           << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
                                           << "Correction: " << correction_ppb << " ppb, "
                                           << "New total: " << new_freq_ppb << " ppb\n";
