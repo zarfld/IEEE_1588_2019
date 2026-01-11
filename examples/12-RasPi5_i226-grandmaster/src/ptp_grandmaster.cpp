@@ -160,6 +160,8 @@ int main(int argc, char* argv[])
     
     constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
     constexpr int64_t time_sync_tolerance_ns = 100000000; // 100ms - only sync if error exceeds this
+    constexpr uint64_t min_adjustment_interval_sec = 600; // 10 minutes minimum between aging offset adjustments
+    uint64_t last_aging_offset_adjustment_time = 0;  // GPS time of last aging offset adjustment
     
     while (g_running) {
         // Update GPS data (read NMEA sentences and PPS)
@@ -233,26 +235,56 @@ int main(int argc, char* argv[])
                             drift_valid = true;
                             
                             // Phase 1: Adjust aging offset if average drift exceeds tolerance
-                            // Require 2 minute warmup (120 sec = 1200 iterations) before adjusting
-                            // Tolerance is aging offset LSB resolution: 0.1 ppm
-                            if (sync_counter > 1200 && std::abs(drift_avg) > drift_tolerance_ppm) {
-                                std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
-                                         << drift_tolerance_ppm << " ppm threshold\n";
-                                std::cout << "[RTC Discipline] Applying aging offset correction...\n";
+                            // Best practice: small incremental adjustments, not full recalculation
+                            // Wait minimum interval between adjustments to allow settling
+                            uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
+                                ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
+                            
+                            if (sync_counter > 1200 && 
+                                std::abs(drift_avg) > drift_tolerance_ppm &&
+                                time_since_last_adjustment >= min_adjustment_interval_sec) {
                                 
-                                if (rtc_adapter.apply_frequency_discipline(drift_avg)) {
-                                    int8_t aging_offset = rtc_adapter.read_aging_offset();
-                                    std::cout << "[RTC Discipline] ✓ Aging offset: " 
-                                             << static_cast<int>(aging_offset) << " LSB (" 
-                                             << (aging_offset * 0.1) << " ppm)\n";
+                                // Read current aging offset from register
+                                int8_t current_offset = rtc_adapter.read_aging_offset();
+                                
+                                // Calculate small adjustment (±1 or ±2 LSB max)
+                                // drift_avg is in ppm, each LSB = 0.1 ppm
+                                int8_t adjustment = 0;
+                                if (drift_avg > 0.15) {
+                                    adjustment = -2;  // Speeding up too much, slow down
+                                } else if (drift_avg > 0.05) {
+                                    adjustment = -1;
+                                } else if (drift_avg < -0.15) {
+                                    adjustment = 2;   // Slowing down too much, speed up
+                                } else if (drift_avg < -0.05) {
+                                    adjustment = 1;
+                                }
+                                
+                                if (adjustment != 0) {
+                                    int8_t new_offset = current_offset + adjustment;
                                     
-                                    // Clear buffer after frequency adjustment
-                                    drift_buffer_count = 0;
-                                    drift_buffer_index = 0;
-                                    drift_valid = false;  // Invalidate until new measurement
-                                    std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
-                                } else {
-                                    std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
+                                    std::cout << "[RTC Discipline] ⚠ Drift " << drift_avg << " ppm exceeds ±" 
+                                             << drift_tolerance_ppm << " ppm threshold\n";
+                                    std::cout << "[RTC Discipline] Applying incremental aging offset adjustment...\n";
+                                    std::cout << "[RTC Discipline] Current offset: " << static_cast<int>(current_offset) 
+                                             << " LSB → New: " << static_cast<int>(new_offset) 
+                                             << " LSB (Δ=" << static_cast<int>(adjustment) << ")\n";
+                                    
+                                    if (rtc_adapter.write_aging_offset(new_offset)) {
+                                        std::cout << "[RTC Discipline] ✓ Aging offset adjusted: " 
+                                                 << static_cast<int>(new_offset) << " LSB (" 
+                                                 << (new_offset * 0.1) << " ppm)\n";
+                                        
+                                        last_aging_offset_adjustment_time = gps_seconds;
+                                        
+                                        // Clear buffer after frequency adjustment
+                                        drift_buffer_count = 0;
+                                        drift_buffer_index = 0;
+                                        drift_valid = false;  // Invalidate until new measurement
+                                        std::cout << "[RTC Discipline] ℹ Drift buffer cleared (re-measuring)\n";
+                                    } else {
+                                        std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
+                                    }
                                 }
                             }
                             
