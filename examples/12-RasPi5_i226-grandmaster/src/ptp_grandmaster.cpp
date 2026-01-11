@@ -214,6 +214,14 @@ int main(int argc, char* argv[])
                     if (last_drift_calc_time > 0) {
                         uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
                         if (elapsed_sec >= 1) {  // Ensure 1 second elapsed (PPS pulse interval)
+                            // DEBUG: Show elapsed time
+                            static int drift_debug_counter = 0;
+                            if (++drift_debug_counter % 5 == 1) {
+                                std::cout << "[Drift Debug] elapsed=" << elapsed_sec << "s "
+                                          << "gps=" << gps_seconds << " last=" << last_drift_calc_time
+                                          << " buffer_count=" << drift_buffer_count << "\n";
+                            }
+                            
                             // Drift rate = change in error / time interval
                             int64_t error_change_ns = time_error_ns - last_time_error_ns;
                             double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
