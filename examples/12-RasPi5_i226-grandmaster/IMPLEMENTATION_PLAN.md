@@ -2,18 +2,19 @@
 
 **Project**: IEEE 1588-2019 PTP Grandmaster on Raspberry Pi 5  
 **Hardware**: Intel i226 NIC, u-blox GPS, DS3231 RTC, PPS GPIO  
-**Status**: ✅ Implementation Complete - Ready for Integration Testing  
-**Updated**: 2026-01-11
+**Status**: ⏳ Partial Implementation - Core Missing for Slave Sync  
+**Updated**: 2026-01-11  
+**Completion**: ~50% (GPS/RTC done, HAL partial, PTP messages incomplete)
 
 ---
 
 ## 🎯 Objectives
 
-1. ✅ **Integrate** this repository's IEEE 1588-2019 code with Raspberry Pi 5 hardware
-2. ✅ **Implement** Linux-specific HAL for hardware timestamping
-3. ✅ **Create** GPS-disciplined grandmaster clock application
-4. ⏳ **Enable** remote debugging capabilities (infrastructure ready)
-5. ⏳ **Validate** IEEE 1588-2019 compliance and timing accuracy (ready for testing)
+1. ⏳ **Integrate** this repository's IEEE 1588-2019 code with Raspberry Pi 5 hardware (partial - using types but not full integration)
+2. ⏳ **Implement** Linux-specific HAL for hardware timestamping (60% - TX timestamps done, RX incomplete)
+3. ⏳ **Create** GPS-disciplined grandmaster clock application (partial - transmits but can't respond to slaves)
+4. ❌ **Enable** Delay_Req/Delay_Resp mechanism (CRITICAL MISSING - slaves cannot synchronize)
+5. ❌ **Validate** IEEE 1588-2019 compliance and timing accuracy (blocked by missing features)
 
 ---
 
@@ -83,15 +84,17 @@ examples/12-RasPi5_i226-grandmaster/
 ### Phase 1: Linux HAL Implementation
 
 **Goal**: Create hardware abstraction layer for Linux PTP stack
-**Status**: ✅ COMPLETE
-**Completion**: 100% (All HAL operations implemented)
+**Status**: ⏳ PARTIAL (60% complete)
+**Completion**: TX path done, RX path incomplete, message parsing missing
 
-#### Task 1.1: Socket Operations (`linux_ptp_hal.cpp`) - ✅ COMPLETE
+#### Task 1.1: Socket Operations (`linux_ptp_hal.cpp`) - ⏳ PARTIAL
 - [x] Create PTP event socket (UDP port 319)
 - [x] Create PTP general socket (UDP port 320)
 - [x] Enable SO_TIMESTAMPING socket options
 - [x] Implement multicast join for PTP addresses
-- [x] Handle socket errors and timeouts
+- [ ] **MISSING**: Complete RX timestamp extraction from MSG_ERRQUEUE
+- [ ] **MISSING**: Non-blocking receive with proper timeout handling
+- [ ] **MISSING**: Error recovery for socket failures
 
 **Reference Code**:
 ```cpp
@@ -111,11 +114,12 @@ if (ioctl(sock_fd, SIOCSHWTSTAMP, &hwtstamp) < 0) {
 }
 ```
 
-#### Task 1.2: Hardware Timestamp Extraction - ✅ COMPLETE
+#### Task 1.2: Hardware Timestamp Extraction - ⏳ PARTIAL
 - [x] Implement TX timestamp retrieval (SO_TIMESTAMPING)
-- [x] Implement RX timestamp retrieval (MSG_ERRQUEUE)
+- [ ] **INCOMPLETE**: RX timestamp retrieval (basic code exists but not tested/integrated)
 - [x] Convert kernel timestamps to PTP format
-- [x] Handle timestamp errors and fallbacks
+- [ ] **MISSING**: Full error recovery for timestamp fetch failures
+- [ ] **MISSING**: Timestamp validation against PHC drift
 
 #### Task 1.3: PHC Clock Operations - ✅ COMPLETE
 - [x] Read PHC time (`clock_gettime(CLOCK_PTP)`)
@@ -124,6 +128,15 @@ if (ioctl(sock_fd, SIOCSHWTSTAMP, &hwtstamp) < 0) {
 - [x] Monitor PHC drift
 
 **Reference**: `/usr/include/linux/ptp_clock.h`
+
+#### Task 1.4: Message Reception - ❌ NOT IMPLEMENTED (CRITICAL)
+- [ ] **MISSING**: Receive PTP messages from network
+- [ ] **MISSING**: Parse received message headers
+- [ ] **MISSING**: Validate message checksums and sequence IDs
+- [ ] **MISSING**: Route messages to appropriate handlers
+- [ ] **MISSING**: Handle malformed or corrupted packets
+
+**Impact**: Without this, grandmaster CANNOT respond to Delay_Req from slaves!
 
 ### Phase 2: GPS Time Source Integration
 
@@ -290,17 +303,21 @@ int8_t calculate_aging_offset(double drift_ppm) {
 ### Phase 4: PTP Message Implementation
 
 **Goal**: Create complete IEEE 1588-2019 grandmaster implementation
-**Status**: ✅ COMPLETE
-**Completion**: 100% (PTP messages implemented and compiled successfully)
+**Status**: ⏳ PARTIAL - Transmit Only, No Slave Support
+**Completion**: 40% (Announce/Sync transmit works, Delay mechanism MISSING)
 
-#### Task 4.1: Main Application (`ptp_grandmaster.cpp`) - ✅ COMPLETE
+#### Task 4.1: Main Application (`ptp_grandmaster.cpp`) - ⏳ PARTIAL
 - [x] Initialize HAL interfaces (linux_ptp_hal, gps_adapter, rtc_adapter)
 - [x] Configure as Grandmaster (hardcoded priority1 = 128, domain = 0)
 - [x] Set clock quality based on GPS status (Class 7, Accuracy 33)
 - [x] Implement event loop (main while loop)
 - [x] Handle signals (SIGINT, SIGTERM)
 - [x] Initialize IEEE 1588-2019 message construction (AnnounceMessage, SyncMessage, FollowUpMessage)
-- [x] Implement actual message transmission with hardware timestamps
+- [x] Implement message transmission with hardware timestamps
+- [ ] **MISSING**: Receive and parse incoming PTP messages
+- [ ] **MISSING**: Event loop integration for RX messages
+- [ ] **CRITICAL BUG**: Uses hardcoded clock ID instead of MAC-derived ID
+- [ ] **CRITICAL BUG**: Magic numbers (0x20 for timeSource) instead of repository enums
 
 **Implementation Evidence** (ptp_grandmaster.cpp, 522 lines):
 ```cpp
@@ -324,16 +341,17 @@ followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
 - Fixed ClockIdentity: `.id`→`.data()` with `std::copy()`
 - Fixed Timestamp: `secondsField`→`setTotalSeconds()`, `nanosecondsField`→`nanoseconds`
 
-#### Task 4.2: Message Transmission - ✅ COMPLETE
+#### Task 4.2: Message Transmission - ⏳ PARTIAL
 - [x] Send Announce messages (every 2 seconds)
 - [x] Send Sync messages (every 1 second)
 - [x] Send Follow_Up messages (after Sync with TX timestamp)
 - [x] Extract hardware TX timestamps from PHC for Sync messages
 - [x] Populate originTimestamp in Follow_Up with actual TX timestamp
-- [ ] Handle Delay_Req from slaves (future enhancement)
-- [ ] Send Delay_Resp messages (future enhancement)
+- [ ] **CRITICAL MISSING**: Receive Delay_Req from slaves
+- [ ] **CRITICAL MISSING**: Send Delay_Resp messages
+- [ ] **CRITICAL MISSING**: Extract RX timestamps for Delay_Req
 
-**Network Ready**: Code compiles and is ready for network testing with tcpdump/Wireshark
+**Current Status**: Can transmit Announce/Sync/Follow_Up but **SLAVES CANNOT SYNCHRONIZE** without Delay mechanism!
 
 #### Task 4.3: BMCA Implementation - ⏳ TODO (Future)
 - [ ] Implement grandmaster BMCA logic (should remain GM)
@@ -343,7 +361,94 @@ followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
 
 **Note**: Basic grandmaster operation complete; BMCA is optional enhancement for multi-master scenarios
 
-### Phase 5: Integration Testing
+#### Task 4.4: Repository Integration & Magic Number Removal - ❌ NOT DONE (CRITICAL)
+- [ ] **Replace hardcoded Clock ID** `"\x00\x00\x00\xFF\xFE\x00\x00\x01"` with MAC-derived ID
+- [ ] **Use TimeSource enum** instead of `0x20` magic number
+- [ ] **Use MessageType enum** consistently (partially done)
+- [ ] **Use repository constants** for all protocol values
+- [ ] **Import clockQuality structures** from repository instead of hardcoded values
+- [ ] **Verify all field names** match repository types (snake_case)
+
+**Current Issues**:
+```cpp
+// ❌ WRONG - Hardcoded magic values
+std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
+announce_msg.body.timeSource = 0x20; // Magic number!
+
+// ✅ CORRECT - Should use repository
+deriveClockIdentityFromMAC(interface_mac, source_port.clock_identity);
+announce_msg.body.timeSource = static_cast<uint8_t>(TimeSource::GPS);
+```
+
+### Phase 5: Integrate Repository Delay Mechanism (CRITICAL FOR SLAVE SYNC)
+
+**Goal**: Use repository's `PtpPort::process_delay_req()` for slave synchronization
+**Status**: ❌ NOT INTEGRATED
+**Priority**: CRITICAL - Repository has complete implementation, need HAL integration
+**Repository Code**: `src/clocks.cpp` lines 511-560 (COMPLETE IEEE 1588-2019 implementation)
+
+#### Task 5.1: Use Repository PtpPort Class - ❌ NOT INTEGRATED
+- [ ] Replace standalone message construction with `PtpPort` instance
+- [ ] Initialize `PtpPort` with proper callbacks structure
+- [ ] Use `PtpPort::process_announce()`, `process_sync()`, etc.
+- [ ] Wire up HAL send callbacks to repository expectations
+
+**Repository API** (from `include/clocks.hpp`):
+```cpp
+// Use existing PtpPort class - DON'T reimplement!
+#include "clocks.hpp"
+using namespace IEEE_1588_2019;
+
+PtpPort::PortCallbacks callbacks{
+    .send_announce = [](const AnnounceMessage& msg) { return ptp_hal.send(msg); },
+    .send_sync = [](const SyncMessage& msg) { return ptp_hal.send(msg); },
+    .send_delay_resp = [](const DelayRespMessage& msg) { return ptp_hal.send(msg); },
+    // ... other callbacks
+};
+
+PtpPort port(callbacks, config);
+```
+
+#### Task 5.2: Wire Message Reception to Repository - ❌ NOT IMPLEMENTED
+- [ ] Implement HAL `receive_message()` function
+- [ ] Parse message type and dispatch to `PtpPort::process_*()`
+- [ ] Extract RX hardware timestamp from MSG_ERRQUEUE
+- [ ] Call `port.process_delay_req(delay_req_msg, rx_timestamp)`
+
+**Integration Pattern** (from `src/clocks.cpp` line 1380):
+```cpp
+// Repository ALREADY handles Delay_Req → Delay_Resp!
+Types::PTPResult<void> result = port.process_delay_req(*delay_req_msg, rx_timestamp);
+
+// PtpPort::process_delay_req() automatically:
+// 1. Validates message
+// 2. Constructs Delay_Resp with correct timestamps
+// 3. Calls callbacks_.send_delay_resp(response)
+// 4. Updates statistics
+```
+
+#### Task 5.3: Event Loop Integration - ❌ NOT IMPLEMENTED
+- [ ] Add receive polling to main event loop
+- [ ] Implement non-blocking receive with select() or poll()
+- [ ] Route received messages to `PtpPort::process_message()`
+- [ ] Use repository message parser (don't reimplement!)
+
+**Correct Approach**: Use `PtpClock::process_message()` (line 1370-1410 in clocks.cpp)
+```cpp
+// Repository has message dispatcher - USE IT!
+auto result = ptp_clock.process_message(rx_buffer, rx_length, rx_timestamp);
+```
+
+**IMPORTANT**: Repository already implements:
+- ✅ Delay_Req reception and validation
+- ✅ Delay_Resp construction with correct timestamps
+- ✅ Port state machine (Master/Slave/Uncalibrated)
+- ✅ Statistics tracking
+- ✅ IEEE 1588-2019 compliance
+
+**DO NOT REIMPLEMENT** - just wire HAL callbacks!
+
+### Phase 6: Integration Testing
 
 **Goal**: Validate complete system operation on hardware
 **Status**: ⏳ READY FOR TESTING
@@ -381,9 +486,10 @@ followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
 - [ ] Measure timestamp latency
 - [ ] Identify bottlenecks
 
-### Phase 6: Testing & Validation
+### Phase 7: Testing & Validation
 
 **Goal**: Verify IEEE 1588-2019 compliance and timing accuracy
+**Status**: ❌ BLOCKED - Requires Phases 5-6 completion
 
 #### Task 6.1: Unit Tests
 - [ ] Test GPS NMEA parsing
@@ -418,10 +524,10 @@ followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
 ## 📊 Success Criteria
 
 ### Functional Requirements
-- ✅ PTP grandmaster achieves MASTER state
-- ✅ Announce messages transmitted every 1 second
-- ✅ Sync messages transmitted at configured rate
-- ✅ Responds to Delay_Req from slaves
+- ⏳ PTP grandmaster achieves MASTER state (can transmit but not interact with slaves)
+- ✅ Announce messages transmitted every 2 seconds
+- ✅ Sync messages transmitted every 1 second
+- ❌ **Responds to Delay_Req from slaves** - NOT IMPLEMENTED (CRITICAL)
 - ✅ GPS time disciplined PHC within ±100ns
 - ✅ RTC holdover maintains ±1µs accuracy for 1 hour
 - ✅ Automatic GPS recovery after outage
@@ -497,28 +603,65 @@ sudo gdbserver :2345 /usr/local/bin/ptp_grandmaster --interface=eth1
 
 ---
 
-## 🔍 Next Steps
+## 🔍 Next Steps (CRITICAL PATH)
 
-1. **Immediate** (Day 1):
+### IMMEDIATE - Fix Repository Integration (1-2 days)
+1. **Remove Magic Numbers**:
+   - [ ] Replace hardcoded clock ID with MAC-derived ID
+   - [ ] Use TimeSource::GPS enum instead of 0x20
+   - [ ] Import all constants from repository headers
+   - [ ] Verify field names match repository types
+
+2. **Test Message Transmission**:
    - [ ] Connect network cable to eth1
-   - [ ] Verify LinuxPTP baseline operation
-   - [ ] Document current system performance
+   - [ ] Capture packets with Wireshark
+   - [ ] Verify message formats against IEEE 1588-2019
 
-2. **Short Term** (Week 1):
-   - [ ] Implement Linux HAL adapter
-   - [ ] Create GPS adapter using example 04 code
-   - [ ] Build and test on Raspberry Pi
+### CRITICAL - Integrate Repository Delay Mechanism (1-2 days)
+3. **Replace Standalone Code with PtpPort Class**:
+   - [ ] Remove custom message construction in ptp_grandmaster.cpp
+   - [ ] Create `PtpPort` instance with HAL callbacks
+   - [ ] Wire `send_delay_resp` callback to HAL
 
-3. **Medium Term** (Week 2):
-   - [ ] Complete grandmaster application
-   - [ ] Implement RTC holdover
-   - [ ] Setup remote debugging
+4. **Delay_Resp Transmission** (Repository Handles Automatically):
+   - [ ] Wire `send_delay_resp` callback in HAL
+   - [ ] Implement HAL function to send Delay_Resp on general socket
+   - [ ] **Repository automatically constructs Delay_Resp** when `process_delay_req()` is called
+   - [ ] Verify Delay_Resp contains correct RX timestamp from Delay_Req
 
-4. **Validation** (Week 3):
-   - [ ] Run compliance tests
-   - [ ] Measure timing accuracy
-   - [ ] Compare with LinuxPTP performance
-   - [ ] Document results
+**Key Point**: `PtpPort::process_delay_req()` automatically calls `callbacks_.send_delay_resp(response)` - we just provide the callback!
+
+5. **Implement Message Reception**:
+   - [ ] Add `receive_message()` to linux_ptp_hal.cpp
+   - [ ] Extract RX timestamps from MSG_ERRQUEUE
+   - [ ] Call `port.process_message(buffer, length, rx_ts)`
+
+6. **Event Loop Integration**:
+   - [ ] Add `select()` or `poll()` for non-blocking receive
+   - [ ] Route received messages to repository's `PtpPort::process_*()`
+   - [ ] **Repository handles all Delay logic** - just provide callbacks!
+
+### VALIDATION - Test with Slave (1-2 days)
+6. **Slave Synchronization**:
+   - [ ] Setup PTP slave on second Raspberry Pi or Linux machine
+   - [ ] Verify Delay_Req/Delay_Resp exchange
+   - [ ] Measure synchronization accuracy
+   - [ ] Long-term stability testing (24+ hours)
+
+### OPTIONAL - Enhancements
+7. **Remote Debugging**: Setup GDB remote debugging
+8. **Performance Profiling**: Measure latencies
+9. **BMCA**: Multi-master scenarios (only if needed)
+
+**ESTIMATED COMPLETION**: 2-3 days (using repository code, not reimplementing!)
+
+**KEY INSIGHT**: Repository already has complete IEEE 1588-2019 Delay mechanism in `PtpPort` class. 
+We just need to:
+1. Wire HAL callbacks correctly
+2. Implement message reception
+3. Call repository's `process_message()` dispatcher
+
+**NO REIMPLEMENTATION NEEDED** - the repository did all the hard work!
 
 ---
 
