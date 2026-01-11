@@ -484,55 +484,56 @@ int main(int argc, char* argv[])
                             // drift_ppm = ((PHC_measured - reference) / reference) × 10^6
                             double drift_ppm = (static_cast<double>(phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6;
                         
-                        // Check if still drifting significantly
-                        if (std::abs(drift_ppm) > 100) {  // Still needs calibration
-                            // CRITICAL: Track cumulative frequency in SOFTWARE
-                            // Linux kernel doesn't provide a way to READ current frequency!
-                            
-                            // Calculate correction needed (negate drift to compensate)
-                            int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);  // ppm → ppb
-                            
-                            // Clamp correction per iteration (safe incremental steps)
-                            if (correction_ppb > phc_servo.freq_max_ppb) {
-                                correction_ppb = phc_servo.freq_max_ppb;
-                            } else if (correction_ppb < -phc_servo.freq_max_ppb) {
-                                correction_ppb = -phc_servo.freq_max_ppb;
+                            // Check if still drifting significantly
+                            if (std::abs(drift_ppm) > 100) {  // Still needs calibration
+                                // CRITICAL: Track cumulative frequency in SOFTWARE
+                                // Linux kernel doesn't provide a way to READ current frequency!
+                                
+                                // Calculate correction needed (negate drift to compensate)
+                                int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);  // ppm → ppb
+                                
+                                // Clamp correction per iteration (safe incremental steps)
+                                if (correction_ppb > phc_servo.freq_max_ppb) {
+                                    correction_ppb = phc_servo.freq_max_ppb;
+                                } else if (correction_ppb < -phc_servo.freq_max_ppb) {
+                                    correction_ppb = -phc_servo.freq_max_ppb;
+                                }
+                                
+                                // Calculate new TOTAL frequency (cumulative in software)
+                                int32_t new_freq_ppb = phc_servo.cumulative_freq_ppb + correction_ppb;
+                                
+                                // Clamp total frequency to hardware limits (±500,000 ppb = ±500 ppm)
+                                const int32_t max_total_freq = 500000;  // i226 hardware limit
+                                if (new_freq_ppb > max_total_freq) new_freq_ppb = max_total_freq;
+                                if (new_freq_ppb < -max_total_freq) new_freq_ppb = -max_total_freq;
+                                
+                                std::cout << "[PHC Calibration] Iteration (" << elapsed_pulses << " pulses): Measured " 
+                                          << std::fixed << std::setprecision(1) << drift_ppm << " ppm drift\n"
+                                          << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
+                                          << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
+                                          << "Correction: " << correction_ppb << " ppb, "
+                                          << "New total: " << new_freq_ppb << " ppb\n";
+                                
+                                // Apply new TOTAL frequency (absolute set)
+                                ptp_hal.adjust_phc_frequency(new_freq_ppb);
+                                
+                                // Update our software tracker
+                                phc_servo.cumulative_freq_ppb = new_freq_ppb;
+                                
+                                // Reset baseline for next measurement interval (use current PPS-correlated PHC)
+                                phc_servo.baseline_pps_seq = pps_data.sequence;
+                                phc_servo.baseline_phc_ns = phc_at_pps_ns;
+                                continue;  // Measure again over next N pulses
+                            } else {
+                                // Calibration complete! Final drift is acceptable
+                                std::cout << "[PHC Calibration] ✓ Complete! Final drift: " 
+                                          << std::fixed << std::setprecision(1) << drift_ppm << " ppm (acceptable)\n"
+                                          << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";
+                                phc_servo.freq_calibrated = true;
                             }
-                            
-                            // Calculate new TOTAL frequency (cumulative in software)
-                            int32_t new_freq_ppb = phc_servo.cumulative_freq_ppb + correction_ppb;
-                            
-                            // Clamp total frequency to hardware limits (±500,000 ppb = ±500 ppm)
-                            const int32_t max_total_freq = 500000;  // i226 hardware limit
-                            if (new_freq_ppb > max_total_freq) new_freq_ppb = max_total_freq;
-                            if (new_freq_ppb < -max_total_freq) new_freq_ppb = -max_total_freq;
-                            
-                            std::cout << "[PHC Calibration] Iteration (" << elapsed_pulses << " pulses): Measured " 
-                                      << std::fixed << std::setprecision(1) << drift_ppm << " ppm drift\n"
-                                      << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
-                                      << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
-                                      << "Correction: " << correction_ppb << " ppb, "
-                                      << "New total: " << new_freq_ppb << " ppb\n";
-                            
-                            // Apply new TOTAL frequency (absolute set)
-                            ptp_hal.adjust_phc_frequency(new_freq_ppb);
-                            
-                            // Update our software tracker
-                            phc_servo.cumulative_freq_ppb = new_freq_ppb;
-                            
-                            // Reset baseline for next measurement interval (use current PPS-correlated PHC)
-                            phc_servo.baseline_pps_seq = pps_data.sequence;
-                            phc_servo.baseline_phc_ns = phc_at_pps_ns;
-                            continue;  // Measure again over next N pulses
                         } else {
                             std::cerr << "[PHC Calibration] ERROR: Failed to correlate PHC time at PPS edge!\n";
                             continue;
-                        }
-                    } else {
-                            std::cout << "[PHC Calibration] ✓ Complete! Final drift: " 
-                                      << std::fixed << std::setprecision(1) << drift_ppm << " ppm (acceptable)\n"
-                                      << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";
-                            phc_servo.freq_calibrated = true;
                         }
                     } else if (elapsed_pulses > 0) {
                         // Show we're waiting for enough pulses, but don't skip servo entirely
