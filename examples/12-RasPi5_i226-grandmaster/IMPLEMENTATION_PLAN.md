@@ -634,7 +634,64 @@ sudo gdbserver :2345 /usr/local/bin/ptp_grandmaster --interface=eth1
    - [ ] **CRITICAL**: Need servo loop: GPS → PHC discipline
    - Next: Implement PHC discipline, then verify with Wireshark
 
-### CRITICAL - Integrate Repository Delay Mechanism (1-2 days) ⏳ NEXT
+### 🚨 IMMEDIATE PRIORITY - Implement PHC Discipline (2-3 days) ⏳ NEXT
+**CRITICAL GAP**: i226 PHC is NOT disciplined to GPS. Hardware TX timestamps may drift ±50ppm from GPS time, compromising synchronization accuracy.
+
+**Implementation Tasks**:
+- [ ] Read GPS time from GPS adapter (`gps_adapter.get_ptp_time()`)
+- [ ] Read i226 PHC time (`clock_gettime(phc_clock_id, &ts)`)
+- [ ] Calculate offset: `offset_ns = gps_time_ns - phc_time_ns`
+- [ ] Implement PI/PID servo loop controller
+- [ ] Use `clock_settime()` for large offsets (>1 second step correction)
+- [ ] Use `clock_adjtime()` for frequency adjustments (smooth tracking)
+- [ ] Monitor and log PHC drift relative to GPS
+- [ ] Verify hardware TX timestamps match GPS time (Wireshark)
+
+**Servo Loop Pattern** (from linuxptp ptp4l):
+```cpp
+// Main PHC discipline loop (runs every 1 second)
+while (running) {
+    uint64_t gps_time_ns = gps_adapter.get_ptp_time();
+    struct timespec phc_time;
+    clock_gettime(phc_clock_id, &phc_time);
+    int64_t phc_ns = phc_time.tv_sec * 1000000000LL + phc_time.tv_nsec;
+    
+    int64_t offset_ns = gps_time_ns - phc_ns;
+    
+    if (abs(offset_ns) > 1000000000) {  // >1 second
+        // Step correction
+        struct timespec gps_ts = {
+            .tv_sec = gps_time_ns / 1000000000,
+            .tv_nsec = gps_time_ns % 1000000000
+        };
+        clock_settime(phc_clock_id, &gps_ts);
+        pi_servo_reset();
+    } else {
+        // Frequency adjustment via PI servo
+        struct timex tx = {0};
+        tx.modes = ADJ_FREQUENCY;
+        tx.freq = pi_servo_calculate(offset_ns);
+        clock_adjtime(phc_clock_id, &tx);
+    }
+    
+    sleep(1);
+}
+```
+
+**Why This is CRITICAL**:
+- Without PHC discipline, hardware TX timestamps come from free-running oscillator
+- i226 PHC may drift ±50ppm (±4.3ms/day) from GPS time
+- Sync message `originTimestamp` field contains GPS time, but hardware timestamp != GPS
+- Slaves will receive inconsistent timing information
+- Synchronization accuracy severely degraded
+
+**Success Criteria**:
+- PHC offset from GPS < ±100ns steady-state
+- PHC frequency adjustment converges within 60 seconds
+- Hardware TX timestamps within ±100ns of GPS time
+- Clock quality remains stable (Class=7, Accuracy=33)
+
+### CRITICAL - Integrate Repository Delay Mechanism (1-2 days) ⏳ AFTER PHC DISCIPLINE
 3. **Replace Standalone Code with PtpPort Class**:
    - [ ] Remove custom message construction in ptp_grandmaster.cpp
    - [ ] Create `PtpPort` instance with HAL callbacks

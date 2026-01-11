@@ -146,6 +146,15 @@ int main(int argc, char* argv[])
     uint64_t announce_counter = 0;
     uint64_t sync_counter = 0;
     
+    // PHC discipline servo state
+    struct {
+        double kp = 0.7;              // Proportional gain
+        double ki = 0.3;              // Integral gain
+        double integral = 0.0;        // Integral accumulator
+        int64_t last_offset_ns = 0;   // Last offset measurement
+        bool locked = false;          // True when PHC is locked to GPS
+    } phc_servo;
+    
     // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
     constexpr size_t drift_buffer_size = 60;         // 60 samples = 60 seconds = 1 minute
     double drift_buffer[drift_buffer_size] = {0};   // Circular buffer for drift rate (ppm)
@@ -192,8 +201,42 @@ int main(int argc, char* argv[])
                 std::cout << "GPS Time: " << gps_seconds << "." << gps_nanoseconds << " TAI\n";
             }
 
-            // Synchronize PHC to GPS time
-            ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
+            // Discipline i226 PHC to GPS time
+            uint64_t phc_seconds = 0;
+            uint32_t phc_nanoseconds = 0;
+            if (ptp_hal.get_phc_time(&phc_seconds, &phc_nanoseconds)) {
+                int64_t gps_time_ns = static_cast<int64_t>(gps_seconds) * 1000000000LL + gps_nanoseconds;
+                int64_t phc_time_ns = static_cast<int64_t>(phc_seconds) * 1000000000LL + phc_nanoseconds;
+                int64_t offset_ns = gps_time_ns - phc_time_ns;
+                
+                // Step correction for large offsets (>1 second)
+                if (std::abs(offset_ns) > 1000000000LL) {
+                    if (verbose) {
+                        std::cout << "[PHC Discipline] Step correction: " << (offset_ns / 1000000.0) << " ms\n";
+                    }
+                    ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
+                    phc_servo.integral = 0.0;
+                    phc_servo.locked = false;
+                } else {
+                    // PI servo for smooth tracking
+                    phc_servo.integral += offset_ns;
+                    double adjustment = phc_servo.kp * offset_ns + phc_servo.ki * phc_servo.integral;
+                    int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
+                    
+                    ptp_hal.adjust_phc_frequency(freq_ppb);
+                    
+                    if (std::abs(offset_ns) < 100 && !phc_servo.locked) {
+                        std::cout << "[PHC Discipline] ✓ Locked to GPS (offset < 100ns)\n";
+                        phc_servo.locked = true;
+                    }
+                    
+                    if (verbose && (sync_counter % 10 == 0)) {
+                        std::cout << "[PHC Discipline] Offset: " << offset_ns << " ns, Freq adj: " << freq_ppb << " ppb\n";
+                    }
+                }
+                
+                phc_servo.last_offset_ns = offset_ns;
+            }
 
             // Drift measurement based on ACTUAL elapsed GPS time (not iteration counter)
             // Loop timing varies (NMEA I/O overhead), so iteration count is unreliable
