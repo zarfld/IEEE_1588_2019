@@ -300,6 +300,7 @@ int main(int argc, char* argv[])
                             
                             // Force initial sync when GPS first locks (during warmup phase)
                             bool force_sync = !rtc_initial_sync_done;
+                            bool sync_happened = false;  // Track if we synced
                             
                             if (force_sync || std::abs(time_error_ns) > time_sync_tolerance_ns) {
                                 // Check if this is just the expected 1-second quantization
@@ -323,6 +324,7 @@ int main(int argc, char* argv[])
                                     if (rtc_adapter.sync_from_gps(gps_seconds, gps_nanoseconds)) {
                                         std::cout << "[RTC Sync] ✓ RTC synchronized\n";
                                         rtc_initial_sync_done = true;  // Mark initial sync complete
+                                        sync_happened = true;  // Mark that sync occurred
                                         
                                         // Clear drift buffer (measurement invalid after time jump)
                                         drift_buffer_count = 0;
@@ -338,8 +340,11 @@ int main(int argc, char* argv[])
                                 // else: Ignore 1-second quantization error - drift measurement still valid
                             }
                             
-                            last_drift_calc_time = gps_seconds;
-                            last_time_error_ns = time_error_ns;
+                            // Only update baseline if we didn't just sync (sync already reset to 0)
+                            if (!sync_happened) {
+                                last_drift_calc_time = gps_seconds;
+                                last_time_error_ns = time_error_ns;
+                            }
                         }
                     } else {
                         // First measurement - initialize
