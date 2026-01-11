@@ -348,7 +348,7 @@ int main(int argc, char* argv[])
                                                ? error_vs_gps : error_vs_gps_plus1;
                         
                         // DEBUG: Print actual time values to verify fix
-                        printf("[Drift Debug] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
+                        printf("[RTC Drift] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
                                gps_seconds, gps_nanoseconds, 
                                rtc_seconds, rtc_nanoseconds,
                                error_vs_gps, error_vs_gps_plus1,
