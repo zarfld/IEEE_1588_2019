@@ -363,9 +363,7 @@ int main(int argc, char* argv[])
                 std::cout << "[RTC Discipline] Starting drift monitoring (60 samples @ 1 sample/sec = 60 sec window)\n";
                 std::cout << "[RTC Discipline] Frequency tolerance: ±" << drift_tolerance_ppm << " ppm\n";
                 std::cout << "[RTC Discipline] Time sync tolerance: ±" 
-                                 << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
-                    }
-                }
+                         << (time_sync_tolerance_ns / 1000000.0) << " ms\n";
             }
         } else {
             // GPS unavailable - use RTC for holdover
