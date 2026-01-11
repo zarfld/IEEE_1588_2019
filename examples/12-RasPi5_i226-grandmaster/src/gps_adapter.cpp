@@ -779,6 +779,18 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
         *nanoseconds = pps_data_.assert_nsec;
+        
+        // DEBUG: Show UTC computation every second
+        static uint64_t last_debug_seq = 0;
+        if (pps_data_.sequence != last_debug_seq) {
+            std::cout << "[UTC Compute] seq=" << pps_data_.sequence 
+                      << " base_seq=" << base_pps_seq_
+                      << " base_utc=" << base_utc_sec_
+                      << " → utc=" << utc_sec
+                      << " gps=" << *seconds << "\n";
+            last_debug_seq = pps_data_.sequence;
+        }
+        
         return true;
     }
     
