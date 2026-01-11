@@ -156,6 +156,12 @@ int main(int argc, char* argv[])
         bool locked = false;          // True when PHC is locked to GPS
         bool freq_calibrated = false; // True when iterative frequency calibration complete
         int32_t cumulative_freq_ppb = 0;  // SOFTWARE TRACKING: Total frequency adjustment applied
+        
+        // PPS-based frequency measurement (expert-recommended approach)
+        uint32_t baseline_pps_seq = 0;     // PPS sequence number at start of measurement
+        int64_t baseline_phc_ns = 0;       // PHC time (ns) at baseline PPS edge
+        uint32_t calib_interval_pulses = 20; // Measure over 20 PPS pulses (20 seconds)
+        
         const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
         const int32_t freq_max_ppb = 500000;        // ±500ppm per adjustment (safe iterative steps)
     } phc_servo;
@@ -414,33 +420,45 @@ int main(int argc, char* argv[])
                 int64_t phc_time_ns = static_cast<int64_t>(phc_seconds) * 1000000000LL + phc_nanoseconds;
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
                 
-                // Initialize baseline on first GPS sample
-                if (phc_servo.last_gps_seconds == 0) {
-                    phc_servo.last_offset_ns = offset_ns;
-                    phc_servo.last_gps_seconds = gps_seconds;
-                    std::cout << "[PHC Calibration] Baseline set, will measure frequency offset in 2 seconds...\n";
+                // Initialize baseline on first PPS edge (PPS-based measurement per expert advice)
+                if (phc_servo.baseline_pps_seq == 0 && pps_data.sequence > 0) {
+                    phc_servo.baseline_pps_seq = pps_data.sequence;
+                    phc_servo.baseline_phc_ns = phc_time_ns;
+                    phc_servo.last_offset_ns = offset_ns;  // For phase servo later
+                    std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
+                              << ", will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
                 }
                 
                 // CRITICAL: Measure and correct frequency offset BEFORE stepping time
                 // i226 PHC can have huge frequency offsets (100,000+ ppm) that cause
                 // rapid drift. Must calibrate frequency first or servo will never lock.
-                // Use ITERATIVE calibration: apply ±500ppm steps repeatedly until drift < 100ppm
-                if (!phc_servo.freq_calibrated && phc_servo.last_gps_seconds > 0) {
-                    uint64_t elapsed_sec = gps_seconds - phc_servo.last_gps_seconds;
+                // 
+                // EXPERT ADVICE (deb.md): Use PPS-count-based reference interval!
+                // - Do NOT use GPS time-of-day (has NMEA latency, cached updates)
+                // - DO use PPS pulse count as exact 1-second intervals
+                // - Calculate: drift_ppm = ((phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6
+                if (!phc_servo.freq_calibrated && phc_servo.baseline_pps_seq > 0) {
+                    // Calculate elapsed PPS pulses (each pulse = exactly 1 second)
+                    uint32_t elapsed_pulses = pps_data.sequence - phc_servo.baseline_pps_seq;
                     
-                    if (elapsed_sec >= 2) {  // Need at least 2 seconds for measurement
-                        // Calculate frequency offset from drift rate
-                        int64_t drift_ns = offset_ns - phc_servo.last_offset_ns;
-                        double drift_ppm = (drift_ns / 1000.0) / elapsed_sec;
+                    if (elapsed_pulses >= phc_servo.calib_interval_pulses) {  // Enough pulses for measurement
+                        // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
+                        int64_t phc_delta_ns = phc_time_ns - phc_servo.baseline_phc_ns;
+                        int64_t ref_delta_ns = static_cast<int64_t>(elapsed_pulses) * 1000000000LL;  // N pulses × 1 sec/pulse
+                        
+                        // Calculate drift in ppm (parts per million)
+                        // drift_ppm = ((PHC_measured - reference) / reference) × 10^6
+                        double drift_ppm = (static_cast<double>(phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6;
                         
                         // Check if still drifting significantly
                         if (std::abs(drift_ppm) > 100) {  // Still needs calibration
-                            // CRITICAL FIX: Track cumulative frequency in SOFTWARE
+                            // CRITICAL: Track cumulative frequency in SOFTWARE
                             // Linux kernel doesn't provide a way to READ current frequency!
-                            // get_phc_frequency() returns limits (±62.5 ppm), not actual frequency.
                             
-                            // Calculate correction needed (clamped per iteration)
-                            int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
+                            // Calculate correction needed (negate drift to compensate)
+                            int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);  // ppm → ppb
+                            
+                            // Clamp correction per iteration (safe incremental steps)
                             if (correction_ppb > phc_servo.freq_max_ppb) {
                                 correction_ppb = phc_servo.freq_max_ppb;
                             } else if (correction_ppb < -phc_servo.freq_max_ppb) {
@@ -455,7 +473,9 @@ int main(int argc, char* argv[])
                             if (new_freq_ppb > max_total_freq) new_freq_ppb = max_total_freq;
                             if (new_freq_ppb < -max_total_freq) new_freq_ppb = -max_total_freq;
                             
-                            std::cout << "[PHC Calibration] Iteration: Measured " << drift_ppm << " ppm drift\n"
+                            std::cout << "[PHC Calibration] Iteration (" << elapsed_pulses << " pulses): Measured " 
+                                      << std::fixed << std::setprecision(1) << drift_ppm << " ppm drift\n"
+                                      << "  PHC delta: " << phc_delta_ns << " ns, Ref delta: " << ref_delta_ns << " ns\n"
                                       << "  Current total: " << phc_servo.cumulative_freq_ppb << " ppb, "
                                       << "Correction: " << correction_ppb << " ppb, "
                                       << "New total: " << new_freq_ppb << " ppb\n";
@@ -466,12 +486,14 @@ int main(int argc, char* argv[])
                             // Update our software tracker
                             phc_servo.cumulative_freq_ppb = new_freq_ppb;
                             
-                            // Reset baseline for next iteration
-                            phc_servo.last_offset_ns = offset_ns;
-                            phc_servo.last_gps_seconds = gps_seconds;
-                            continue;  // Measure again in 2 seconds
+                            // Reset baseline for next measurement interval
+                            phc_servo.baseline_pps_seq = pps_data.sequence;
+                            phc_servo.baseline_phc_ns = phc_time_ns;
+                            continue;  // Measure again over next N pulses
                         } else {
-                            std::cout << "[PHC Calibration] ✓ Complete! Final drift: " << drift_ppm << " ppm (acceptable)\n";
+                            std::cout << "[PHC Calibration] ✓ Complete! Final drift: " 
+                                      << std::fixed << std::setprecision(1) << drift_ppm << " ppm (acceptable)\n"
+                                      << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";
                             phc_servo.freq_calibrated = true;
                         }
                     }
