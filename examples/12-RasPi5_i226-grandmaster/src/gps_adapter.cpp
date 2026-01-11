@@ -32,6 +32,12 @@ GpsAdapter::GpsAdapter(const std::string& serial_device,
     , serial_fd_(-1)
     , pps_handle_(-1)
     , last_pps_fetch_ms_(0)
+    , utc_sec_for_last_pps_(0)
+    , last_pps_seq_(0)
+    , pps_utc_locked_(false)
+    , nmea_labels_last_pps_(true)
+    , association_sample_count_(0)
+    , association_dt_sum_(0)
 {
 }
 
@@ -673,46 +679,83 @@ bool GpsAdapter::read_pps_event(PpsData* pps_data)
 
 bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
-    // Check if we have valid GPS time
-    if (!gps_data_.time_valid) {
-        return false;
+    // Fix for ±1 sec oscillation per deb.md:
+    // - PPS is the only second boundary (monotonic)
+    // - NMEA only initializes/re-anchors the UTC label
+    // - Atomic pairing prevents association ambiguity
+    
+    if (!pps_data_.valid) {
+        return false;  // No PPS = no reliable time
     }
     
-    // Calculate Unix timestamp from GPS NMEA data
-    struct tm gps_tm{};
-    gps_tm.tm_year = gps_data_.year - 1900;
-    gps_tm.tm_mon = gps_data_.month - 1;
-    gps_tm.tm_mday = gps_data_.day;
-    gps_tm.tm_hour = gps_data_.hours;
-    gps_tm.tm_min = gps_data_.minutes;
-    gps_tm.tm_sec = gps_data_.seconds;
+    // Check if we have a new PPS pulse
+    bool new_pps = (pps_data_.sequence != last_pps_seq_);
     
-    time_t utc_seconds = timegm(&gps_tm);
-    
-    // Convert UTC to TAI (add leap seconds)
-    uint64_t tai_seconds = static_cast<uint64_t>(utc_seconds) + TAI_UTC_OFFSET;
-    
-    // Use PPS timestamp for nanosecond precision if available
-    if (pps_data_.valid) {
-        // Correlate PPS pulse with GPS second
-        // PPS pulse should align with GPS second boundary
-        uint64_t pps_tai_seconds = static_cast<uint64_t>(pps_data_.assert_sec) + TAI_UTC_OFFSET;
-        
-        // Check if PPS and GPS agree within 1 second (should be same second)
-        int64_t time_diff = static_cast<int64_t>(pps_tai_seconds) - static_cast<int64_t>(tai_seconds);
-        if (std::abs(time_diff) <= 1) {
-            // Use PPS timestamp for precise nanosecond timing
-            *seconds = pps_tai_seconds;
-            *nanoseconds = pps_data_.assert_nsec;
-            return true;
+    if (new_pps) {
+        if (pps_utc_locked_) {
+            // Locked: increment UTC second monotonically on each PPS
+            utc_sec_for_last_pps_ += 1;
+        } else if (gps_data_.time_valid) {
+            // Not locked: use NMEA to establish initial UTC label
+            
+            // Calculate NMEA UTC second
+            struct tm gps_tm{};
+            gps_tm.tm_year = gps_data_.year - 1900;
+            gps_tm.tm_mon = gps_data_.month - 1;
+            gps_tm.tm_mday = gps_data_.day;
+            gps_tm.tm_hour = gps_data_.hours;
+            gps_tm.tm_min = gps_data_.minutes;
+            gps_tm.tm_sec = gps_data_.seconds;
+            time_t nmea_utc_sec = timegm(&gps_tm);
+            
+            // Measure dt = time since last PPS (for association detection)
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            uint64_t now_ms = now.tv_sec * 1000 + now.tv_nsec / 1000000;
+            uint64_t pps_ms = pps_data_.assert_sec * 1000 + pps_data_.assert_nsec / 1000000;
+            int64_t dt_ms = static_cast<int64_t>(now_ms) - static_cast<int64_t>(pps_ms);
+            
+            // Accumulate samples for association detection
+            association_dt_sum_ += dt_ms;
+            association_sample_count_++;
+            
+            // After 5 samples, lock the association
+            if (association_sample_count_ >= 5) {
+                int64_t avg_dt_ms = association_dt_sum_ / association_sample_count_;
+                
+                // Determine association rule
+                if (avg_dt_ms >= 50 && avg_dt_ms <= 950) {
+                    // NMEA arrives after PPS → labels LAST PPS
+                    nmea_labels_last_pps_ = true;
+                    utc_sec_for_last_pps_ = nmea_utc_sec;
+                } else {
+                    // NMEA arrives just before PPS → labels NEXT PPS
+                    nmea_labels_last_pps_ = false;
+                    utc_sec_for_last_pps_ = nmea_utc_sec - 1;
+                }
+                
+                pps_utc_locked_ = true;
+                std::cout << "[PPS-UTC Lock] Association locked: NMEA labels "
+                          << (nmea_labels_last_pps_ ? "LAST" : "NEXT")
+                          << " PPS (avg_dt=" << avg_dt_ms << "ms)\n";
+            } else {
+                // Not enough samples - use tentative label (assume last PPS)
+                utc_sec_for_last_pps_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
+            }
         }
+        
+        last_pps_seq_ = pps_data_.sequence;
     }
     
-    // Fall back to GPS time without PPS precision
-    *seconds = tai_seconds;
-    *nanoseconds = 0;
+    // Return locked PPS-UTC pair (atomic)
+    if (utc_sec_for_last_pps_ > 0) {
+        // Convert UTC to TAI
+        *seconds = utc_sec_for_last_pps_ + TAI_UTC_OFFSET;
+        *nanoseconds = pps_data_.assert_nsec;
+        return true;
+    }
     
-    return true;
+    return false;  // Not initialized yet
 }
 
 bool GpsAdapter::read_gps_data(GpsData* gps_data)

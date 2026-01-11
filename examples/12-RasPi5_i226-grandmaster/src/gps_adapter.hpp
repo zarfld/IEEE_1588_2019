@@ -183,6 +183,14 @@ private:
     bool        pps_valid_;       ///< PPS validity flag
     uint64_t    last_pps_fetch_ms_; ///< Last PPS fetch timestamp (ms)
     
+    // PPS-UTC association state (fix for ±1 sec oscillation per deb.md)
+    uint64_t    utc_sec_for_last_pps_;      ///< UTC second label for last PPS
+    uint64_t    last_pps_seq_;              ///< Last PPS sequence processed
+    bool        pps_utc_locked_;            ///< Association locked?
+    bool        nmea_labels_last_pps_;      ///< True: RMC labels last PPS, False: next
+    uint32_t    association_sample_count_;  ///< Samples for association detection
+    int64_t     association_dt_sum_;        ///< Sum of dt samples
+    
     // Private helper methods
     bool open_serial_port();
     bool open_pps_device();
