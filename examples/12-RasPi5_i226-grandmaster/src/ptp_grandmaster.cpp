@@ -149,10 +149,12 @@ int main(int argc, char* argv[])
     // PHC discipline servo state
     struct {
         double kp = 0.7;              // Proportional gain
-        double ki = 0.3;              // Integral gain
+        double ki = 0.00003;          // Integral gain (reduced 10000x to prevent windup)
         double integral = 0.0;        // Integral accumulator
         int64_t last_offset_ns = 0;   // Last offset measurement
         bool locked = false;          // True when PHC is locked to GPS
+        const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
+        const int32_t freq_max_ppb = 500000;        // ±500ppm frequency limit
     } phc_servo;
     
     // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
@@ -209,29 +211,53 @@ int main(int argc, char* argv[])
                 int64_t phc_time_ns = static_cast<int64_t>(phc_seconds) * 1000000000LL + phc_nanoseconds;
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
                 
-                // Step correction for large offsets (>1 second)
-                if (std::abs(offset_ns) > 1000000000LL) {
+                // Step correction for large offsets (>100ms for faster initial lock)
+                if (std::abs(offset_ns) > 100000000LL) {  // 100ms threshold
                     if (verbose) {
                         std::cout << "[PHC Discipline] Step correction: " << (offset_ns / 1000000.0) << " ms\n";
                     }
                     ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
-                    phc_servo.integral = 0.0;
+                    phc_servo.integral = 0.0;  // Reset integral on step
                     phc_servo.locked = false;
                 } else {
                     // PI servo for smooth tracking
                     phc_servo.integral += offset_ns;
+                    
+                    // Anti-windup: Clamp integral to prevent accumulation
+                    if (phc_servo.integral > phc_servo.integral_max) {
+                        phc_servo.integral = phc_servo.integral_max;
+                    } else if (phc_servo.integral < -phc_servo.integral_max) {
+                        phc_servo.integral = -phc_servo.integral_max;
+                    }
+                    
+                    // Calculate frequency adjustment
                     double adjustment = phc_servo.kp * offset_ns + phc_servo.ki * phc_servo.integral;
                     int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
                     
+                    // Clamp frequency adjustment to safe bounds
+                    if (freq_ppb > phc_servo.freq_max_ppb) {
+                        freq_ppb = phc_servo.freq_max_ppb;
+                    } else if (freq_ppb < -phc_servo.freq_max_ppb) {
+                        freq_ppb = -phc_servo.freq_max_ppb;
+                    }
+                    
                     ptp_hal.adjust_phc_frequency(freq_ppb);
                     
-                    if (std::abs(offset_ns) < 100 && !phc_servo.locked) {
-                        std::cout << "[PHC Discipline] ✓ Locked to GPS (offset < 100ns)\n";
+                    // Lock detection at 1µs threshold (looser than original 100ns)
+                    if (std::abs(offset_ns) < 1000 && !phc_servo.locked) {
+                        std::cout << "[PHC Discipline] ✓ Locked to GPS (offset < 1µs)\n";
                         phc_servo.locked = true;
+                    } else if (std::abs(offset_ns) > 10000 && phc_servo.locked) {
+                        // Lost lock if offset exceeds 10µs
+                        phc_servo.locked = false;
+                        if (verbose) {
+                            std::cout << "[PHC Discipline] ⚠ Lock lost (offset > 10µs)\n";
+                        }
                     }
                     
                     if (verbose && (sync_counter % 10 == 0)) {
-                        std::cout << "[PHC Discipline] Offset: " << offset_ns << " ns, Freq adj: " << freq_ppb << " ppb\n";
+                        std::cout << "[PHC Discipline] Offset: " << offset_ns << " ns, Freq adj: " << freq_ppb 
+                                 << " ppb, Integral: " << (phc_servo.integral / 1000000.0) << " ms\n";
                     }
                 }
                 
