@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <cmath>
+#include <chrono>
 
 using namespace IEEE::_1588::PTP::_2019::Linux;
 
@@ -210,14 +211,13 @@ int main(int argc, char* argv[])
             
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
-                printf("[Drift Debug] ✓ Counter triggered after %ldms! Getting fresh PPS...\n", elapsed_ms);
+                printf("[Drift Debug] ✓ Counter triggered after %ldms! Re-reading GPS time...\n", elapsed_ms);
                 
-                // CRITICAL: Force fresh PPS fetch to ensure GPS time has advanced
-                // Without this, gps_seconds may be stale from earlier in the loop,
-                // causing elapsed_sec=0 and skipping drift measurements
-                gps_adapter.update();  // Fetch latest PPS if available
-                gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);  // Get fresh GPS time
-                printf("[Drift Debug] Fresh GPS: gps_seconds=%lu\n", gps_seconds);
+                // Re-fetch GPS time from already-updated PPS data
+                // DO NOT call update() again - that would fetch a NEW PPS pulse!
+                // The update() at start of loop already fetched the current PPS
+                gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);  // Re-read from existing PPS data
+                printf("[Drift Debug] GPS time re-read: gps_seconds=%lu\n", gps_seconds);
                 
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
