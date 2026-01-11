@@ -121,11 +121,14 @@ if (ioctl(sock_fd, SIOCSHWTSTAMP, &hwtstamp) < 0) {
 - [ ] **MISSING**: Full error recovery for timestamp fetch failures
 - [ ] **MISSING**: Timestamp validation against PHC drift
 
-#### Task 1.3: PHC Clock Operations - ✅ COMPLETE
-- [x] Read PHC time (`clock_gettime(CLOCK_PTP)`)
-- [x] Set PHC time (`clock_settime(CLOCK_PTP)`)
-- [x] Adjust PHC frequency (adjtimex/clock_adjtime)
-- [x] Monitor PHC drift
+#### Task 1.3: PHC Clock Operations - ❌ NOT DISCIPLINED (CRITICAL GAP)
+- [x] Read PHC time (`clock_gettime(CLOCK_PTP)`) - basic code exists
+- [ ] **MISSING**: Set PHC time to match GPS (`clock_settime(CLOCK_PTP)`)
+- [ ] **MISSING**: Adjust PHC frequency to track GPS (servo loop)
+- [ ] **MISSING**: Monitor PHC drift against GPS reference
+- [ ] **MISSING**: Implement PI/PID controller for PHC discipline
+
+**CRITICAL**: i226 PHC is undisciplined! Hardware timestamps may not match GPS time.
 
 **Reference**: `/usr/include/linux/ptp_clock.h`
 
@@ -141,8 +144,8 @@ if (ioctl(sock_fd, SIOCSHWTSTAMP, &hwtstamp) < 0) {
 ### Phase 2: GPS Time Source Integration
 
 **Goal**: Integrate GPS module as primary time reference
-**Status**: ✅ COMPLETE
-**Completion**: 100% (GPS/NMEA working, PPS fully integrated)
+**Status**: ⏳ PARTIAL - GPS reading works, PHC discipline MISSING
+**Completion**: 70% (GPS/NMEA ✅, PPS ✅, **PHC discipline ❌**)
 
 #### Task 2.1: GPS NMEA Parser (`gps_adapter.cpp`) - ✅ COMPLETE
 - [x] Open serial port (/dev/ttyACM0)
@@ -192,12 +195,17 @@ if (pps_data_.valid) {
 }
 ```
 
-#### Task 2.3: GPS Time Discipline - ✅ COMPLETE
+#### Task 2.3: GPS Time Discipline - ❌ INCOMPLETE (PHC NOT DISCIPLINED)
 - [x] Implement GPS time validation (status='A', 6-digit date)
 - [x] Detect GPS fix loss/recovery (quality field, satellite count)
-- [x] Calculate GPS time offset (GPS Time vs PHC)
+- [ ] **MISSING**: Calculate PHC offset from GPS (GPS time - PHC time)
+- [ ] **MISSING**: Implement servo loop to discipline i226 PHC to GPS
+- [ ] **MISSING**: Use `clock_settime()` for large offsets (>1 sec)
+- [ ] **MISSING**: Use `clock_adjtime()` for frequency adjustments
 - [x] Update PTP clock quality based on GPS status (Class 7, Accuracy 33)
 - [x] Implement GPS time smoothing filter (using latest valid time)
+
+**CURRENT PROBLEM**: PTP messages contain GPS timestamps, but i226 PHC (source of hardware TX timestamps) is undisciplined and may drift from GPS!
 
 ### Phase 3: RTC Holdover Implementation
 
@@ -354,29 +362,35 @@ followup_msg.body.preciseOriginTimestamp.nanoseconds = tx_ts.nanoseconds;
 **Current Status**: Can transmit Announce/Sync/Follow_Up but **SLAVES CANNOT SYNCHRONIZE** without Delay mechanism!
 
 #### Task 4.3: BMCA Implementation - ⏳ TODO (Future)
-- [ ] Implement grandmaster BMCA logic (should remain GM)
+- [ ] Implement grandmaster BMCA logic (should remain GM as long as GPS has fix)
 - [ ] Handle foreign masters (reject/accept)
 - [ ] Maintain Best Master Clock identity
 - [ ] Update clock datasets
 
-**Note**: Basic grandmaster operation complete; BMCA is optional enhancement for multi-master scenarios
+**Note**: Basic grandmaster operation complete; BMCA is mandatory for this example!!
 
-#### Task 4.4: Repository Integration & Magic Number Removal - ❌ NOT DONE (CRITICAL)
-- [ ] **Replace hardcoded Clock ID** `"\x00\x00\x00\xFF\xFE\x00\x00\x01"` with MAC-derived ID
-- [ ] **Use TimeSource enum** instead of `0x20` magic number
-- [ ] **Use MessageType enum** consistently (partially done)
-- [ ] **Use repository constants** for all protocol values
-- [ ] **Import clockQuality structures** from repository instead of hardcoded values
-- [ ] **Verify all field names** match repository types (snake_case)
+#### Task 4.4: Repository Integration & Magic Number Removal - ✅ COMPLETE
+- [x] **Replace hardcoded Clock ID** with MAC-derived ID (EUI-64 format)
+- [x] **Use TimeSource enum** (TimeSource::GPS instead of 0x20)
+- [x] **Use MessageType enum** consistently (already done)
+- [x] **Add get_interface_mac()** to HAL for MAC address retrieval
+- [x] **Verify field names** match repository types (snake_case)
 
-**Current Issues**:
+**Completed** (commit 612aaad):
 ```cpp
-// ❌ WRONG - Hardcoded magic values
-std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
-announce_msg.body.timeSource = 0x20; // Magic number!
-
-// ✅ CORRECT - Should use repository
-deriveClockIdentityFromMAC(interface_mac, source_port.clock_identity);
+// ✅ CORRECT - Using repository constants
+uint8_t mac[6];
+if (ptp_hal.get_interface_mac(mac)) {
+    // EUI-64: MAC[0:2] || 0xFF || 0xFE || MAC[3:5]
+    source_port.clock_identity[0] = mac[0];
+    source_port.clock_identity[1] = mac[1];
+    source_port.clock_identity[2] = mac[2];
+    source_port.clock_identity[3] = 0xFF;
+    source_port.clock_identity[4] = 0xFE;
+    source_port.clock_identity[5] = mac[3];
+    source_port.clock_identity[6] = mac[4];
+    source_port.clock_identity[7] = mac[5];
+}
 announce_msg.body.timeSource = static_cast<uint8_t>(TimeSource::GPS);
 ```
 
@@ -605,19 +619,22 @@ sudo gdbserver :2345 /usr/local/bin/ptp_grandmaster --interface=eth1
 
 ## 🔍 Next Steps (CRITICAL PATH)
 
-### IMMEDIATE - Fix Repository Integration (1-2 days)
-1. **Remove Magic Numbers**:
-   - [ ] Replace hardcoded clock ID with MAC-derived ID
-   - [ ] Use TimeSource::GPS enum instead of 0x20
-   - [ ] Import all constants from repository headers
-   - [ ] Verify field names match repository types
+### ✅ COMPLETED - Fix Repository Integration
+1. ~~**Remove Magic Numbers**~~ ✅ Done (commit 612aaad):
+   - [x] Replaced hardcoded clock ID with MAC-derived ID
+   - [x] Used TimeSource::GPS enum instead of 0x20
+   - [x] Imported constants from repository headers
+   - [x] Verified field names match repository types
 
-2. **Test Message Transmission**:
-   - [ ] Connect network cable to eth1
-   - [ ] Capture packets with Wireshark
-   - [ ] Verify message formats against IEEE 1588-2019
+2. ~~**Test Message Transmission**~~ ⏳ PARTIAL - Messages transmit but PHC NOT disciplined:
+   - [x] Grandmaster runs successfully
+   - [x] GPS time reading works (Class=7, Acc=33 reported)
+   - [x] Announce & Sync messages transmitting
+   - [ ] **CRITICAL**: i226 PHC NOT disciplined to GPS (hardware timestamps unreliable)
+   - [ ] **CRITICAL**: Need servo loop: GPS → PHC discipline
+   - Next: Implement PHC discipline, then verify with Wireshark
 
-### CRITICAL - Integrate Repository Delay Mechanism (1-2 days)
+### CRITICAL - Integrate Repository Delay Mechanism (1-2 days) ⏳ NEXT
 3. **Replace Standalone Code with PtpPort Class**:
    - [ ] Remove custom message construction in ptp_grandmaster.cpp
    - [ ] Create `PtpPort` instance with HAL callbacks
@@ -651,7 +668,7 @@ sudo gdbserver :2345 /usr/local/bin/ptp_grandmaster --interface=eth1
 ### OPTIONAL - Enhancements
 7. **Remote Debugging**: Setup GDB remote debugging
 8. **Performance Profiling**: Measure latencies
-9. **BMCA**: Multi-master scenarios (only if needed)
+9. **BMCA**: Multi-master scenarios (mandatory for full compliance)
 
 **ESTIMATED COMPLETION**: 2-3 days (using repository code, not reimplementing!)
 
