@@ -1,129 +1,149 @@
-Your log is already diagnostic. The RTC disciplining is not “noisy”; it is **logically inconsistent by ±1 second**.
+You fixed **one** class of ambiguity (you now lock “NMEA labels LAST PPS”), but the log still proves you have a **second, independent off-by-one** in the way you *apply* that association to the value you call `gps_sec` (and/or how you compute `err`).
 
-## What your log shows (key symptom)
+### What is now unambiguous from the new log
 
-You repeatedly alternate between:
+1. **Association lock looks correct**
 
-* `err ≈ -3 ms` (good alignment)
-* `err ≈ -1003 ms` (exactly “good alignment” minus ~1.000 s)
+   * `PPS-UTC Lock … NMEA labels LAST PPS (avg_dt=200ms)`
+   * `avg_dt≈200ms` is a perfectly plausible “RMC comes ~200 ms after PPS” pattern.
 
-Example:
+2. **The ±1 second flip is still present**
 
-* `[RTC Sync] Initial sync … (error=-1003.07ms)`
-* later: `err=-3.1ms`
-* then again: `err=-1003.1ms`
-* and this repeats.
+   * `err=-1002.2ms` for long stretches
+   * then occasionally `err=-2.2ms`
+   * difference is exactly **1000 ms**.
 
-That is the classic signature of an **off-by-one second labeling problem**, not DS3231 drift.
+3. **The huge drift spikes (±200000 ppm) are still artifacts**
 
-Your “drift” spikes of ±200000 ppm are a *secondary artifact*: if your error jumps by ~1.000 s over a 5 s interval, you will compute ~0.2 s/s = **200,000 ppm** (exactly what you see). In other words, the drift estimator is being fed a wrapped / mis-labeled phase error.
+   * `200000 ppm` corresponds to “I saw a 1 s step over ~5 s” in your estimator.
+   * That’s not a DS3231 frequency problem; it’s a labeling/unwrap problem.
 
-## Most likely root cause
-
-You are sometimes associating **NMEA time-of-day** with the **wrong PPS edge**:
-
-* PPS defines the *start* of a UTC second.
-* NMEA sentences (RMC/GGA/VTG) arrive with variable latency and may correspond to:
-
-  * the **last PPS** (most common), or
-  * the **next PPS**, depending on module configuration and how you “latch” time in software.
-
-If your code occasionally flips between “NMEA labels last PPS” and “NMEA labels next PPS”, your computed UTC second for a given PPS will jump by exactly 1 second, yielding the ~1000 ms error you see.
-
-This flip often happens because of a race such as:
-
-* “PPS interrupt updates `pps_seq`”
-* “NMEA parser updates `last_utc_seconds`”
-* a later computation combines `pps_seq` from one epoch with `utc_seconds` from the other (no atomic pairing / no explicit association).
-
-## What to implement (best practice on Linux)
-
-### 1) Make PPS the only second boundary
-
-Maintain a monotonic “PPS tick” state:
-
-* `last_pps_mono_ts`
-* `last_pps_seq`
-* `utc_sec_for_last_pps` (this is the label you care about)
-
-On **every PPS**, you advance the timeline deterministically:
-
-* `utc_sec_for_last_pps += 1` (once you are “locked” and have an initial label)
-
-Do **not** re-derive “current second” from NMEA each time.
-
-### 2) Use NMEA only to *initialize / occasionally re-anchor* the second label
-
-When an RMC/ZDA arrives:
-
-* parse UTC hhmmss + date → `utc_sec_candidate`
-* decide whether that candidate belongs to the **last PPS** or the **next PPS**
-* then set `utc_sec_for_last_pps` accordingly, but **only if it is consistent**
-
-Practical and robust association rule (auto-detect):
-
-* measure `dt = t_nmea_rx_mono - t_last_pps_mono`
-* if `dt` is typically (for your receiver) e.g. 100–400 ms after PPS, then **RMC labels last PPS**
-* if it is typically just before PPS (rare, but possible), then **RMC labels next PPS**
-
-Lock this decision after a few samples (hysteresis), and never “flip” unless you explicitly reset.
-
-### 3) Pair PPS and UTC label atomically
-
-Make it impossible to combine “PPS edge A” with “UTC label from edge B”.
-
-Concretely:
-
-* create a single struct updated under a mutex/spinlock (or lock-free with sequence counters):
-
-  * `{pps_seq, pps_mono_ts, utc_sec_for_that_pps}`
-* When NMEA arrives, update a “pending” label, but only commit it tied to a specific `pps_seq`.
-
-### 4) RTC set should be scheduled relative to PPS, not “now”
-
-When you decide to step DS3231:
-
-* do it **immediately after a PPS** and write the DS3231 to the second that PPS represents (or `+1` if your write path cannot complete fast enough—pick one convention and keep it consistent).
-
-### 5) Fix your drift estimator: unwrap modulo 1 second
-
-Even with correct association, any RTC read is quantized to seconds. Your phase error should be treated as:
-
-* `phase_err_ms = (rtc - utc_label)` but mapped into a consistent interval, e.g. `[-500 ms, +500 ms]`, by adding/subtracting 1000 ms when it crosses a boundary.
-
-And reject obvious outliers:
-
-* if `abs(phase_err_ms) > 200 ms` (or your chosen tolerance), don’t feed it into drift.
-
-## Quick confirmation instrumentation (minimal changes)
-
-Add two timestamps:
-
-1. On PPS:
-
-* log `t_pps_mono`, `pps_seq`
-
-2. On RMC parse completion:
-
-* log `t_rmc_mono`, parsed `hhmmss`, and compute:
-
-  * `dt_ms = (t_rmc_mono - t_last_pps_mono)`
-
-If you see `dt_ms` consistently e.g. +200 ms, your receiver’s RMC labels the **last PPS**. If your code currently assumes it labels the next PPS, you will get exactly the ~1 s error pattern you’re seeing.
-
-## Secondary checks (worth doing once)
-
-* Ensure nothing else is writing the RTC in parallel (e.g., `hwclock` services). If another process steps `/dev/rtc1`, you can also see discontinuities.
-* Confirm DS3231 OSF handling: if OSF is set, step once, clear OSF, then begin drift monitoring.
+So: **your “LAST PPS” lock is not being used consistently downstream**, or the code still sometimes compares the RTC against `gps_sec` that is effectively **one second ahead** of “PPS second”.
 
 ---
 
-### Bottom line
+## The most likely remaining bug (and where to look)
 
-Your DS3231 disciplining loop is failing because the **UTC second label is not consistently bound to the PPS edge**. Fix the PPS↔UTC association (and make it atomic), and the ±1000 ms toggling—and the fake ±200,000 ppm drift—will disappear.
+You likely have two time variables:
 
-If you paste the code section where you:
+* **`gps_sec`** (derived from NMEA / RMC)
+* **`pps_seq`** (from PPS device)
 
-* compute `err=...` and
-* decide which GPS second corresponds to the PPS,
-  I can point to the exact place where the 1-second ambiguity is introduced and suggest a concrete patch structure (sequence counter / commit logic).
+And somewhere you compute an “expected UTC for this PPS” as something like:
+
+* `expected = gps_sec` sometimes
+* `expected = gps_sec + 1` (or `gps_sec - 1`) other times
+* or you implicitly shift because `gps_sec` is being updated on RMC arrival, not latched to a specific PPS.
+
+Your new debug lines reinforce this suspicion:
+
+* `[Measurement Timing] gps_sec=1768125931 pps_seq=96598`
+* and later you can see the `err` toggling without a corresponding new association lock event.
+
+That strongly suggests you are still doing a *soft coupling* (“current gps_sec”) instead of a *hard binding* (“gps_sec_for_pps_seq”).
+
+---
+
+## The correct, race-free model on Linux
+
+You need a single mapping of **PPS sequence → UTC second**.
+
+Implement it as a base pair:
+
+* `base_pps_seq`
+* `base_utc_sec`  (UTC seconds since epoch that correspond to `base_pps_seq`)
+
+Then for **any** PPS event with sequence `s`, compute:
+
+* `utc_at_pps(s) = base_utc_sec + (s - base_pps_seq)`
+
+### How to update the base pair using RMC (labels LAST PPS)
+
+When RMC arrives with `utc_rmc` and you have `last_pps_seq` at receive time:
+
+* If you locked “labels LAST PPS”:
+
+  * set `base_pps_seq = last_pps_seq`
+  * set `base_utc_sec = utc_rmc`
+* If you ever support “labels NEXT PPS”:
+
+  * set `base_pps_seq = last_pps_seq + 1`
+  * set `base_utc_sec = utc_rmc`
+
+**Critical rule:** once this is in place, your code must **never** use a “free-running `gps_sec`” for error computation. It must use `utc_at_pps(current_seq)`.
+
+---
+
+## What to add to your logs (to pinpoint the exact +1)
+
+Right where you print `err=...`, also print:
+
+* `pps_seq`
+* `utc_at_pps` (computed via base mapping)
+* `rtc_sec` (DS3231 time as epoch seconds)
+* `delta_sec = rtc_sec - utc_at_pps`
+
+You will immediately see whether the persistent `-1002 ms` corresponds to:
+
+* `delta_sec = -1` (RTC second is behind your UTC label by 1)
+* or `delta_sec = 0` but your millisecond portion is being computed with the wrong sign/convention.
+
+Given `-1002.2ms` vs `-2.2ms`, the simplest truth is: **sometimes you compare against `utc_at_pps + 1`**.
+
+---
+
+## RTC sync: ensure you set the RTC to the same second you later compare against
+
+Your current line:
+
+* `[RTC Sync] Initial sync … (error=-1002.22ms)`
+* followed by “RTC synchronized”
+* but then `err=-1002.2ms` continues
+
+This indicates one of these is true:
+
+1. **RTC set uses a different reference second** than your error computation
+   (e.g., you set RTC to `utc_at_pps`, but you later compare to `utc_at_pps + 1`).
+
+2. **RTC set is correct, but your `utc_at_pps` is wrong by +1** during measurement.
+
+To eliminate this class entirely, do this:
+
+* Compute `utc_target = utc_at_pps(last_pps_seq)` (or `utc_at_pps(last_pps_seq)+1` if you intentionally set to next second — but then also compare that way).
+* Use **the same `utc_target` variable** for:
+
+  * the I²C write into DS3231
+  * the subsequent error computation reference.
+
+No recomputation, no alternate path.
+
+---
+
+## Fix your drift estimator to be immune to ±1 s steps
+
+Even after the labeling bug is fixed, RTC reads are quantized and can “walk” across a second boundary. Your estimator should:
+
+1. **unwrap phase error** into a stable interval, e.g. `[-500ms, +500ms]`
+2. **reject samples** where `abs(err_ms) > 200 ms` (or your tolerance)
+3. compute drift only from consecutive accepted samples
+
+This prevents garbage “200000 ppm” even if something steps once.
+
+---
+
+## Quick checklist (minimal changes that will stop the ±1000 ms flip)
+
+* [ ] Replace any usage of “current `gps_sec`” in the RTC error path with `utc_at_pps(pps_seq)`.
+* [ ] Maintain `base_pps_seq/base_utc_sec` updated atomically when RMC arrives.
+* [ ] In the RTC set path, compute `utc_target` once and reuse it for both set and error reference.
+* [ ] Add log: `pps_seq, base_pps_seq, base_utc_sec, utc_at_pps, rtc_sec, delta_sec`.
+
+---
+
+### If you paste the 30–60 lines around:
+
+* where `PPS-UTC Lock` sets the association,
+* where `Measurement Timing` is printed,
+* and where `err=` is computed,
+
+I can tell you exactly which variable is drifting by +1 (and whether it is a race, a sign error, or a “+1” applied in the wrong place).

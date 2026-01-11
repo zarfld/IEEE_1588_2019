@@ -32,8 +32,8 @@ GpsAdapter::GpsAdapter(const std::string& serial_device,
     , serial_fd_(-1)
     , pps_handle_(-1)
     , last_pps_fetch_ms_(0)
-    , utc_sec_for_last_pps_(0)
-    , last_pps_seq_(0)
+    , base_pps_seq_(0)
+    , base_utc_sec_(0)
     , pps_utc_locked_(false)
     , nmea_labels_last_pps_(true)
     , association_sample_count_(0)
@@ -689,16 +689,14 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         return false;  // No PPS = no reliable time
     }
     
-    // Check if we have a new PPS pulse
-    bool new_pps = (pps_data_.sequence != last_pps_seq_);
+    // Check if we have a new PPS pulse (not needed for locked mode, but keep for unlock)
+    bool new_pps = (pps_data_.sequence != base_pps_seq_);
     
-    if (new_pps) {
-        last_pps_seq_ = pps_data_.sequence;  // Update FIRST to prevent re-processing
-        
-        if (pps_utc_locked_) {
-            // Locked: increment UTC second monotonically on each PPS
-            utc_sec_for_last_pps_ += 1;
-        } else if (gps_data_.time_valid) {
+    if (pps_utc_locked_) {
+        // LOCKED: Use base mapping model UTC(seq) = base_utc + (seq - base_seq)
+        // This is race-free and handles all PPS updates atomically
+        // No per-PPS updates needed!
+    } else if (new_pps && gps_data_.time_valid) {
             // Not locked: process NMEA for association detection or UTC initialization
             
             // Calculate NMEA UTC second
@@ -750,15 +748,17 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             if (association_sample_count_ >= 5) {
                 int64_t avg_dt_ms = association_dt_sum_ / association_sample_count_;
                 
-                // Determine association rule
+                // Determine association rule and set BASE MAPPING
                 if (avg_dt_ms >= 50 && avg_dt_ms <= 950) {
                     // NMEA arrives after PPS → labels LAST PPS
                     nmea_labels_last_pps_ = true;
-                    utc_sec_for_last_pps_ = nmea_utc_sec;
+                    base_pps_seq_ = pps_data_.sequence;
+                    base_utc_sec_ = nmea_utc_sec;
                 } else {
                     // NMEA arrives just before PPS → labels NEXT PPS
                     nmea_labels_last_pps_ = false;
-                    utc_sec_for_last_pps_ = nmea_utc_sec - 1;
+                    base_pps_seq_ = pps_data_.sequence + 1;
+                    base_utc_sec_ = nmea_utc_sec;
                 }
                 
                 pps_utc_locked_ = true;
@@ -766,21 +766,20 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                           << (nmea_labels_last_pps_ ? "LAST" : "NEXT")
                           << " PPS (avg_dt=" << avg_dt_ms << "ms)\n";
             } else {
-                // Not enough samples - use tentative label (assume last PPS)
-                utc_sec_for_last_pps_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
+                // Not enough samples - use tentative base mapping (assume last PPS)
+                base_pps_seq_ = pps_data_.sequence;
+                base_utc_sec_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
             }
             } // End fresh NMEA block
-        } else if (utc_sec_for_last_pps_ > 0) {
-            // No GPS data OR stale NMEA, but have UTC: increment monotonically
-            utc_sec_for_last_pps_ += 1;
         }
-        // Note: last_pps_seq_ already updated at start of new_pps block
     }
     
-    // Return locked PPS-UTC pair (atomic)
-    if (utc_sec_for_last_pps_ > 0) {
+    // Return PPS-UTC pair using BASE MAPPING model
+    if (base_utc_sec_ > 0) {
+        // Compute UTC for current PPS: UTC(seq) = base_utc + (seq - base_seq)
+        uint64_t utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);
         // Convert UTC to TAI
-        *seconds = utc_sec_for_last_pps_ + TAI_UTC_OFFSET;
+        *seconds = utc_sec + TAI_UTC_OFFSET;
         *nanoseconds = pps_data_.assert_nsec;
         return true;
     }

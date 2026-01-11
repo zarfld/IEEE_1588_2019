@@ -184,8 +184,9 @@ private:
     uint64_t    last_pps_fetch_ms_; ///< Last PPS fetch timestamp (ms)
     
     // PPS-UTC association state (fix for ±1 sec oscillation per deb.md)
-    uint64_t    utc_sec_for_last_pps_;      ///< UTC second label for last PPS
-    uint64_t    last_pps_seq_;              ///< Last PPS sequence processed
+    // BASE MAPPING MODEL: UTC(pps_seq) = base_utc_sec + (pps_seq - base_pps_seq)
+    uint64_t    base_pps_seq_;              ///< Base PPS sequence for UTC mapping
+    uint64_t    base_utc_sec_;              ///< Base UTC second (epoch) for base_pps_seq
     bool        pps_utc_locked_;            ///< Association locked?
     bool        nmea_labels_last_pps_;      ///< True: RMC labels last PPS, False: next
     uint32_t    association_sample_count_;  ///< Samples for association detection
