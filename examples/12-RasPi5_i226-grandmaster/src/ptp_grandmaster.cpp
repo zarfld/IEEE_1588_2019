@@ -15,6 +15,7 @@
 #include "linux_ptp_hal.hpp"
 #include "gps_adapter.hpp"
 #include "rtc_adapter.hpp"
+#include "IEEE/1588/PTP/2019/messages.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -24,6 +25,7 @@
 #include <getopt.h>
 #include <cmath>
 
+using namespace IEEE::_1588::PTP::_2019;
 using namespace IEEE::_1588::PTP::_2019::Linux;
 
 // Global flag for graceful shutdown
@@ -403,10 +405,39 @@ int main(int argc, char* argv[])
 
         // Send PTP Announce message (every 2 seconds)
         if (announce_counter++ % 2 == 0) {
-            // TODO: Construct and send IEEE 1588-2019 Announce message
-            // This will be implemented using repository PTP message structures
-            if (verbose) {
-                std::cout << "→ Announce message sent\n";
+            // Construct IEEE 1588-2019 Announce message
+            AnnounceMessage announce_msg;
+            
+            // Initialize common header
+            PortIdentity source_port;
+            std::memcpy(source_port.clockIdentity.id, "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8); // Default clock ID
+            source_port.portNumber = detail::host_to_be16(1);
+            
+            announce_msg.initialize(MessageType::Announce, 0, source_port);
+            announce_msg.header.sequenceId = detail::host_to_be16(static_cast<uint16_t>(announce_counter));
+            announce_msg.header.logMessageInterval = 1; // 2 seconds = 2^1
+            
+            // Set Announce body from GPS clock quality
+            uint8_t clock_class, clock_accuracy;
+            uint16_t offset_variance;
+            gps_adapter.get_ptp_clock_quality(&clock_class, &clock_accuracy, &offset_variance);
+            
+            announce_msg.body.grandmasterPriority1 = 128;
+            announce_msg.body.grandmasterClockClass = clock_class;
+            announce_msg.body.grandmasterClockAccuracy = clock_accuracy;
+            announce_msg.body.grandmasterClockVariance = detail::host_to_be16(offset_variance);
+            announce_msg.body.grandmasterPriority2 = 128;
+            std::memcpy(announce_msg.body.grandmasterIdentity.id, source_port.clockIdentity.id, 8);
+            announce_msg.body.stepsRemoved = detail::host_to_be16(0);
+            announce_msg.body.timeSource = 0x20; // GPS
+            
+            // Send via HAL
+            HardwareTimestamp tx_ts;
+            int sent = ptp_hal.send_message(&announce_msg, announce_msg.getMessageSize(), &tx_ts);
+            
+            if (verbose && sent > 0) {
+                std::cout << "→ Announce sent (Class=" << static_cast<int>(clock_class) 
+                         << ", Acc=" << static_cast<int>(clock_accuracy) << ")\n";
             }
         }
         
@@ -426,11 +457,45 @@ int main(int argc, char* argv[])
         }
 
         // Send PTP Sync message (every second)
-        if (sync_counter++ % 1 == 0) {
-            // TODO: Construct and send IEEE 1588-2019 Sync + Follow_Up messages
-            // Use hardware TX timestamp from HAL
-            if (verbose) {
-                std::cout << "→ Sync message sent\n";
+        if (sync_counter++ % 1 == 0 && gps_available) {
+            // Construct IEEE 1588-2019 Sync message
+            SyncMessage sync_msg;
+            
+            // Initialize common header (TWO_STEP mode)
+            PortIdentity source_port;
+            std::memcpy(source_port.clockIdentity.id, "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
+            source_port.portNumber = detail::host_to_be16(1);
+            
+            sync_msg.initialize(MessageType::Sync, 0, source_port);
+            sync_msg.header.sequenceId = detail::host_to_be16(static_cast<uint16_t>(sync_counter));
+            sync_msg.header.flagField = detail::host_to_be16(Flags::TWO_STEP); // Two-step grandmaster
+            sync_msg.header.logMessageInterval = 0; // 1 second = 2^0
+            
+            // Origin timestamp (will be replaced by hardware TX timestamp)
+            sync_msg.body.originTimestamp.secondsField = gps_seconds;
+            sync_msg.body.originTimestamp.nanosecondsField = gps_nanoseconds;
+            
+            // Send via HAL with hardware TX timestamp
+            HardwareTimestamp tx_ts;
+            int sent = ptp_hal.send_message(&sync_msg, sync_msg.getMessageSize(), &tx_ts);
+            
+            if (sent > 0) {
+                // Send Follow_Up with precise TX timestamp
+                FollowUpMessage followup_msg;
+                followup_msg.initialize(MessageType::Follow_Up, 0, source_port);
+                followup_msg.header.sequenceId = sync_msg.header.sequenceId; // Match Sync sequence
+                followup_msg.header.logMessageInterval = 0;
+                
+                // Precise origin timestamp from hardware
+                followup_msg.body.preciseOriginTimestamp.secondsField = tx_ts.seconds;
+                followup_msg.body.preciseOriginTimestamp.nanosecondsField = tx_ts.nanoseconds;
+                
+                ptp_hal.send_message(&followup_msg, followup_msg.getMessageSize(), nullptr);
+                
+                if (verbose) {
+                    std::cout << "→ Sync + Follow_Up sent (tx=" << tx_ts.seconds << "." 
+                             << std::setfill('0') << std::setw(9) << tx_ts.nanoseconds << ")\n";
+                }
             }
         }
 
