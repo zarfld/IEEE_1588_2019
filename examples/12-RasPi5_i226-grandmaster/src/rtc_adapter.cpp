@@ -284,6 +284,37 @@ int8_t RtcAdapter::read_aging_offset()
     return aging_offset;
 }
 
+bool RtcAdapter::write_aging_offset(int8_t offset)
+{
+    if (i2c_fd_ < 0) {
+        return false;
+    }
+
+    // Write to DS3231 aging offset register (0x10)
+    uint8_t write_data[2] = {DS3231_AGING_OFFSET_REG, static_cast<uint8_t>(offset)};
+    if (write(i2c_fd_, write_data, 2) != 2) {
+        std::cerr << "[RTC Discipline] Failed to write aging offset to I2C register 0x" 
+                  << std::hex << static_cast<int>(DS3231_AGING_OFFSET_REG) << std::dec << "\n";
+        return false;
+    }
+    
+    std::cout << "[RTC Discipline] ✓ Aging offset written successfully to I2C register 0x" 
+              << std::hex << static_cast<int>(DS3231_AGING_OFFSET_REG) << std::dec << "\n";
+    
+    // Verify write by reading back
+    int8_t readback = read_aging_offset();
+    if (readback != offset) {
+        std::cerr << "[RTC Discipline] WARNING: Readback mismatch! wrote=" 
+                  << static_cast<int>(offset) 
+                  << " read=" << static_cast<int>(readback) << "\n";
+        return false;
+    } else {
+        std::cout << "[RTC Discipline] ✓ Verified aging offset: " << static_cast<int>(readback) << "\n";
+    }
+
+    return true;
+}
+
 double RtcAdapter::get_temperature()
 {
     if (i2c_fd_ < 0) {

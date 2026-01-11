@@ -161,6 +161,7 @@ public:
     int8_t calculate_aging_offset(double drift_ppm);
     bool apply_frequency_discipline(double drift_ppm);
     int8_t read_aging_offset();
+    bool write_aging_offset(int8_t offset);  // Direct write for incremental adjustments
     double get_temperature();
 };
 
