@@ -97,6 +97,18 @@ public:
     bool get_phc_time(uint64_t* seconds, uint32_t* nanoseconds);
     
     /**
+     * @brief Get PHC time correlated with system time (PTP_SYS_OFFSET_EXTENDED)
+     * @param phc_ns Output: PHC time in nanoseconds
+     * @param sys_ns Output: System time in nanoseconds (same instant)
+     * @return true on success, false on failure
+     * 
+     * Uses PTP_SYS_OFFSET_EXTENDED ioctl to sample PHC and system time
+     * simultaneously, enabling accurate correlation between the two clocks.
+     * This is essential for PHC frequency calibration against PPS edges.
+     */
+    bool get_phc_sys_offset(int64_t* phc_ns, int64_t* sys_ns);
+    
+    /**
      * @brief Set PHC time
      * @param seconds Seconds to set
      * @param nanoseconds Nanoseconds to set

@@ -421,12 +421,30 @@ int main(int argc, char* argv[])
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
                 
                 // Initialize baseline on first PPS edge (PPS-based measurement per expert advice)
+                // CRITICAL: Capture PHC time at the PPS edge, not at arbitrary loop time!
+                // Expert (deb.md): "Use PTP_SYS_OFFSET_EXTENDED to map PHC↔system time at instant of PPS"
                 if (phc_servo.baseline_pps_seq == 0 && pps_data.sequence > 0) {
-                    phc_servo.baseline_pps_seq = pps_data.sequence;
-                    phc_servo.baseline_phc_ns = phc_time_ns;
-                    phc_servo.last_offset_ns = offset_ns;  // For phase servo later
-                    std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
-                              << ", will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
+                    // Get PHC time correlated with system time using PTP_SYS_OFFSET_EXTENDED
+                    int64_t phc_now_ns, sys_now_ns;
+                    if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
+                        // PPS edge happened at: pps_data.assert_sec.assert_nsec (system time)
+                        int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
+                                           + pps_data.assert_nsec;
+                        
+                        // Calculate PHC time at PPS edge using correlation:
+                        // phc_at_pps = phc_now - (sys_now - pps_sys)
+                        int64_t phc_at_pps_ns = phc_now_ns - (sys_now_ns - pps_sys_ns);
+                        
+                        phc_servo.baseline_pps_seq = pps_data.sequence;
+                        phc_servo.baseline_phc_ns = phc_at_pps_ns;
+                        phc_servo.last_offset_ns = offset_ns;  // For phase servo later
+                        
+                        std::cout << "[PHC Calibration] Baseline set at PPS #" << pps_data.sequence 
+                                  << " (system: " << pps_sys_ns << " ns, PHC: " << phc_at_pps_ns << " ns)\n"
+                                  << "  Will measure over " << phc_servo.calib_interval_pulses << " pulses...\n";
+                    } else {
+                        std::cerr << "[PHC Calibration] ERROR: Failed to get PHC-system correlation!\n";
+                    }
                 }
                 
                 // CRITICAL: Measure and correct frequency offset BEFORE stepping time
@@ -451,13 +469,20 @@ int main(int argc, char* argv[])
                     }
                     
                     if (elapsed_pulses >= phc_servo.calib_interval_pulses) {  // Enough pulses for measurement
-                        // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
-                        int64_t phc_delta_ns = phc_time_ns - phc_servo.baseline_phc_ns;
-                        int64_t ref_delta_ns = static_cast<int64_t>(elapsed_pulses) * 1000000000LL;  // N pulses × 1 sec/pulse
-                        
-                        // Calculate drift in ppm (parts per million)
-                        // drift_ppm = ((PHC_measured - reference) / reference) × 10^6
-                        double drift_ppm = (static_cast<double>(phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6;
+                        // Get PHC time at CURRENT PPS edge (correlated with system time)
+                        int64_t phc_now_ns, sys_now_ns;
+                        if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
+                            int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL 
+                                               + pps_data.assert_nsec;
+                            int64_t phc_at_pps_ns = phc_now_ns - (sys_now_ns - pps_sys_ns);
+                            
+                            // PURE INTEGER NANOSECOND DELTAS (no floats until final ratio)
+                            int64_t phc_delta_ns = phc_at_pps_ns - phc_servo.baseline_phc_ns;
+                            int64_t ref_delta_ns = static_cast<int64_t>(elapsed_pulses) * 1000000000LL;  // N pulses × 1 sec/pulse
+                            
+                            // Calculate drift in ppm (parts per million)
+                            // drift_ppm = ((PHC_measured - reference) / reference) × 10^6
+                            double drift_ppm = (static_cast<double>(phc_delta_ns - ref_delta_ns) / ref_delta_ns) * 1e6;
                         
                         // Check if still drifting significantly
                         if (std::abs(drift_ppm) > 100) {  // Still needs calibration
@@ -495,11 +520,15 @@ int main(int argc, char* argv[])
                             // Update our software tracker
                             phc_servo.cumulative_freq_ppb = new_freq_ppb;
                             
-                            // Reset baseline for next measurement interval
+                            // Reset baseline for next measurement interval (use current PPS-correlated PHC)
                             phc_servo.baseline_pps_seq = pps_data.sequence;
-                            phc_servo.baseline_phc_ns = phc_time_ns;
+                            phc_servo.baseline_phc_ns = phc_at_pps_ns;
                             continue;  // Measure again over next N pulses
                         } else {
+                            std::cerr << "[PHC Calibration] ERROR: Failed to correlate PHC time at PPS edge!\n";
+                            continue;
+                        }
+                    } else {
                             std::cout << "[PHC Calibration] ✓ Complete! Final drift: " 
                                       << std::fixed << std::setprecision(1) << drift_ppm << " ppm (acceptable)\n"
                                       << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";

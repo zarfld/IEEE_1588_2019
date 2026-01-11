@@ -299,6 +299,52 @@ bool LinuxPtpHal::get_phc_time(uint64_t* seconds, uint32_t* nanoseconds)
     return true;
 }
 
+bool LinuxPtpHal::get_phc_sys_offset(int64_t* phc_ns, int64_t* sys_ns)
+{
+    // Use PTP_SYS_OFFSET_EXTENDED for accurate PHC-to-system-time correlation
+    // This samples both clocks nearly simultaneously
+    struct ptp_sys_offset_extended {
+        unsigned int n_samples;  // Number of measurements
+        unsigned int rsv[3];     // Reserved
+        struct {
+            struct timespec sys_before;
+            struct timespec phc;
+            struct timespec sys_after;
+        } ts[1];  // We only need 1 sample
+    } offset_ext;
+    
+    memset(&offset_ext, 0, sizeof(offset_ext));
+    offset_ext.n_samples = 1;
+    
+    // PTP_SYS_OFFSET_EXTENDED ioctl number (from linux/ptp_clock.h)
+    constexpr unsigned long PTP_SYS_OFFSET_EXTENDED_IOCTL = 0x43403d09;
+    
+    if (ioctl(phc_fd_, PTP_SYS_OFFSET_EXTENDED_IOCTL, &offset_ext) < 0) {
+        // Fallback: Read both clocks separately (less accurate)
+        struct timespec phc_ts, sys_ts;
+        clockid_t phc_clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
+        
+        if (clock_gettime(CLOCK_REALTIME, &sys_ts) < 0) return false;
+        if (clock_gettime(phc_clkid, &phc_ts) < 0) return false;
+        
+        *sys_ns = (int64_t)sys_ts.tv_sec * 1000000000LL + sys_ts.tv_nsec;
+        *phc_ns = (int64_t)phc_ts.tv_sec * 1000000000LL + phc_ts.tv_nsec;
+        return true;
+    }
+    
+    // Use average of before/after system time for best accuracy
+    int64_t sys_before_ns = (int64_t)offset_ext.ts[0].sys_before.tv_sec * 1000000000LL 
+                          + offset_ext.ts[0].sys_before.tv_nsec;
+    int64_t sys_after_ns = (int64_t)offset_ext.ts[0].sys_after.tv_sec * 1000000000LL 
+                         + offset_ext.ts[0].sys_after.tv_nsec;
+    
+    *sys_ns = (sys_before_ns + sys_after_ns) / 2;
+    *phc_ns = (int64_t)offset_ext.ts[0].phc.tv_sec * 1000000000LL 
+            + offset_ext.ts[0].phc.tv_nsec;
+    
+    return true;
+}
+
 bool LinuxPtpHal::set_phc_time(uint64_t seconds, uint32_t nanoseconds)
 {
     // Use POSIX clock_settime() instead of PTP_CLOCK_SETTIME ioctl
