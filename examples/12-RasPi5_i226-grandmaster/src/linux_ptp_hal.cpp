@@ -330,6 +330,29 @@ bool LinuxPtpHal::set_phc_time(uint64_t seconds, uint32_t nanoseconds)
     return true;
 }
 
+bool LinuxPtpHal::get_phc_frequency(int32_t* ppb)
+{
+    if (!ppb) return false;
+
+    struct timex tx;
+    memset(&tx, 0, sizeof(tx));
+
+    // Convert PHC file descriptor to clockid
+    clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
+
+    // Read current frequency (modes=0 means query)
+    tx.modes = 0;
+    if (clock_adjtime(clkid, &tx) < 0) {
+        std::cerr << "[PHC ERROR] get_phc_frequency() FAILED: " 
+                  << strerror(errno) << " (errno=" << errno << ")\n";
+        return false;
+    }
+
+    // Convert scaled PPM to ppb: freq in units of 2^-16 ppm
+    *ppb = (int32_t)(((long long)tx.freq * 1000LL) / 65536LL);
+    return true;
+}
+
 bool LinuxPtpHal::adjust_phc_frequency(int32_t ppb)
 {
     // Use POSIX clock_adjtime() instead of PTP_CLOCK_ADJTIME ioctl

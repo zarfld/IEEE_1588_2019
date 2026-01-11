@@ -434,19 +434,39 @@ int main(int argc, char* argv[])
                         
                         // Check if still drifting significantly
                         if (std::abs(drift_ppm) > 100) {  // Still needs calibration
-                            int32_t freq_correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
-                            
-                            // Clamp to safe range for iterative correction
-                            if (freq_correction_ppb > phc_servo.freq_max_ppb) {
-                                freq_correction_ppb = phc_servo.freq_max_ppb;
-                            } else if (freq_correction_ppb < -phc_servo.freq_max_ppb) {
-                                freq_correction_ppb = -phc_servo.freq_max_ppb;
+                            // CRITICAL FIX: Read current frequency first (read-modify-write pattern)
+                            // adjust_phc_frequency() sets ABSOLUTE value, not cumulative!
+                            int32_t current_freq_ppb = 0;
+                            if (!ptp_hal.get_phc_frequency(&current_freq_ppb)) {
+                                std::cerr << "[PHC ERROR] Failed to read current frequency!\n";
+                                phc_servo.last_offset_ns = offset_ns;
+                                phc_servo.last_gps_seconds = gps_seconds;
+                                continue;
                             }
                             
-                            std::cout << "[PHC Calibration] Iteration: Measured " << drift_ppm 
-                                     << " ppm drift, applying " << freq_correction_ppb << " ppb correction...\n";
+                            // Calculate correction needed (clamped per iteration)
+                            int32_t correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
+                            if (correction_ppb > phc_servo.freq_max_ppb) {
+                                correction_ppb = phc_servo.freq_max_ppb;
+                            } else if (correction_ppb < -phc_servo.freq_max_ppb) {
+                                correction_ppb = -phc_servo.freq_max_ppb;
+                            }
                             
-                            ptp_hal.adjust_phc_frequency(freq_correction_ppb);
+                            // Calculate new TOTAL frequency (cumulative)
+                            int32_t new_freq_ppb = current_freq_ppb + correction_ppb;
+                            
+                            // Clamp total frequency to hardware limits (±500,000 ppb = ±500 ppm)
+                            const int32_t max_total_freq = 500000;  // i226 hardware limit
+                            if (new_freq_ppb > max_total_freq) new_freq_ppb = max_total_freq;
+                            if (new_freq_ppb < -max_total_freq) new_freq_ppb = -max_total_freq;
+                            
+                            std::cout << "[PHC Calibration] Iteration: Measured " << drift_ppm << " ppm drift\n"
+                                      << "  Current freq: " << current_freq_ppb << " ppb, "
+                                      << "Correction: " << correction_ppb << " ppb, "
+                                      << "New total: " << new_freq_ppb << " ppb\n";
+                            
+                            // Apply new TOTAL frequency (absolute set)
+                            ptp_hal.adjust_phc_frequency(new_freq_ppb);
                             
                             // Reset baseline for next iteration
                             phc_servo.last_offset_ns = offset_ns;

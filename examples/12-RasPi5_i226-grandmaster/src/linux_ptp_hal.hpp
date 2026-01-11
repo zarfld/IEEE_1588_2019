@@ -105,6 +105,13 @@ public:
     bool set_phc_time(uint64_t seconds, uint32_t nanoseconds);
     
     /**
+     * @brief Get PHC frequency adjustment
+     * @param ppb Output: Current frequency adjustment in parts-per-billion
+     * @return true on success, false on failure
+     */
+    bool get_phc_frequency(int32_t* ppb);
+    
+    /**
      * @brief Adjust PHC frequency
      * @param ppb Parts-per-billion frequency adjustment (positive = faster)
      * @return true on success, false on failure
