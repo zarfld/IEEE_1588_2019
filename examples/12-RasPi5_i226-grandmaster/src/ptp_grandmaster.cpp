@@ -208,16 +208,30 @@ int main(int argc, char* argv[])
                         // Calculate time error (RTC - GPS)
                         // NOTE: RTC is set to GPS+1 second (see sync_from_gps in rtc_adapter.cpp)
                         // to compensate for I2C write latency and 1-second RTC resolution.
-                        // Therefore, we must compare RTC to (GPS+1) for accurate drift measurement.
+                        // 
+                        // RACE CONDITION FIX: RTC has 1-second resolution and ticks independently.
+                        // Depending on timing between GPS read and RTC read, RTC might show:
+                        //   - GPS second (if RTC hasn't ticked yet)
+                        //   - GPS+1 second (if RTC ticked already - this is expected)
+                        // 
+                        // Solution: Compare RTC to whichever is closer (GPS or GPS+1)
                         int64_t rtc_time_ns = static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds;
-                        int64_t gps_time_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;  // GPS+1
-                        int64_t time_error_ns = rtc_time_ns - gps_time_ns;
+                        int64_t gps_time_ns = static_cast<int64_t>(gps_seconds) * 1000000000LL + gps_nanoseconds;
+                        int64_t gps_plus1_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;
                         
-                        // DEBUG: Print actual time values to diagnose ±1000ms oscillation
-                        printf("[Drift Debug] GPS=%lu.%09u RTC=%lu.%09u GPS+1=%lu.%09u error_ns=%ld (%.3fms)\n",
+                        // Calculate error for both possibilities
+                        int64_t error_vs_gps = rtc_time_ns - gps_time_ns;
+                        int64_t error_vs_gps_plus1 = rtc_time_ns - gps_plus1_ns;
+                        
+                        // Use whichever comparison gives smaller absolute error
+                        int64_t time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
+                                               ? error_vs_gps : error_vs_gps_plus1;
+                        
+                        // DEBUG: Print actual time values to verify fix
+                        printf("[Drift Debug] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
                                gps_seconds, gps_nanoseconds, 
                                rtc_seconds, rtc_nanoseconds,
-                               gps_seconds + 1, gps_nanoseconds,
+                               error_vs_gps, error_vs_gps_plus1,
                                time_error_ns, time_error_ns / 1000000.0);
                         
                         // Drift rate = change in error / time interval
