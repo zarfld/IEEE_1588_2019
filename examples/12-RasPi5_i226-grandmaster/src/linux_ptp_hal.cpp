@@ -8,6 +8,7 @@
 #include "linux_ptp_hal.hpp"
 #include <cstring>
 #include <cerrno>
+#include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -309,7 +310,21 @@ bool LinuxPtpHal::set_phc_time(uint64_t seconds, uint32_t nanoseconds)
     clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
 
     if (clock_settime(clkid, &ts) < 0) {
+        std::cerr << "[PHC ERROR] set_phc_time() FAILED: " << strerror(errno) 
+                  << " (errno=" << errno << ", clkid=" << clkid << ", phc_fd=" << phc_fd_ << ")\n";
         return false;
+    }
+
+    // Verify the time was actually set
+    struct timespec verify_ts;
+    if (clock_gettime(clkid, &verify_ts) == 0) {
+        int64_t set_ns = (int64_t)seconds * 1000000000LL + nanoseconds;
+        int64_t verify_ns = (int64_t)verify_ts.tv_sec * 1000000000LL + verify_ts.tv_nsec;
+        int64_t diff_ns = verify_ns - set_ns;
+        if (std::abs(diff_ns) > 1000000) {  // >1ms difference
+            std::cerr << "[PHC WARNING] Time set but verification shows " << (diff_ns / 1000000.0) 
+                      << " ms difference!\n";
+        }
     }
 
     return true;
@@ -329,6 +344,8 @@ bool LinuxPtpHal::adjust_phc_frequency(int32_t ppb)
     clockid_t clkid = ((~(clockid_t)(phc_fd_) << 3) | 3);
 
     if (clock_adjtime(clkid, &tx) < 0) {
+        std::cerr << "[PHC ERROR] adjust_phc_frequency(" << ppb << " ppb) FAILED: " 
+                  << strerror(errno) << " (errno=" << errno << ")\n";
         return false;
     }
 
