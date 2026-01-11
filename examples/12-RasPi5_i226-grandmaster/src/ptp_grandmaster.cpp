@@ -213,6 +213,13 @@ int main(int argc, char* argv[])
                 int64_t phc_time_ns = static_cast<int64_t>(phc_seconds) * 1000000000LL + phc_nanoseconds;
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
                 
+                // Initialize baseline on first GPS sample
+                if (phc_servo.last_gps_seconds == 0) {
+                    phc_servo.last_offset_ns = offset_ns;
+                    phc_servo.last_gps_seconds = gps_seconds;
+                    std::cout << "[PHC Calibration] Baseline set, will measure frequency offset in 2 seconds...\n";
+                }
+                
                 // CRITICAL: Measure and correct frequency offset BEFORE stepping time
                 // i226 PHC can have huge frequency offsets (100,000+ ppm) that cause
                 // rapid drift. Must calibrate frequency first or servo will never lock.
@@ -254,10 +261,9 @@ int main(int argc, char* argv[])
                     }
                 }
                 
-                // Store current measurement for next frequency calculation
+                // During frequency calibration, skip step corrections to avoid corrupting measurement
                 if (!phc_servo.freq_calibrated) {
-                    phc_servo.last_offset_ns = offset_ns;
-                    phc_servo.last_gps_seconds = gps_seconds;
+                    continue;  // Skip this iteration, let PHC drift naturally for measurement
                 }
                 
                 // Step correction for large offsets (>100ms for faster initial lock)
