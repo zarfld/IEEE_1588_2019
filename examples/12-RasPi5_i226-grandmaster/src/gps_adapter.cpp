@@ -692,6 +692,8 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
     bool new_pps = (pps_data_.sequence != last_pps_seq_);
     
     if (new_pps) {
+        last_pps_seq_ = pps_data_.sequence;  // Update FIRST to prevent re-processing
+        
         if (pps_utc_locked_) {
             // Locked: increment UTC second monotonically on each PPS
             utc_sec_for_last_pps_ += 1;
@@ -756,8 +758,7 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                 utc_sec_for_last_pps_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
             }
         }
-        
-        last_pps_seq_ = pps_data_.sequence;
+        // Note: last_pps_seq_ already updated at start of new_pps block
     }
     
     // Return locked PPS-UTC pair (atomic)
