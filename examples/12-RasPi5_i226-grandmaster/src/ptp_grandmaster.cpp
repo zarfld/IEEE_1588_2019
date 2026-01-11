@@ -154,9 +154,9 @@ int main(int argc, char* argv[])
         int64_t last_offset_ns = 0;   // Last offset measurement
         uint64_t last_gps_seconds = 0;  // Last GPS time for frequency measurement
         bool locked = false;          // True when PHC is locked to GPS
-        bool freq_calibrated = false; // True when initial frequency offset measured
+        bool freq_calibrated = false; // True when iterative frequency calibration complete
         const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
-        const int32_t freq_max_ppb = 500000;        // ±500ppm frequency limit
+        const int32_t freq_max_ppb = 500000;        // ±500ppm per adjustment (safe iterative steps)
     } phc_servo;
     
     // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
@@ -223,6 +223,7 @@ int main(int argc, char* argv[])
                 // CRITICAL: Measure and correct frequency offset BEFORE stepping time
                 // i226 PHC can have huge frequency offsets (100,000+ ppm) that cause
                 // rapid drift. Must calibrate frequency first or servo will never lock.
+                // Use ITERATIVE calibration: apply ±500ppm steps repeatedly until drift < 100ppm
                 if (!phc_servo.freq_calibrated && phc_servo.last_gps_seconds > 0) {
                     uint64_t elapsed_sec = gps_seconds - phc_servo.last_gps_seconds;
                     
@@ -231,31 +232,28 @@ int main(int argc, char* argv[])
                         int64_t drift_ns = offset_ns - phc_servo.last_offset_ns;
                         double drift_ppm = (drift_ns / 1000.0) / elapsed_sec;
                         
-                        if (std::abs(drift_ppm) > 1000) {  // Significant frequency offset
+                        // Check if still drifting significantly
+                        if (std::abs(drift_ppm) > 100) {  // Still needs calibration
                             int32_t freq_correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
                             
-                            // Clamp to safe range
+                            // Clamp to safe range for iterative correction
                             if (freq_correction_ppb > phc_servo.freq_max_ppb) {
                                 freq_correction_ppb = phc_servo.freq_max_ppb;
                             } else if (freq_correction_ppb < -phc_servo.freq_max_ppb) {
                                 freq_correction_ppb = -phc_servo.freq_max_ppb;
                             }
                             
-                            std::cout << "[PHC Calibration] Measured frequency offset: " << drift_ppm 
-                                     << " ppm, applying correction: " << freq_correction_ppb << " ppb\n";
+                            std::cout << "[PHC Calibration] Iteration: Measured " << drift_ppm 
+                                     << " ppm drift, applying " << freq_correction_ppb << " ppb correction...\n";
                             
                             ptp_hal.adjust_phc_frequency(freq_correction_ppb);
-                            phc_servo.freq_calibrated = true;
                             
-                            // After frequency correction, step time to eliminate accumulated offset
-                            std::cout << "[PHC Calibration] Stepping time after frequency correction\n";
-                            ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
-                            phc_servo.integral = 0.0;
-                            phc_servo.last_offset_ns = 0;
+                            // Reset baseline for next iteration
+                            phc_servo.last_offset_ns = offset_ns;
                             phc_servo.last_gps_seconds = gps_seconds;
-                            continue;  // Skip servo this iteration
+                            continue;  // Measure again in 2 seconds
                         } else {
-                            std::cout << "[PHC Calibration] Frequency offset acceptable: " << drift_ppm << " ppm\n";
+                            std::cout << "[PHC Calibration] ✓ Complete! Final drift: " << drift_ppm << " ppm (acceptable)\n";
                             phc_servo.freq_calibrated = true;
                         }
                     }
@@ -264,6 +262,15 @@ int main(int argc, char* argv[])
                 // During frequency calibration, skip step corrections to avoid corrupting measurement
                 if (!phc_servo.freq_calibrated) {
                     continue;  // Skip this iteration, let PHC drift naturally for measurement
+                }
+                
+                // After calibration complete on first iteration, step time once to eliminate accumulated offset
+                if (phc_servo.freq_calibrated && phc_servo.last_offset_ns == 0 && phc_servo.last_gps_seconds > 0) {
+                    std::cout << "[PHC Calibration] Stepping time to eliminate accumulated offset from calibration\n";
+                    ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
+                    phc_servo.last_offset_ns = -1;  // Mark as done (non-zero)
+                    phc_servo.integral = 0.0;
+                    continue;
                 }
                 
                 // Step correction for large offsets (>100ms for faster initial lock)
