@@ -31,7 +31,14 @@ Based on [console.log](console.log) analysis:
 - ✅ **GPS Module**: u-blox G70xx on `/dev/ttyACM0`
   - Chipset: UBX-G70xx (firmware PROTVER 14.00)
   - Antenna: OK
-  - NMEA output: Working (9600 baud)
+  - NMEA output: Working (38400 baud, pure NMEA mode)
+  - GPS Time: TAI with nanosecond precision
+  - Fix Quality: 1 (GPS), 7-9 satellites visible
+- ✅ **DS3231 RTC**: Temperature-compensated crystal oscillator
+  - Device: `/dev/rtc1` (kernel driver rtc-ds1307)
+  - I2C Bus: Bus 14 at address 0x68 (confirmed via i2cdetect)
+  - Aging Offset: Register 0x10 accessible (±12.7 ppm range, 0.1 ppm per LSB)
+  - Drift Measurement: Automated 60-sample buffer (~0.2-0.3 ppm typical)
 - ✅ **LinuxPTP**: v4.2 installed
   - `ptp4l`, `phc2sys`, `ts2phc` available
 - ✅ **Chrony**: Configured with GPS+PPS
@@ -39,22 +46,43 @@ Based on [console.log](console.log) analysis:
   - PPS: `/dev/pps0` locked to GPS
   - RTC sync enabled
 
-### 🔧 Configuration Status
-- ✅ SystemD services created (not yet enabled):
-  - `ptp4l-gm.service` - PTP grandmaster daemon
-  - `phc2sys-eth1.service` - PHC to system clock sync
-  - `phc2sys-ptp0.service` - System clock to PHC sync
-- ✅ Chrony configured for GPS+PPS
-- ⚠️ **eth1 DOWN** - Network cable needs connection
-- ⚠️ **RTC frequency not disciplined yet** - DS3231 aging offset needs calibration from GPS drift measurement
-- ⚠️ **Repository code not integrated yet** - Using standard LinuxPTP only
+### 🔧 Implementation Status
 
-**RTC Discipline Plan**:
-- Measure DS3231 drift against GPS-disciplined system clock (48 hours)
-- Calculate frequency error in ppm (parts-per-million)
-- Apply aging offset correction via I2C register 0x10 (±12.7 ppm range)
-- Continuous discipline service for ongoing adjustment
-- Target: <±0.5 ppm drift for accurate holdover
+**✅ COMPLETED**:
+- ✅ **GPS Adapter** (`gps_adapter.cpp`):
+  - NMEA parser (GPRMC + GPGGA sentences) with manual CSV parsing
+  - UTC to TAI conversion (37-second leap second offset)
+  - PPS signal integration with nanosecond precision
+  - PPS jitter measurement (0.6-3.8µs typical)
+  - GPS fix quality monitoring
+  
+- ✅ **RTC Adapter** (`rtc_adapter.cpp`):
+  - DS3231 I2C interface (I2C bus 14 at address 0x68)
+  - Aging offset read/write (register 0x10)
+  - Automated drift measurement (60-sample buffer)
+  - Frequency discipline (±12.7 ppm range)
+  - Temperature sensor reading
+  - Code consolidation: single I2C write point (no race conditions)
+  
+- ✅ **PTP Grandmaster** (`ptp_grandmaster.cpp`):
+  - IEEE 1588-2019 message construction (Announce, Sync, Follow_Up)
+  - GPS-disciplined clock quality (Class=7, Accuracy=33 for <100ns)
+  - Hardware timestamp integration
+  - Event loop with GPS/RTC fallback
+  - Compilation verified on Raspberry Pi
+  
+- ✅ **Linux PTP HAL** (`linux_ptp_hal.cpp`):
+  - Socket operations (event/general)
+  - Hardware timestamping (SO_TIMESTAMPING)
+  - PHC clock operations
+
+**⏳ READY FOR TESTING**:
+- [ ] **eth1 UP** - Connect network cable
+- [ ] **RTC aging offset I2C writes** - Test on correct bus 14 (errno=121 fixed)
+- [ ] **PTP network transmission** - Verify packets with tcpdump/Wireshark
+- [ ] **Slave synchronization** - Test with PTP slave device
+
+**Current Status**: GPS integration ✅, RTC discipline implemented ✅, PTP messages compiled ✅, I2C bus corrected (13→14) ✅
 
 ---
 
@@ -95,136 +123,132 @@ Based on [console.log](console.log) analysis:
 - ✅ PHC clock within ±1µs of GPS time
 - ✅ Slave devices can synchronize
 
-### Phase 2: Repository Code Integration
-**Objective**: Replace LinuxPTP with IEEE 1588-2019 repository implementation
+### Phase 2: Repository Implementation ✅ COMPLETE
+**Objective**: IEEE 1588-2019 PTP Grandmaster with GPS+RTC discipline
+**Status**: Implementation complete, ready for integration testing
 
-#### 2.1 Build Repository Code for ARM64
+#### 2.1 Build and Run Application
 
 ```bash
-# On development machine (cross-compile) or directly on Pi
-git clone https://github.com/zarfld/IEEE_1588_2019.git
-cd IEEE_1588_2019
+# On Raspberry Pi (or development machine with cross-compile)
+cd ~/IEEE_1588_2019/examples/12-RasPi5_i226-grandmaster
 
-# Configure for Raspberry Pi
-mkdir build-raspi && cd build-raspi
-cmake .. \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=/usr/local \
-  -DBUILD_EXAMPLES=ON \
-  -DENABLE_HARDWARE_TIMESTAMPING=ON
-
-# Build
+# Build the application
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j4
 
-# Install
+# Run the PTP grandmaster
+sudo ./ptp_grandmaster --interface=eth1 --gps=/dev/ttyACM0 --pps=/dev/pps0 --rtc=/dev/rtc1
+
+# Or install system-wide
 sudo make install
+sudo /usr/local/bin/ptp_grandmaster --interface=eth1
 ```
 
-#### 2.2 Create Linux HAL Adapter
+#### 2.2 Implementation Details
 
-**File**: `examples/12-RasPi5_i226-grandmaster/src/linux_ptp_hal.cpp`
+**GPS Adapter** (`src/gps_adapter.cpp`):
+- Opens serial port `/dev/ttyACM0` with auto-baud detection (38400 baud)
+- Disables u-blox UBX binary protocol (forces pure NMEA mode)
+- Parses GPRMC sentences (UTC time + date) with manual CSV parser for empty field handling
+- Parses GPGGA sentences (fix quality + satellite count)
+- Correlates PPS pulses with NMEA time for nanosecond precision
+- Converts UTC to TAI (37-second GPS leap second offset)
+- Tracks PPS jitter and sequence numbers
 
-Implements hardware abstraction for:
-- Socket creation and binding
+**RTC Adapter** (`src/rtc_adapter.cpp`):
+- Opens `/dev/rtc1` (kernel driver rtc-ds1307) and `/dev/i2c-14` (DS3231 hardware)
+- Uses I2C_SLAVE_FORCE to access aging offset register while kernel driver active
+- Implements 60-sample drift measurement buffer
+- Calculates aging offset corrections (1 LSB = 0.1 ppm)
+- Single I2C write point (consolidated code, no race conditions)
+- Reads DS3231 temperature sensor
+- Automated 1-hour drift measurement after 10 minutes of GPS lock
+
+**Linux PTP HAL** (`src/linux_ptp_hal.cpp`):
+- Socket creation and binding (event/general)
 - Hardware timestamping (SO_TIMESTAMPING)
 - PTP message send/receive
 - PHC clock operations (clock_gettime/clock_settime)
-- GPIO PPS interrupt handling
 
-**Reference**: Similar to `examples/04-gps-nmea-sync/gps_ptp_sync_example.cpp`
+#### 2.3 PTP Grandmaster Application
 
-#### 2.3 Create Grandmaster Application
+**File**: `src/ptp_grandmaster.cpp` ✅ **IMPLEMENTED**
 
-**File**: `examples/12-RasPi5_i226-grandmaster/src/ptp_grandmaster.cpp`
+**Key Features**:
+- **Command-line Options**: `--interface`, `--phc`, `--gps`, `--pps`, `--rtc`, `--verbose`
+- **GPS Integration**: Continuous GPS NMEA parsing with PPS correlation
+- **Clock Quality**: Class 7 (GPS-disciplined), Accuracy 33 (<100ns)
+- **Message Transmission**:
+  - Announce messages every 2 seconds
+  - Sync messages every 1 second
+  - Follow_Up messages with hardware TX timestamps
+- **RTC Discipline**: Automated drift measurement and aging offset correction
+- **Error Handling**: Graceful GPS loss fallback to RTC holdover
 
+**Actual Implementation** (522 lines):
 ```cpp
-/*
- * IEEE 1588-2019 PTP Grandmaster for Raspberry Pi 5
- * 
- * Hardware:
- *   - Intel i226 NIC (eth1, /dev/ptp0)
- *   - u-blox GPS (/dev/ttyACM0, /dev/pps0)
- *   - DS3231 RTC (I2C holdover)
- * 
- * Implements:
- *   - IEEE 1588-2019 Grandmaster Clock
- *   - GPS time synchronization
- *   - RTC holdover
- *   - Hardware timestamping
- *   - BMCA with GPS priority
- */
-
-#include "clocks.hpp"
-#include "IEEE/1588/PTP/2019/messages.hpp"
-#include "linux_ptp_hal.hpp"
-#include "gps_adapter.hpp"
-#include "rtc_adapter.hpp"
-
-int main(int argc, char** argv) {
-    // Initialize GPS time source
-    GpsAdapter gps("/dev/ttyACM0", "/dev/pps0");
+// Main event loop (simplified)
+while (g_running) {
+    // Update GPS data
+    gps_adapter.update();
     
-    // Initialize RTC holdover
-    RtcAdapter rtc("/dev/rtc1"); // DS3231
-    
-    // Initialize Linux PTP HAL
-    LinuxPtpHal hal("eth1", "/dev/ptp0");
-    
-    // Create IEEE 1588-2019 Grandmaster Clock
-    IEEE::_1588::PTP::_2019::Clocks::OrdinaryClock gm_clock(
-        hal,
-        IEEE::_1588::PTP::_2019::ClockQuality{
-            .clockClass = 6,        // GPS-locked primary reference
-            .clockAccuracy = 0x21,  // < 100ns accuracy
-            .offsetScaledLogVariance = 0x4E5D // GPS jitter variance
-        }
-    );
-    
-    // Main event loop
-    while (running) {
-        // Update from GPS
-        if (gps.has_fix()) {
-            auto gps_time = gps.get_ptp_time();
-            hal.set_phc_time(gps_time);
-            gm_clock.update_time_source(TimeSource::GPS);
-        } else {
-            // GPS lost - use RTC holdover
-            gm_clock.update_time_source(TimeSource::INTERNAL_OSCILLATOR);
+    // Check GPS fix status
+    if (gps_adapter.has_fix()) {
+        uint64_t gps_seconds, gps_nanos;
+        gps_adapter.get_ptp_time(&gps_seconds, &gps_nanos);
+        
+        // Update clock quality based on GPS
+        clock_class = 7;  // GPS-disciplined
+        clock_accuracy = 33;  // <100ns
+        
+        // Measure RTC drift (automated after 10 min GPS lock)
+        if (drift_measurement_start_time > 0) {
+            // Calculate and apply aging offset correction
+            rtc_adapter.apply_frequency_discipline(drift_ppm);
         }
         
-        // Process PTP messages
-        gm_clock.process_events();
-        
-        // Send periodic messages
-        gm_clock.send_announce();
-        gm_clock.send_sync();
+        // Send PTP messages
+        send_announce_message();  // Every 2 seconds
+        send_sync_message();      // Every 1 second with HW timestamps
     }
-    
-    return 0;
 }
 ```
 
-#### 2.4 Update SystemD Service
+**Message Construction**:
+- Uses IEEE 1588-2019 types from repository (`AnnounceMessage`, `SyncMessage`, `FollowUpMessage`)
+- Correct field names: `clock_identity`, `port_number` (snake_case)
+- Timestamp methods: `setTotalSeconds()`, `nanoseconds` field
+- ClockIdentity handling: `std::array` with `.data()` method
 
-**File**: `etc/systemd/system/ptp4l-repo.service`
+#### 2.4 Testing and Verification
 
-```ini
-[Unit]
-Description=IEEE 1588-2019 PTP Grandmaster (Repository Implementation)
-After=chrony.service gpsd.service
-Wants=chrony.service gpsd.service
+**Test on Raspberry Pi**:
+```bash
+# Build and run
+cd ~/IEEE_1588_2019/examples/12-RasPi5_i226-grandmaster/build
+sudo ./ptp_grandmaster --interface=eth1 --verbose
 
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/ptp_grandmaster --interface=eth1 --gps=/dev/ttyACM0
-Restart=always
-RestartSec=5
-Nice=-10
-CPUSchedulingPolicy=fifo
-CPUSchedulingPriority=80
+# Expected output:
+# [GPS] GPS fix acquired, 7 satellites
+# [GPS Time] 1767983525.218112 TAI
+# [PPS] Jitter: 1.234 µs
+# [RTC Discipline] ✓ Aging offset applied: -2 LSB
+# [PTP] Sending Announce message...
+# [PTP] Sending Sync message...
+# [PTP] Follow_Up sent with TX timestamp
+```
 
-[Install]
-WantedBy=multi-user.target
+**Verify PTP Packets**:
+```bash
+# On another machine or Raspberry Pi:
+sudo tcpdump -i eth1 -nn 'multicast and udp port 319' -vv
+# Should see Announce (every 2s), Sync+Follow_Up (every 1s)
+
+# Or use Wireshark:
+sudo wireshark -i eth1 -f "udp port 319 or udp port 320"
+# Filter: ptp
 ```
 
 ### Phase 3: Remote Debugging Setup

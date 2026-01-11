@@ -410,7 +410,23 @@ int main(int argc, char* argv[])
             
             // Initialize common header
             PortIdentity source_port;
-            std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8); // Default clock ID
+            
+            // Derive clock identity from MAC address (IEEE 1588-2019 Section 7.5.2.2.2)
+            uint8_t mac[6];
+            if (ptp_hal.get_interface_mac(mac)) {
+                // EUI-64 format: MAC[0:2] || 0xFF || 0xFE || MAC[3:5]
+                source_port.clock_identity[0] = mac[0];
+                source_port.clock_identity[1] = mac[1];
+                source_port.clock_identity[2] = mac[2];
+                source_port.clock_identity[3] = 0xFF;
+                source_port.clock_identity[4] = 0xFE;
+                source_port.clock_identity[5] = mac[3];
+                source_port.clock_identity[6] = mac[4];
+                source_port.clock_identity[7] = mac[5];
+            } else {
+                // Fallback if MAC retrieval fails
+                std::memcpy(source_port.clock_identity.data(), "\x00\x00\x00\xFF\xFE\x00\x00\x01", 8);
+            }
             source_port.port_number = detail::host_to_be16(1);
             
             announce_msg.initialize(MessageType::Announce, 0, source_port);
@@ -429,7 +445,7 @@ int main(int argc, char* argv[])
             announce_msg.body.grandmasterPriority2 = 128;
             std::copy(source_port.clock_identity.begin(), source_port.clock_identity.end(), announce_msg.body.grandmasterIdentity.begin());
             announce_msg.body.stepsRemoved = detail::host_to_be16(0);
-            announce_msg.body.timeSource = 0x20; // GPS
+            announce_msg.body.timeSource = static_cast<uint8_t>(TimeSource::GPS); // Use repository enum
             
             // Send via HAL
             HardwareTimestamp tx_ts;

@@ -62,6 +62,13 @@ public:
     bool initialize_sockets();
     
     /**
+     * @brief Get MAC address of the network interface
+     * @param mac_address Buffer to store 6-byte MAC address
+     * @return true if successful
+     */
+    bool get_interface_mac(uint8_t mac_address[6]);
+    
+    /**
      * @brief Send PTP message with hardware TX timestamp
      * @param data Message buffer
      * @param length Message length in bytes

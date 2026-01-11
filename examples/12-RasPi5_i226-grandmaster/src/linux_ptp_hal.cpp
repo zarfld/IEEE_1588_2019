@@ -14,6 +14,7 @@
 #include <net/if.h>
 #include <linux/sockios.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 
 namespace IEEE {
 namespace _1588 {
@@ -47,6 +48,27 @@ LinuxPtpHal::~LinuxPtpHal()
     if (phc_fd_ >= 0) {
         close(phc_fd_);
     }
+}
+
+bool LinuxPtpHal::get_interface_mac(uint8_t mac_address[6])
+{
+    struct ifreq ifr;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        return false;
+    }
+    
+    std::memset(&ifr, 0, sizeof(ifr));
+    std::strncpy(ifr.ifr_name, interface_name_.c_str(), IFNAMSIZ - 1);
+    
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
+        close(sock);
+        return false;
+    }
+    
+    std::memcpy(mac_address, ifr.ifr_hwaddr.sa_data, 6);
+    close(sock);
+    return true;
 }
 
 bool LinuxPtpHal::initialize_sockets()
