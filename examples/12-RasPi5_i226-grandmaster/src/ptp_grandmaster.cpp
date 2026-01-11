@@ -198,6 +198,13 @@ int main(int argc, char* argv[])
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
                 
+                // DEBUG: Show when measurement happens vs PPS
+                static int measurement_debug_counter = 0;
+                if (++measurement_debug_counter % 5 == 1) {
+                    std::cout << "[Measurement Timing] gps_sec=" << gps_seconds 
+                              << " pps_seq=" << pps_data.sequence << "\n";
+                }
+                
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 
