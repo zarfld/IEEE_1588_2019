@@ -152,7 +152,9 @@ int main(int argc, char* argv[])
         double ki = 0.00003;          // Integral gain (reduced 10000x to prevent windup)
         double integral = 0.0;        // Integral accumulator
         int64_t last_offset_ns = 0;   // Last offset measurement
+        uint64_t last_gps_seconds = 0;  // Last GPS time for frequency measurement
         bool locked = false;          // True when PHC is locked to GPS
+        bool freq_calibrated = false; // True when initial frequency offset measured
         const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
         const int32_t freq_max_ppb = 500000;        // ±500ppm frequency limit
     } phc_servo;
@@ -210,6 +212,53 @@ int main(int argc, char* argv[])
                 int64_t gps_time_ns = static_cast<int64_t>(gps_seconds) * 1000000000LL + gps_nanoseconds;
                 int64_t phc_time_ns = static_cast<int64_t>(phc_seconds) * 1000000000LL + phc_nanoseconds;
                 int64_t offset_ns = gps_time_ns - phc_time_ns;
+                
+                // CRITICAL: Measure and correct frequency offset BEFORE stepping time
+                // i226 PHC can have huge frequency offsets (100,000+ ppm) that cause
+                // rapid drift. Must calibrate frequency first or servo will never lock.
+                if (!phc_servo.freq_calibrated && phc_servo.last_gps_seconds > 0) {
+                    uint64_t elapsed_sec = gps_seconds - phc_servo.last_gps_seconds;
+                    
+                    if (elapsed_sec >= 2) {  // Need at least 2 seconds for measurement
+                        // Calculate frequency offset from drift rate
+                        int64_t drift_ns = offset_ns - phc_servo.last_offset_ns;
+                        double drift_ppm = (drift_ns / 1000.0) / elapsed_sec;
+                        
+                        if (std::abs(drift_ppm) > 1000) {  // Significant frequency offset
+                            int32_t freq_correction_ppb = static_cast<int32_t>(-drift_ppm * 1000.0);
+                            
+                            // Clamp to safe range
+                            if (freq_correction_ppb > phc_servo.freq_max_ppb) {
+                                freq_correction_ppb = phc_servo.freq_max_ppb;
+                            } else if (freq_correction_ppb < -phc_servo.freq_max_ppb) {
+                                freq_correction_ppb = -phc_servo.freq_max_ppb;
+                            }
+                            
+                            std::cout << "[PHC Calibration] Measured frequency offset: " << drift_ppm 
+                                     << " ppm, applying correction: " << freq_correction_ppb << " ppb\n";
+                            
+                            ptp_hal.adjust_phc_frequency(freq_correction_ppb);
+                            phc_servo.freq_calibrated = true;
+                            
+                            // After frequency correction, step time to eliminate accumulated offset
+                            std::cout << "[PHC Calibration] Stepping time after frequency correction\n";
+                            ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
+                            phc_servo.integral = 0.0;
+                            phc_servo.last_offset_ns = 0;
+                            phc_servo.last_gps_seconds = gps_seconds;
+                            return;  // Skip servo this iteration
+                        } else {
+                            std::cout << "[PHC Calibration] Frequency offset acceptable: " << drift_ppm << " ppm\n";
+                            phc_servo.freq_calibrated = true;
+                        }
+                    }
+                }
+                
+                // Store current measurement for next frequency calculation
+                if (!phc_servo.freq_calibrated) {
+                    phc_servo.last_offset_ns = offset_ns;
+                    phc_servo.last_gps_seconds = gps_seconds;
+                }
                 
                 // Step correction for large offsets (>100ms for faster initial lock)
                 if (std::abs(offset_ns) > 100000000LL) {  // 100ms threshold
