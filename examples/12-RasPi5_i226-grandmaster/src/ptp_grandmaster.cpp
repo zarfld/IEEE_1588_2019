@@ -164,7 +164,13 @@ int main(int argc, char* argv[])
     uint64_t last_aging_offset_adjustment_time = 0;  // GPS time of last aging offset adjustment
     bool rtc_initial_sync_done = false;              // Flag to force initial RTC sync on GPS lock
     
+    // DEBUG: Track actual loop timing
+    auto loop_start_time = std::chrono::steady_clock::now();
+    uint64_t loop_iteration = 0;
+    
     while (g_running) {
+        loop_iteration++;
+        
         // Update GPS data (read NMEA sentences and PPS)
         gps_adapter.update();
         
@@ -195,10 +201,16 @@ int main(int argc, char* argv[])
 
             // Drift measurement every second (10 iterations @ 100ms = 1 second)
             drift_measurement_counter++;
-            printf("[Drift Debug] counter=%lu (triggers at 10)\n", drift_measurement_counter);
+            
+            // DEBUG: Measure actual loop timing
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - loop_start_time).count();
+            printf("[Drift Debug] counter=%lu loop_iter=%lu elapsed_total=%ldms (avg=%.1fms/iter)\n", 
+                   drift_measurement_counter, loop_iteration, elapsed_ms, (double)elapsed_ms / loop_iteration);
+            
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
-                printf("[Drift Debug] ✓ Counter triggered! Getting fresh PPS...\n");
+                printf("[Drift Debug] ✓ Counter triggered after %ldms! Getting fresh PPS...\n", elapsed_ms);
                 
                 // CRITICAL: Force fresh PPS fetch to ensure GPS time has advanced
                 // Without this, gps_seconds may be stale from earlier in the loop,
