@@ -744,7 +744,7 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             if (association_sample_count_ >= 5) {
                 int64_t avg_dt_ms = association_dt_sum_ / association_sample_count_;
                 
-                // Determine association rule and set BASE MAPPING
+                // Determine association rule and set BASE MAPPING (ONCE!)
                 if (avg_dt_ms >= 50 && avg_dt_ms <= 950) {
                     // NMEA arrives after PPS → labels LAST PPS
                     nmea_labels_last_pps_ = true;
@@ -761,11 +761,14 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                 std::cout << "[PPS-UTC Lock] Association locked: NMEA labels "
                           << (nmea_labels_last_pps_ ? "LAST" : "NEXT")
                           << " PPS (avg_dt=" << avg_dt_ms << "ms)\n";
-            } else {
-                // Not enough samples - use tentative base mapping (assume last PPS)
+                std::cout << "[Base Mapping] base_pps_seq=" << base_pps_seq_ 
+                          << " base_utc_sec=" << base_utc_sec_ << " (UTC epoch)\n";
+            } else if (base_utc_sec_ == 0) {
+                // First sample only - initialize base tentatively
                 base_pps_seq_ = pps_data_.sequence;
                 base_utc_sec_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
             }
+            // Else: Already have tentative base, accumulating samples, don't overwrite!
             } // End fresh NMEA block
         }
     
