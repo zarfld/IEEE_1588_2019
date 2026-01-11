@@ -190,6 +190,7 @@ private:
     bool        nmea_labels_last_pps_;      ///< True: RMC labels last PPS, False: next
     uint32_t    association_sample_count_;  ///< Samples for association detection
     int64_t     association_dt_sum_;        ///< Sum of dt samples
+    uint64_t    last_nmea_time_;            ///< Last NMEA time processed (UTC seconds)
     
     // Private helper methods
     bool open_serial_port();

@@ -38,6 +38,7 @@ GpsAdapter::GpsAdapter(const std::string& serial_device,
     , nmea_labels_last_pps_(true)
     , association_sample_count_(0)
     , association_dt_sum_(0)
+    , last_nmea_time_(0)
 {
 }
 
@@ -697,8 +698,8 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         if (pps_utc_locked_) {
             // Locked: increment UTC second monotonically on each PPS
             utc_sec_for_last_pps_ += 1;
-        } else if (gps_data_.time_valid && utc_sec_for_last_pps_ == 0) {
-            // Not locked AND no valid UTC yet: use NMEA to establish initial UTC label
+        } else if (gps_data_.time_valid) {
+            // Not locked: process NMEA for association detection or UTC initialization
             
             // Calculate NMEA UTC second
             struct tm gps_tm{};
@@ -709,6 +710,17 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             gps_tm.tm_min = gps_data_.minutes;
             gps_tm.tm_sec = gps_data_.seconds;
             time_t nmea_utc_sec = timegm(&gps_tm);
+            
+            // Only process if this is NEW NMEA data (not stale)
+            if (nmea_utc_sec == last_nmea_time_) {
+                // Stale NMEA - just increment UTC if we have it
+                if (utc_sec_for_last_pps_ > 0) {
+                    utc_sec_for_last_pps_ += 1;
+                }
+                // Don't process association with stale data
+            } else {
+                // Fresh NMEA data - update tracking and process association
+                last_nmea_time_ = nmea_utc_sec;
             
             // Measure dt = time since last PPS (for association detection)
             // NOTE: We need to compare get_ptp_time() call time to PPS time.
@@ -757,9 +769,9 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                 // Not enough samples - use tentative label (assume last PPS)
                 utc_sec_for_last_pps_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
             }
+            } // End fresh NMEA block
         } else if (utc_sec_for_last_pps_ > 0) {
-            // Already have valid UTC but not locked yet: increment monotonically
-            // (don't wait for lock to start incrementing - prevents NMEA stale data issue)
+            // No GPS data OR stale NMEA, but have UTC: increment monotonically
             utc_sec_for_last_pps_ += 1;
         }
         // Note: last_pps_seq_ already updated at start of new_pps block
