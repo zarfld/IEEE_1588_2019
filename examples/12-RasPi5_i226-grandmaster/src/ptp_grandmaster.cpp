@@ -195,14 +195,17 @@ int main(int argc, char* argv[])
 
             // Drift measurement every second (10 iterations @ 100ms = 1 second)
             drift_measurement_counter++;
+            printf("[Drift Debug] counter=%d (triggers at 10)\n", drift_measurement_counter);
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
+                printf("[Drift Debug] ✓ Counter triggered! Getting fresh PPS...\n");
                 
                 // CRITICAL: Force fresh PPS fetch to ensure GPS time has advanced
                 // Without this, gps_seconds may be stale from earlier in the loop,
                 // causing elapsed_sec=0 and skipping drift measurements
                 gps_adapter.update();  // Fetch latest PPS if available
                 gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);  // Get fresh GPS time
+                printf("[Drift Debug] Fresh GPS: gps_seconds=%lu\n", gps_seconds);
                 
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
@@ -219,7 +222,10 @@ int main(int argc, char* argv[])
                     // Calculate drift rate if we have previous measurement
                     if (last_drift_calc_time > 0) {
                         uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
+                        printf("[Drift Debug] last_drift_calc_time=%lu elapsed_sec=%lu\n", 
+                               last_drift_calc_time, elapsed_sec);
                         if (elapsed_sec >= 1) {  // Ensure 1 second elapsed (PPS pulse interval)
+                            printf("[Drift Debug] ✓ elapsed_sec >= 1, executing drift measurement!\n");
                             // Drift rate = change in error / time interval
                             int64_t error_change_ns = time_error_ns - last_time_error_ns;
                             double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
@@ -348,10 +354,17 @@ int main(int argc, char* argv[])
                             
                             // Only update baseline if we didn't just sync (sync already reset to 0)
                             if (!sync_happened) {
+                                printf("[Drift Debug] Updating baseline: last_drift_calc_time=%lu → %lu\n",
+                                       last_drift_calc_time, gps_seconds);
                                 last_drift_calc_time = gps_seconds;
                                 last_time_error_ns = time_error_ns;
                             }
+                        } else {
+                            printf("[Drift Debug] ✗ SKIPPED! elapsed_sec=%lu < 1\n", elapsed_sec);
                         }
+                    } else {
+                        printf("[Drift Debug] First measurement, initializing baseline: gps_seconds=%lu\n", 
+                               gps_seconds);
                     } else {
                         // First measurement - initialize
                         last_drift_calc_time = gps_seconds;
