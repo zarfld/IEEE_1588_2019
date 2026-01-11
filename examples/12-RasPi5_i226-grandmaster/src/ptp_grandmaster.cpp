@@ -195,7 +195,7 @@ int main(int argc, char* argv[])
 
             // Drift measurement every second (10 iterations @ 100ms = 1 second)
             drift_measurement_counter++;
-            printf("[Drift Debug] counter=%d (triggers at 10)\n", drift_measurement_counter);
+            printf("[Drift Debug] counter=%lu (triggers at 10)\n", drift_measurement_counter);
             if (drift_measurement_counter >= 10) {  // Every 1 sec - measure on every PPS pulse!
                 drift_measurement_counter = 0;  // Reset counter
                 printf("[Drift Debug] ✓ Counter triggered! Getting fresh PPS...\n");
@@ -363,10 +363,9 @@ int main(int argc, char* argv[])
                             printf("[Drift Debug] ✗ SKIPPED! elapsed_sec=%lu < 1\n", elapsed_sec);
                         }
                     } else {
+                        // First measurement - initialize baseline
                         printf("[Drift Debug] First measurement, initializing baseline: gps_seconds=%lu\n", 
                                gps_seconds);
-                    } else {
-                        // First measurement - initialize
                         last_drift_calc_time = gps_seconds;
                         last_time_error_ns = time_error_ns;
                         std::cout << "[RTC Discipline] Starting drift monitoring (60 samples @ 1 sample/sec = 60 sec window)\n";
