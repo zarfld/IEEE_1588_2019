@@ -259,38 +259,48 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
                       << " errno=" << errno << ")\n";
         }
         
-        // Return nanosecond offset from last RTC edge
-        // This represents sub-second timing of when we read the RTC value
-        // relative to the last 1Hz SQW edge
+        // Return nanosecond offset within current RTC second
+        // SQW edges mark second boundaries - we measure offset from last edge
         if (last_pps_seq_ >= 0) {
-            // Get current system time to calculate offset from last edge
+            // Get current system time
             struct timespec now;
             clock_gettime(CLOCK_REALTIME, &now);
             
-            std::cout << "[DEBUG PPS] Current time: sec=" << now.tv_sec 
-                      << " nsec=" << now.tv_nsec << "\n";
+            std::cout << "[DEBUG PPS] RTC seconds=" << *seconds 
+                      << " PPS edge sec=" << last_pps_sec_
+                      << " System now sec=" << now.tv_sec << "\n";
             
-            // Calculate nanoseconds since last RTC SQW edge
+            // Calculate nanoseconds since last SQW edge (1Hz pulse at second boundary)
+            // Edge timestamp is in CLOCK_REALTIME domain
             int64_t edge_time_ns = (int64_t)last_pps_sec_ * 1000000000LL + (int64_t)last_pps_nsec_;
             int64_t now_ns = (int64_t)now.tv_sec * 1000000000LL + (int64_t)now.tv_nsec;
-            int64_t offset_ns = now_ns - edge_time_ns;
+            int64_t offset_from_edge_ns = now_ns - edge_time_ns;
             
             std::cout << "[DEBUG PPS] edge_ns=" << edge_time_ns 
                       << " now_ns=" << now_ns 
-                      << " offset_ns=" << offset_ns << "\n";
+                      << " offset_from_edge=" << offset_from_edge_ns << " ns\n";
             
-            // Clamp to 0-999999999 range (within one second)
-            if (offset_ns < 0) {
-                std::cout << "[DEBUG PPS] ⚠ Negative offset! Clamping to 0\n";
-                offset_ns = 0;
-            }
-            if (offset_ns >= 1000000000LL) {
-                std::cout << "[DEBUG PPS] ⚠ Offset > 1s! Clamping to 999999999\n";
-                offset_ns = 999999999LL;
+            // Since SQW edges are at second boundaries, calculate which second we're in
+            // and the nanosecond offset within that second
+            int64_t seconds_since_edge = offset_from_edge_ns / 1000000000LL;
+            int64_t ns_within_second = offset_from_edge_ns % 1000000000LL;
+            
+            std::cout << "[DEBUG PPS] Seconds since edge=" << seconds_since_edge
+                      << " ns within current second=" << ns_within_second << "\n";
+            
+            // Sanity check: offset should be reasonable (< 10 seconds typically)
+            if (offset_from_edge_ns < 0) {
+                std::cout << "[DEBUG PPS] ⚠ Negative offset! (clock went backwards?) Using 0\n";
+                ns_within_second = 0;
+            } else if (offset_from_edge_ns >= 10000000000LL) {  // >10 seconds
+                std::cout << "[DEBUG PPS] ⚠ Offset > 10s! (stale edge?) Using 0\n";
+                ns_within_second = 0;
             }
             
-            std::cout << "[DEBUG PPS] Final nanoseconds=" << offset_ns << "\n";
-            *nanoseconds = (uint32_t)offset_ns;
+            // Return the nanosecond position within the current second
+            // The RTC seconds we read is the reference - we're just adding precision
+            std::cout << "[DEBUG PPS] Final nanoseconds=" << ns_within_second << "\n";
+            *nanoseconds = (uint32_t)ns_within_second;
             return true;
         } else {
             std::cout << "[DEBUG PPS] ⚠ No PPS sequence cached yet (last_pps_seq_=-1)\n";
