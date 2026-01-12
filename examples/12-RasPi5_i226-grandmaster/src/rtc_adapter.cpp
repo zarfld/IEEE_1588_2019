@@ -90,17 +90,21 @@ bool RtcAdapter::initialize()
             // Enable and configure DS3231 1Hz square wave output (if SQW device configured)
             if (!sqw_device_.empty()) {
                 std::cout << "[RTC SQW] Configuring DS3231 1Hz square wave output...\n";
+                
+                // Small delay to let I2C bus settle after initialization
+                usleep(50000);  // 50ms delay
+                
                 if (enable_sqw_output(true)) {
-                    std::cout << "[RTC SQW] \u2713 Square wave enabled on " << sqw_device_ << "\n";
-                    std::cout << "[RTC SQW] \u2713 Precision: \u00b11\u00b5s (vs \u00b11s from I2C polling)\n";
-                    std::cout << "[RTC SQW] \u2713 Drift measurement: 1,000,000x more accurate!\n";
+                    std::cout << "[RTC SQW] ✓ Square wave enabled on " << sqw_device_ << "\n";
+                    std::cout << "[RTC SQW] ✓ Precision: ±1µs (vs ±1s from I2C polling)\n";
+                    std::cout << "[RTC SQW] ✓ Drift measurement: 1,000,000x more accurate!\n";
                 } else {
-                    std::cerr << "[RTC SQW] \u26a0 Failed to enable square wave (continuing with I2C polling)\n";
+                    std::cerr << "[RTC SQW] ⚠ Failed to enable square wave (continuing with I2C polling)\n";
                     sqw_device_.clear();  // Disable SQW if configuration failed
                 }
             } else {
-                std::cout << "[RTC SQW] \u2139 No SQW device configured (using I2C polling for drift measurement)\n";
-                std::cout << "[RTC SQW] \u2139 For better precision, connect DS3231 SQW pin to GPIO and configure --rtc-sqw=/dev/pps1\n";
+                std::cout << "[RTC SQW] ℹ No SQW device configured (using I2C polling for drift measurement)\n";
+                std::cout << "[RTC SQW] ℹ For better precision, connect DS3231 SQW pin to GPIO and configure --rtc-sqw=/dev/pps1\n";
             }        }
     }
 
@@ -354,7 +358,7 @@ double RtcAdapter::get_temperature()
 bool RtcAdapter::enable_sqw_output(bool enable)
 {
     if (i2c_fd_ < 0) {
-        std::cerr << "[RTC SQW] ERROR: I2C not initialized\n";
+        std::cerr << "[RTC SQW] ERROR: I2C not initialized (fd=" << i2c_fd_ << ")\n";
         return false;
     }
 
@@ -370,10 +374,19 @@ bool RtcAdapter::enable_sqw_output(bool enable)
     
     const uint8_t DS3231_CONTROL_REG = 0x0E;
     
+    std::cout << "[RTC SQW] Attempting to read control register 0x" << std::hex << (int)DS3231_CONTROL_REG << std::dec 
+              << " via I2C fd=" << i2c_fd_ << "\n";
+    
     // Read current control register
     uint8_t reg = DS3231_CONTROL_REG;
-    if (write(i2c_fd_, &reg, 1) != 1) {
-        std::cerr << "[RTC SQW] ERROR: Failed to set register address\n";
+    ssize_t bytes_written = write(i2c_fd_, &reg, 1);
+    if (bytes_written != 1) {
+        std::cerr << "[RTC SQW] ERROR: Failed to set register address (wrote " << bytes_written 
+                  << " bytes, errno=" << errno << ": " << strerror(errno) << ")\n";
+        std::cerr << "[RTC SQW] This usually means:\n";
+        std::cerr << "[RTC SQW]   - I2C bus conflict (kernel driver active?)\n";
+        std::cerr << "[RTC SQW]   - Wrong I2C device or address\n";
+        std::cerr << "[RTC SQW]   - Hardware connection issue\n";
         return false;
     }
     
