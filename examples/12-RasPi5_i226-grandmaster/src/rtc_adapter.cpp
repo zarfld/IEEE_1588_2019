@@ -262,22 +262,32 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
         // Return nanosecond offset within current RTC second
         // SQW edges mark second boundaries - we measure offset from last edge
         if (last_pps_seq_ >= 0) {
-            // Get current system time
+            // Get current system time (UTC domain)
             struct timespec now;
             clock_gettime(CLOCK_REALTIME, &now);
             
+            // Get TAI-UTC offset from kernel
+            struct timex tx{};
+            adjtimex(&tx);
+            int tai_utc_offset = tx.tai;  // Usually 37 seconds
+            
             std::cout << "[DEBUG PPS] RTC seconds=" << *seconds 
                       << " PPS edge sec=" << last_pps_sec_
-                      << " System now sec=" << now.tv_sec << "\n";
+                      << " System now sec=" << now.tv_sec 
+                      << " TAI-UTC=" << tai_utc_offset << "\n";
             
-            // Calculate nanoseconds since last SQW edge (1Hz pulse at second boundary)
-            // Edge timestamp is in CLOCK_REALTIME domain
+            // Convert CLOCK_REALTIME (UTC) to TAI for comparison with RTC
+            // RTC is in TAI, PPS timestamps are UTC
+            int64_t now_tai_sec = now.tv_sec + tai_utc_offset;
+            
+            // Calculate nanoseconds since last SQW edge
+            // Both times now in TAI domain
             int64_t edge_time_ns = (int64_t)last_pps_sec_ * 1000000000LL + (int64_t)last_pps_nsec_;
-            int64_t now_ns = (int64_t)now.tv_sec * 1000000000LL + (int64_t)now.tv_nsec;
-            int64_t offset_from_edge_ns = now_ns - edge_time_ns;
+            int64_t now_tai_ns = (int64_t)now_tai_sec * 1000000000LL + (int64_t)now.tv_nsec;
+            int64_t offset_from_edge_ns = now_tai_ns - edge_time_ns;
             
             std::cout << "[DEBUG PPS] edge_ns=" << edge_time_ns 
-                      << " now_ns=" << now_ns 
+                      << " now_tai_ns=" << now_tai_ns 
                       << " offset_from_edge=" << offset_from_edge_ns << " ns\n";
             
             // Since SQW edges are at second boundaries, calculate which second we're in
