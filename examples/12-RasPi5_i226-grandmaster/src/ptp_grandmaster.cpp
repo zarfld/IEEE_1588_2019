@@ -460,7 +460,8 @@ int main(int argc, char* argv[])
     
     // Latest drift measurements for PPS display
     double current_drift_ppm = 0.0;                 // Most recent drift measurement
-    double current_drift_avg = 0.0;                 // Current moving average
+    double current_drift_avg = 0.0;                 // Current moving average (ppm)
+    int64_t current_error_change_avg_ns = 0;        // Current average error change (ns/10s)
     double current_time_error_ms = 0.0;             // Current time error in ms
     bool drift_valid = false;                        // True when drift has been calculated
     
@@ -688,6 +689,7 @@ int main(int argc, char* argv[])
                             error_change_avg_ns /= drift_buffer_count;
                             current_drift_ppm = drift_ppm;
                             current_drift_avg = drift_avg;
+                            current_error_change_avg_ns = error_change_avg_ns;  // Store for reuse
                             current_time_error_ms = time_error_ns / 1000000.0;
                             drift_valid = true;
                             
@@ -724,14 +726,8 @@ int main(int argc, char* argv[])
                         uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
                             ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
                         
-                        // Calculate average error change from buffer (raw ns values)
-                        int64_t error_change_avg_ns = 0;
-                        for (size_t i = 0; i < drift_buffer_count; i++) {
-                            error_change_avg_ns += error_change_buffer[i];
-                        }
-                        if (drift_buffer_count > 0) {
-                            error_change_avg_ns /= drift_buffer_count;
-                        }
+                        // Use stored average (already calculated correctly in drift measurement section)
+                        int64_t error_change_avg_ns = current_error_change_avg_ns;
                         int64_t drift_tolerance_ns = static_cast<int64_t>(drift_tolerance_ppm * 10000.0);  // 1 ppm over 10s = 10000ns
                         
                         std::cout << "[RTC Adjust DEBUG] Evaluating aging offset adjustment:\n";
