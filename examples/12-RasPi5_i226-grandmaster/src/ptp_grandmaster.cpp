@@ -571,8 +571,9 @@ int main(int argc, char* argv[])
                                 // EXPERT FIX: Require baseline sample after reset
                                 if (!drift_valid || drift_buffer_count == 0) {
                                     // First valid sample after reset - establish baseline
+                                    // CRITICAL: Do NOT reset last_drift_calc_time here!
+                                    // We need to keep the original time to calculate drift in next iteration.
                                     last_time_error_ns = time_error_ns;
-                                    last_drift_calc_time = gps_seconds;
                                     drift_valid = false;  // Still not valid until we have drift calculation
                                     std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
                                 } else {
@@ -616,6 +617,10 @@ int main(int argc, char* argv[])
                             current_drift_avg = drift_avg;
                             current_time_error_ms = time_error_ns / 1000000.0;
                             drift_valid = true;
+                            
+                            // Update baseline for next measurement
+                            last_time_error_ns = time_error_ns;
+                            last_drift_calc_time = gps_seconds;
                             
                                         // Log RTC drift measurement progress every 10 seconds
                                         static uint64_t last_drift_progress_log = 0;
