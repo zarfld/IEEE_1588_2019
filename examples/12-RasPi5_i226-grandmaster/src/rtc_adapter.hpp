@@ -45,8 +45,9 @@ public:
     /**
      * @brief Construct RTC adapter
      * @param rtc_device RTC device path (e.g., "/dev/rtc1")
+     * @param sqw_device SQW PPS device path (e.g., "/dev/pps1", optional)
      */
-    explicit RtcAdapter(const std::string& rtc_device);
+    explicit RtcAdapter(const std::string& rtc_device, const std::string& sqw_device = "");
     
     /**
      * @brief Destructor - cleanup resources
@@ -140,6 +141,7 @@ public:
 
 private:
     std::string rtc_device_;     ///< RTC device path
+    std::string sqw_device_;     ///< SQW PPS device path (optional, for edge detection)
     int         rtc_fd_;         ///< RTC device file descriptor
     int         i2c_fd_;         ///< I2C bus file descriptor for DS3231
     
@@ -163,6 +165,11 @@ public:
     int8_t read_aging_offset();
     bool write_aging_offset(int8_t offset);  // Direct write for incremental adjustments
     double get_temperature();
+    
+    // DS3231 Square Wave Output (1Hz) - for high-precision drift measurement
+    bool enable_sqw_output(bool enable = true);  ///< Enable/disable 1Hz square wave output
+    bool is_sqw_available() const { return !sqw_device_.empty(); }  ///< Check if SQW configured
+    const std::string& get_sqw_device() const { return sqw_device_; }  ///< Get SQW PPS device path
 };
 
 } // namespace Linux

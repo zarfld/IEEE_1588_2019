@@ -240,6 +240,7 @@ void print_usage(const char* program_name)
               << "  -g, --gps <device>       GPS serial device (default: /dev/ttyACM0)\n"
               << "  -s, --pps <device>       PPS device (default: /dev/pps0)\n"
               << "  -r, --rtc <device>       RTC device (default: /dev/rtc1)\n"
+              << "      --rtc-sqw <device>   RTC SQW PPS device (default: /dev/pps1)\n"
               << "  -v, --verbose            Verbose output\n"
               << "  -h, --help               Show this help message\n";
 }
@@ -252,6 +253,7 @@ int main(int argc, char* argv[])
     std::string gps_device = "/dev/ttyACM0";
     std::string pps_device = "/dev/pps0";
     std::string rtc_device = "/dev/rtc1";
+    std::string rtc_sqw_device = "/dev/pps1";  // DS3231 1Hz square wave
     bool verbose = false;
 
     // Parse command-line arguments
@@ -261,6 +263,7 @@ int main(int argc, char* argv[])
         {"gps",       required_argument, nullptr, 'g'},
         {"pps",       required_argument, nullptr, 's'},
         {"rtc",       required_argument, nullptr, 'r'},
+        {"rtc-sqw",   required_argument, nullptr, 'q'},  // RTC square wave PPS
         {"verbose",   no_argument,       nullptr, 'v'},
         {"help",      no_argument,       nullptr, 'h'},
         {nullptr, 0, nullptr, 0}
@@ -284,6 +287,9 @@ int main(int argc, char* argv[])
             case 'r':
                 rtc_device = optarg;
                 break;
+            case 'q':  // --rtc-sqw
+                rtc_sqw_device = optarg;
+                break;
             case 'v':
                 verbose = true;
                 break;
@@ -302,6 +308,15 @@ int main(int argc, char* argv[])
     std::cout << "GPS: " << gps_device << "\n";
     std::cout << "PPS: " << pps_device << "\n";
     std::cout << "RTC: " << rtc_device << "\n";
+    
+    // Check if SQW device exists
+    if (access(rtc_sqw_device.c_str(), F_OK) == 0) {
+        std::cout << "RTC SQW: " << rtc_sqw_device << " (1Hz edge detection)\n";
+    } else {
+        std::cout << "RTC SQW: " << rtc_sqw_device << " (not found - using I2C polling)\n";
+        rtc_sqw_device.clear();  // Disable if not available
+    }
+    
     std::cout << "\nℹ️  TAI-UTC offset is automatically retrieved from kernel via adjtimex()\n";
     std::cout << "   To verify/set: adjtimex --print (shows 'tai' field)\n\n";
     
@@ -334,7 +349,7 @@ int main(int argc, char* argv[])
     std::cout << "  ✓ GPS adapter initialized\n";
 
     std::cout << "Initializing RTC adapter...\n";
-    RtcAdapter rtc_adapter(rtc_device);
+    RtcAdapter rtc_adapter(rtc_device, rtc_sqw_device);
     if (!rtc_adapter.initialize()) {
         std::cerr << "WARNING: Failed to initialize RTC adapter (continuing without holdover)\n";
     } else {

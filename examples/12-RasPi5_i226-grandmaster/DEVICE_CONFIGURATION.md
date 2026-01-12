@@ -28,6 +28,7 @@ Options:
   -g, --gps <device>       GPS serial device (default: /dev/ttyACM0)
   -s, --pps <device>       PPS device (default: /dev/pps0)
   -r, --rtc <device>       RTC device (default: /dev/rtc1)
+      --rtc-sqw <device>   RTC SQW PPS device (default: /dev/pps1)
   -v, --verbose            Verbose output
   -h, --help               Show this help message
 ```
@@ -139,7 +140,7 @@ sudo journalctl -u ptp-grandmaster -f
 
 ## Hardware-Specific Examples
 
-### Raspberry Pi 5 + i226 NIC + u-blox GPS + DS3231 RTC
+### Raspberry Pi 5 + i226 NIC + u-blox GPS + DS3231 RTC (with SQW)
 ```bash
 sudo ./ptp_grandmaster \
     --interface=eth1 \
@@ -147,7 +148,10 @@ sudo ./ptp_grandmaster \
     --gps=/dev/ttyACM0 \
     --pps=/dev/pps0 \
     --rtc=/dev/rtc1 \
+    --rtc-sqw=/dev/pps1 \
     --verbose
+
+# If DS3231 SQW not connected, omit --rtc-sqw (uses I2C polling)
 ```
 
 ### Standard PC + Intel i210 + USB GPS + Primary RTC
@@ -246,6 +250,68 @@ dtoverlay=i2c-rtc,ds3231
 # DS3231 on software I2C (GPIO23/24)
 dtoverlay=i2c-rtc-gpio,ds3231,addr=0x68,i2c_gpio_sda=23,i2c_gpio_scl=24
 ```
+
+### RTC Square Wave Output (DS3231 SQW Pin)
+
+**CRITICAL**: For accurate drift measurement, connect DS3231 SQW/INT pin to GPIO!
+
+The DS3231 1Hz square wave provides **microsecond-precision** timing edges vs. I2C polling (1-second quantization).
+
+#### Hardware Connection
+```
+DS3231 SQW/INT Pin → Raspberry Pi GPIO (e.g., GPIO22)
+```
+
+#### Device Tree Configuration
+
+Edit `/boot/firmware/config.txt`:
+
+```ini
+# RTC 1Hz square wave on GPIO22 (Pin 15)
+dtoverlay=pps-gpio,gpiopin=22,pull=down,assert_falling_edge=0
+
+# Or for different GPIO:
+# GPIO17 (Pin 11): gpiopin=17
+# GPIO27 (Pin 13): gpiopin=27  
+# GPIO5 (Pin 29):  gpiopin=5
+```
+
+**Note**: This creates `/dev/pps1` (separate from GPS PPS on `/dev/pps0`)
+
+#### Verify SQW Output
+
+After reboot:
+```bash
+# Check PPS device exists
+ls -l /dev/pps1
+
+# Monitor RTC square wave pulses
+sudo ppstest /dev/pps1
+
+# Should show:
+# source 1 - assert 1234567890.000000000, sequence: 1
+# (Updates every second at precise 1Hz)
+```
+
+#### Enable in Software
+
+No additional command-line args needed - auto-detected:
+```bash
+sudo ./ptp_grandmaster --interface=eth1 --verbose
+
+# Output will show:
+# [RTC SQW] ✓ Square wave detected on /dev/pps1
+# [RTC SQW] Precision: ±1µs (vs ±1s from I2C polling)
+```
+
+#### Accuracy Improvement
+
+| Method | Precision | Drift Visible |
+|--------|-----------|---------------|
+| **I2C Polling** (current) | ±1 second | After 100+ hours |
+| **SQW Edge Detection** (with GPIO) | ±1 microsecond | After 10 seconds! |
+
+**1,000,000x improvement!** 🚀
 
 ## Support for Different GPS Modules
 

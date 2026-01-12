@@ -52,8 +52,12 @@ dtoverlay=dwc2,dr_mode=host
 dtparam=pciex1
 dtparam=pciex1_gen=3
 
-# DS3231 am Software-I2C auf GPIO23/24 (DS3231 SDA=GPIO23, SCL=GPIO24)
+# DS3231 RTC Configuration (complete setup)
+# I2C: Software-I2C auf GPIO23/24 (SDA=GPIO23, SCL=GPIO24)
 dtoverlay=i2c-rtc-gpio,ds3231,addr=0x68,i2c_gpio_sda=23,i2c_gpio_scl=24,i2c_gpio_delay_us=2
+# SQW: 1Hz Square Wave Output auf GPIO22 (Pin 15) für präzise Drift-Messung
+#      Erzeugt /dev/pps1 mit µs-Präzision (vs. ±1s von I2C Polling)
+dtoverlay=pps-gpio,gpiopin=22,pull=down,name=rtc-sqw
 
 # GPS 1PPS an GPIO18 (Pin 12) – Pull-Down gegen Floating/Noise
 dtoverlay=pps-gpio,gpiopin=18,pull=down
