@@ -568,13 +568,14 @@ int main(int argc, char* argv[])
                             
                                 // RTC aligned to correct second (error_sec == 0)
                                 // EXPERT FIX: DS3231 has 1-second resolution (rtc_nanoseconds always 0)
-                                // Track cumulative error by comparing RTC (UTC) to GPS (current time in UTC)
-                                // NOTE: RTC is set via sync_from_gps() which stores UTC, NOT TAI!
-                                // Both values must be in same domain (UTC) for correct comparison
+                                // Track cumulative error by comparing RTC (TAI+1) to GPS (TAI)
+                                // NOTE: gps_seconds from get_ptp_time() is TAI (UTC+37, see gps_adapter.cpp:797)
+                                // NOTE: RTC is set via sync_from_gps() to gps_seconds+1 (TAI+1, see rtc_adapter.cpp:197)
+                                // So RTC reads TAI+1, and we must account for that +1 offset
                                 // Drift shows up as gradual accumulation of integer-second errors over long periods
-                                int64_t rtc_utc_sec = static_cast<int64_t>(rtc_seconds);
-                                int64_t gps_utc_sec = static_cast<int64_t>(gps_seconds);  // Already UTC
-                                time_error_ns = (rtc_utc_sec - gps_utc_sec) * 1000000000LL;
+                                int64_t rtc_tai_plus1_sec = static_cast<int64_t>(rtc_seconds);
+                                int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds);
+                                time_error_ns = ((rtc_tai_plus1_sec - 1) - gps_tai_sec) * 1000000000LL;  // Subtract the +1
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)
@@ -592,8 +593,8 @@ int main(int argc, char* argv[])
                                     double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
                                     
                                     // DEBUG: Show calculation details
-                                    std::cout << "[RTC Drift DEBUG] RTC=" << rtc_utc_sec 
-                                             << " GPS=" << gps_utc_sec << " (both UTC)"
+                                    std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_plus1_sec 
+                                             << " GPS=" << gps_tai_sec << " (both TAI, RTC has +1 offset)"
                                              << " | CurrentErr=" << time_error_ns << "ns"
                                              << " LastErr=" << last_time_error_ns << "ns"
                                              << " | ΔErr=" << error_change_ns << "ns"
