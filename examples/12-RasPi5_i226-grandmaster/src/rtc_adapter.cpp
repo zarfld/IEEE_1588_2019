@@ -60,8 +60,8 @@ bool RtcAdapter::initialize()
     }
 
     // Open I2C bus for DS3231 direct access (aging offset)
-    // Raspberry Pi 5: DS3231 on GPIO I2C bus 14 (dtoverlay=i2c-rtc-gpio, dmesg shows 14-0068)
-    const char* i2c_device = "/dev/i2c-14";
+    // Raspberry Pi 5: DS3231 on GPIO I2C bus 15 (dtoverlay=i2c-rtc-gpio, dmesg shows 15-0068)
+    const char* i2c_device = "/dev/i2c-15";
     i2c_fd_ = open(i2c_device, O_RDWR);
     if (i2c_fd_ < 0) {
         std::cerr << "[RTC Init] ERROR: Failed to open I2C device " << i2c_device 
@@ -433,7 +433,7 @@ bool RtcAdapter::enable_sqw_output(bool enable)
         std::cerr << "[RTC SQW] \n";
         std::cerr << "[RTC SQW] WORKAROUND OPTIONS:\n";
         std::cerr << "[RTC SQW] 1. Configure SQW manually before running this program:\n";
-        std::cerr << "[RTC SQW]    sudo i2cset -y 14 0x68 0x0E 0x00\n";
+        std::cerr << "[RTC SQW]    sudo i2cset -y 15 0x68 0x0E 0x00\n";
         std::cerr << "[RTC SQW] \n";
         std::cerr << "[RTC SQW] 2. Add device tree configuration to enable SQW at boot:\n";
         std::cerr << "[RTC SQW]    (Contact developer for device tree overlay)\n";

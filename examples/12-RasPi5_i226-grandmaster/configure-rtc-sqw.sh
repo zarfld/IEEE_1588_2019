@@ -6,7 +6,7 @@
 # the SQW output, then rebinds it. Required because the kernel driver
 # maintains exclusive I2C access to the DS3231.
 #
-# Hardware: DS3231 RTC on I2C bus 14, address 0x68, SQW pin → GPIO22 (/dev/pps1)
+# Hardware: DS3231 RTC on I2C bus 15, address 0x68, SQW pin → GPIO22 (/dev/pps1)
 
 set -e  # Exit on error
 
@@ -20,7 +20,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Configuration
-I2C_BUS="14"
+I2C_BUS="15"  # DS3231 on I2C bus 15 (i2c-gpio-rtc)
 I2C_ADDR="0x68"
 CONTROL_REG="0x0E"
 SQW_VALUE="0x00"  # INTCN=0 (SQW enabled), RS=00 (1Hz)
@@ -50,7 +50,16 @@ done
 if [ -z "$RTC_DEVICE" ]; then
     echo "ERROR: DS3231 RTC not found at I2C address $I2C_BUS-0068"
     echo "Available RTC devices:"
-    ls -la /sys/class/rtc/
+    for rtc in /sys/class/rtc/rtc*; do
+        if [ -e "$rtc/device" ]; then
+            device_path=$(readlink -f $rtc/device)
+            device_name=$(basename $device_path)
+            echo "  $(basename $rtc) → $device_name"
+        fi
+    done
+    echo ""
+    echo "Hint: Check your config.txt i2c-rtc-gpio configuration"
+    echo "      Expected: dtoverlay=i2c-rtc-gpio,ds3231,addr=0x68,..."
     exit 1
 fi
 
