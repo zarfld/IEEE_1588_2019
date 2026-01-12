@@ -556,6 +556,7 @@ int main(int argc, char* argv[])
                                 drift_buffer_count = 0;
                                 drift_buffer_index = 0;
                                 drift_valid = false;
+                                baseline_established = false;  // Reset baseline flag
                                 
                                 // Optionally step RTC (for now, just log)
                                 // rtc_adapter.sync_from_gps(expected_utc_sec_at_pps - 37, 0);  // Convert back to UTC
@@ -569,12 +570,14 @@ int main(int argc, char* argv[])
                                 time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
                                 
                                 // EXPERT FIX: Require baseline sample after reset
-                                // Only establish baseline when buffer is empty (after reset or startup)
-                                if (drift_buffer_count == 0) {
+                                // Use static flag to ensure baseline only established once per reset
+                                static bool baseline_established = false;
+                                if (!baseline_established && drift_buffer_count == 0) {
                                     // First valid sample after reset - establish baseline
                                     // CRITICAL: Do NOT reset last_drift_calc_time here!
                                     // We need to keep the original time to calculate drift in next iteration.
                                     last_time_error_ns = time_error_ns;
+                                    baseline_established = true;  // Mark baseline as done
                                     std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
                                 } else {
                             
@@ -596,6 +599,7 @@ int main(int argc, char* argv[])
                                         drift_buffer_count = 0;
                                         drift_buffer_index = 0;
                                         drift_valid = false;
+                                        baseline_established = false;  // Reset baseline flag
                                         last_time_error_ns = time_error_ns;
                                         last_drift_calc_time = gps_seconds;
                                     } else {
@@ -733,6 +737,7 @@ int main(int argc, char* argv[])
                                     // Clear drift buffer (measurement invalid after time jump)
                                     drift_buffer_count = 0;
                                     drift_buffer_index = 0;
+                                    baseline_established = false;  // Reset baseline flag
                                     last_drift_calc_time = 0;  // Reset to restart measurement
                                     last_time_error_ns = 0;    // Reset error baseline (prevent false drift from old error)
                                     // NOTE: Don't clear drift_valid - keep showing last known drift
