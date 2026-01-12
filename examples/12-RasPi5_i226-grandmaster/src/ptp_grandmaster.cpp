@@ -81,6 +81,7 @@ void signal_handler(int signum)
  */
 void* rt_thread_func(void* arg) {
     SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
+    (void)shared;  // Will be used when implementing PPS/PHC logic
     
     // Set thread name for debugging
     pthread_setname_np(pthread_self(), "ptp_rt");
@@ -126,6 +127,7 @@ void* rt_thread_func(void* arg) {
  */
 void* worker_thread_func(void* arg) {
     SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
+    (void)shared;  // Will be used when implementing GPS/RTC logic
     
     // Set thread name
     pthread_setname_np(pthread_self(), "ptp_worker");
