@@ -569,12 +569,12 @@ int main(int argc, char* argv[])
                                 time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
                                 
                                 // EXPERT FIX: Require baseline sample after reset
-                                if (!drift_valid || drift_buffer_count == 0) {
+                                // Only establish baseline when buffer is empty (after reset or startup)
+                                if (drift_buffer_count == 0) {
                                     // First valid sample after reset - establish baseline
                                     // CRITICAL: Do NOT reset last_drift_calc_time here!
                                     // We need to keep the original time to calculate drift in next iteration.
                                     last_time_error_ns = time_error_ns;
-                                    drift_valid = false;  // Still not valid until we have drift calculation
                                     std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
                                 } else {
                             
