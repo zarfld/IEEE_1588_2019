@@ -234,28 +234,28 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
         pps_data.timeout.nsec = 0;
         
         int pps_ret = ioctl(pps_fd_, PPS_FETCH, &pps_data);
-        std::cout << "[DEBUG PPS] PPS_FETCH returned " << pps_ret 
+        std::cout << "[RTC PPS] PPS_FETCH returned " << pps_ret 
                   << " (errno=" << errno << ", fd=" << pps_fd_ << ")\n";
         
         if (pps_ret == 0) {
-            std::cout << "[DEBUG PPS] Fetched: seq=" << pps_data.info.assert_sequence 
+            std::cout << "[RTC PPS] Fetched: seq=" << pps_data.info.assert_sequence 
                       << " sec=" << pps_data.info.assert_tu.sec 
                       << " nsec=" << pps_data.info.assert_tu.nsec << "\n";
-            std::cout << "[DEBUG PPS] Last cached: seq=" << last_pps_seq_ 
+            std::cout << "[RTC PPS] Last cached: seq=" << last_pps_seq_ 
                       << " sec=" << last_pps_sec_ 
                       << " nsec=" << last_pps_nsec_ << "\n";
             
             // Update cached PPS timestamp if new edge detected
             if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
-                std::cout << "[DEBUG PPS] ✓ New edge detected, updating cache\n";
+                std::cout << "[RTC PPS] ✓ New edge detected, updating cache\n";
                 last_pps_seq_ = pps_data.info.assert_sequence;
                 last_pps_sec_ = pps_data.info.assert_tu.sec;
                 last_pps_nsec_ = pps_data.info.assert_tu.nsec;
             } else {
-                std::cout << "[DEBUG PPS] Same sequence, using cached timestamp\n";
+                std::cout << "[RTC PPS] Same sequence, using cached timestamp\n";
             }
         } else {
-            std::cout << "[DEBUG PPS] ⚠ PPS_FETCH failed (ret=" << pps_ret 
+            std::cout << "[RTC PPS] ⚠ PPS_FETCH failed (ret=" << pps_ret 
                       << " errno=" << errno << ")\n";
         }
         
@@ -271,7 +271,7 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             adjtimex(&tx);
             int tai_utc_offset = tx.tai;  // Usually 37 seconds
             
-            std::cout << "[DEBUG PPS] RTC seconds=" << *seconds 
+            std::cout << "[RTC PPS] RTC seconds=" << *seconds 
                       << " PPS edge sec=" << last_pps_sec_
                       << " System now sec=" << now.tv_sec 
                       << " TAI-UTC=" << tai_utc_offset << "\n";
@@ -289,7 +289,7 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             int64_t now_tai_ns = (int64_t)now_tai_sec * 1000000000LL + (int64_t)now.tv_nsec;
             int64_t offset_from_edge_ns = now_tai_ns - edge_time_ns;
             
-            std::cout << "[DEBUG PPS] edge_tai_ns=" << edge_time_ns 
+            std::cout << "[RTC PPS] edge_tai_ns=" << edge_time_ns 
                       << " now_tai_ns=" << now_tai_ns 
                       << " offset_from_edge=" << offset_from_edge_ns << " ns\n";
             
@@ -298,28 +298,28 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             int64_t seconds_since_edge = offset_from_edge_ns / 1000000000LL;
             int64_t ns_within_second = offset_from_edge_ns % 1000000000LL;
             
-            std::cout << "[DEBUG PPS] Seconds since edge=" << seconds_since_edge
+            std::cout << "[RTC PPS] Seconds since edge=" << seconds_since_edge
                       << " ns within current second=" << ns_within_second << "\n";
             
             // Sanity check: offset should be reasonable (< 10 seconds typically)
             if (offset_from_edge_ns < 0) {
-                std::cout << "[DEBUG PPS] ⚠ Negative offset! (clock went backwards?) Using 0\n";
+                std::cout << "[RTC PPS] ⚠ Negative offset! (clock went backwards?) Using 0\n";
                 ns_within_second = 0;
             } else if (offset_from_edge_ns >= 10000000000LL) {  // >10 seconds
-                std::cout << "[DEBUG PPS] ⚠ Offset > 10s! (stale edge?) Using 0\n";
+                std::cout << "[RTC PPS] ⚠ Offset > 10s! (stale edge?) Using 0\n";
                 ns_within_second = 0;
             }
             
             // Return the nanosecond position within the current second
             // The RTC seconds we read is the reference - we're just adding precision
-            std::cout << "[DEBUG PPS] Final nanoseconds=" << ns_within_second << "\n";
+            std::cout << "[RTC PPS] Final nanoseconds=" << ns_within_second << "\n";
             *nanoseconds = (uint32_t)ns_within_second;
             return true;
         } else {
-            std::cout << "[DEBUG PPS] ⚠ No PPS sequence cached yet (last_pps_seq_=-1)\n";
+            std::cout << "[RTC PPS] ⚠ No PPS sequence cached yet (last_pps_seq_=-1)\n";
         }
     } else {
-        std::cout << "[DEBUG PPS] ⚠ PPS not available (pps_fd_=" << pps_fd_ << ")\n";
+        std::cout << "[RTC PPS] ⚠ PPS not available (pps_fd_=" << pps_fd_ << ")\n";
     }
     
     // Fallback: no sub-second precision
