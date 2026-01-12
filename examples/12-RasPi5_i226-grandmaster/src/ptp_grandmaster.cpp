@@ -568,14 +568,22 @@ int main(int argc, char* argv[])
                             
                                 // RTC aligned to correct second (error_sec == 0)
                                 // EXPERT FIX: DS3231 has 1-second resolution (rtc_nanoseconds always 0)
-                                // Track cumulative error by comparing RTC (TAI+1) to GPS (TAI)
+                                // Track cumulative error by comparing RTC to GPS time
                                 // NOTE: gps_seconds from get_ptp_time() is TAI (UTC+37, see gps_adapter.cpp:797)
                                 // NOTE: RTC is set via sync_from_gps() to gps_seconds+1 (TAI+1, see rtc_adapter.cpp:197)
-                                // So RTC reads TAI+1, and we must account for that +1 offset
-                                // Drift shows up as gradual accumulation of integer-second errors over long periods
-                                int64_t rtc_tai_plus1_sec = static_cast<int64_t>(rtc_seconds);
+                                // 
+                                // CRITICAL: RTC increments at second boundary. Depending on read timing:
+                                //   - Read BEFORE increment: RTC == GPS (shows "last second")
+                                //   - Read AFTER increment: RTC == GPS + 1 (shows "next second")
+                                // We must accept BOTH as valid (0 error) using "closest" logic from discontinuity detection!
+                                int64_t rtc_tai_sec = static_cast<int64_t>(rtc_seconds);
                                 int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds);
-                                time_error_ns = ((rtc_tai_plus1_sec - 1) - gps_tai_sec) * 1000000000LL;  // Subtract the +1
+                                
+                                // Compare RTC against GPS and GPS+1, choose closest (same as discontinuity detection)
+                                int64_t err_vs_gps = rtc_tai_sec - gps_tai_sec;
+                                int64_t err_vs_gps_plus1 = rtc_tai_sec - (gps_tai_sec + 1);
+                                int64_t error_sec = (std::llabs(err_vs_gps) <= std::llabs(err_vs_gps_plus1)) ? err_vs_gps : err_vs_gps_plus1;
+                                time_error_ns = error_sec * 1000000000LL;
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)
@@ -593,8 +601,11 @@ int main(int argc, char* argv[])
                                     double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
                                     
                                     // DEBUG: Show calculation details
-                                    std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_plus1_sec 
-                                             << " GPS=" << gps_tai_sec << " (both TAI, RTC has +1 offset)"
+                                    std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_sec 
+                                             << " GPS=" << gps_tai_sec << " (both TAI)"
+                                             << " err_vs_gps=" << err_vs_gps << "s"
+                                             << " err_vs_gps+1=" << err_vs_gps_plus1 << "s"
+                                             << " → chosen=" << error_sec << "s"
                                              << " | CurrentErr=" << time_error_ns << "ns"
                                              << " LastErr=" << last_time_error_ns << "ns"
                                              << " | ΔErr=" << error_change_ns << "ns"
