@@ -568,12 +568,12 @@ int main(int argc, char* argv[])
                             
                                 // RTC aligned to correct second (error_sec == 0)
                                 // EXPERT FIX: DS3231 has 1-second resolution (rtc_nanoseconds always 0)
-                                // Track cumulative error by comparing RTC to expected TAI time
-                                // Use expected_utc_sec_at_pps which is already converted to TAI above
+                                // Track cumulative error by comparing RTC (TAI) to GPS (current time in TAI)
+                                // Use gps_seconds (current GPS time) not expected_utc_sec_at_pps (last PPS time!)
                                 // Drift shows up as gradual accumulation of integer-second errors over long periods
                                 int64_t rtc_tai_sec = static_cast<int64_t>(rtc_seconds);
-                                int64_t expected_tai_sec = static_cast<int64_t>(expected_utc_sec_at_pps);  // Already TAI
-                                time_error_ns = (rtc_tai_sec - expected_tai_sec) * 1000000000LL;
+                                int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds) + 37;  // GPS to TAI
+                                time_error_ns = (rtc_tai_sec - gps_tai_sec) * 1000000000LL;
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)
@@ -592,7 +592,7 @@ int main(int argc, char* argv[])
                                     
                                     // DEBUG: Show calculation details
                                     std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_sec 
-                                             << " Expected=" << expected_tai_sec
+                                             << " GPS=" << gps_tai_sec << " (GPS+37)"
                                              << " | CurrentErr=" << time_error_ns << "ns"
                                              << " LastErr=" << last_time_error_ns << "ns"
                                              << " | ΔErr=" << error_change_ns << "ns"
