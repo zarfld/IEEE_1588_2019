@@ -515,8 +515,10 @@ int main(int argc, char* argv[])
             if (last_drift_calc_time > 0) {
                 uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
                 
-                // Only perform drift measurement when GPS time has advanced (1+ seconds)
-                if (elapsed_sec >= 1) {
+                // CRITICAL: RTC has 1-second resolution, so drift measurement requires longer intervals
+                // to average out quantization noise (±1 second jitter from read timing)
+                // Minimum 10 seconds to get meaningful sub-ppm measurements
+                if (elapsed_sec >= 10) {
                     uint64_t rtc_seconds = 0;
                     uint32_t rtc_nanoseconds = 0;
                     
@@ -572,18 +574,17 @@ int main(int argc, char* argv[])
                                 // NOTE: gps_seconds from get_ptp_time() is TAI (UTC+37, see gps_adapter.cpp:797)
                                 // NOTE: RTC is set via sync_from_gps() to gps_seconds+1 (TAI+1, see rtc_adapter.cpp:197)
                                 // 
-                                // CRITICAL: RTC increments at second boundary. Depending on read timing:
-                                //   - Read BEFORE increment: RTC == GPS (shows "last second")
-                                //   - Read AFTER increment: RTC == GPS + 1 (shows "next second")
-                                // We must accept BOTH as valid (0 error) using "closest" logic from discontinuity detection!
+                                // CRITICAL: For drift measurement, we do NOT use "closest" logic!
+                                // - RTC has ±1 second quantization noise (read timing artifact)
+                                // - We measure over 10+ second intervals to average this out
+                                // - Let error accumulate naturally to see real drift
+                                // - Discontinuity detection (above) already uses "closest" to filter outliers
                                 int64_t rtc_tai_sec = static_cast<int64_t>(rtc_seconds);
                                 int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds);
                                 
-                                // Compare RTC against GPS and GPS+1, choose closest (same as discontinuity detection)
-                                int64_t err_vs_gps = rtc_tai_sec - gps_tai_sec;
-                                int64_t err_vs_gps_plus1 = rtc_tai_sec - (gps_tai_sec + 1);
-                                int64_t error_sec = (std::llabs(err_vs_gps) <= std::llabs(err_vs_gps_plus1)) ? err_vs_gps : err_vs_gps_plus1;
-                                time_error_ns = error_sec * 1000000000LL;
+                                // Raw error (with quantization noise)
+                                // RTC is set to GPS+1 during sync, so normal state is RTC == GPS+1
+                                time_error_ns = (rtc_tai_sec - (gps_tai_sec + 1)) * 1000000000LL;
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)
@@ -602,14 +603,11 @@ int main(int argc, char* argv[])
                                     
                                     // DEBUG: Show calculation details
                                     std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_sec 
-                                             << " GPS=" << gps_tai_sec << " (both TAI)"
-                                             << " err_vs_gps=" << err_vs_gps << "s"
-                                             << " err_vs_gps+1=" << err_vs_gps_plus1 << "s"
-                                             << " → chosen=" << error_sec << "s"
+                                             << " GPS=" << gps_tai_sec << " Expected=" << (gps_tai_sec + 1)
+                                             << " | Interval=" << elapsed_sec << "s"
                                              << " | CurrentErr=" << time_error_ns << "ns"
                                              << " LastErr=" << last_time_error_ns << "ns"
                                              << " | ΔErr=" << error_change_ns << "ns"
-                                             << " ΔTime=" << elapsed_sec << "s"
                                              << " → " << drift_ppm << " ppm\n";
                                     
                                     static bool first_drift_calc = true;
