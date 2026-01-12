@@ -689,10 +689,14 @@ int main(int argc, char* argv[])
                                         // Log RTC drift measurement progress every 10 seconds
                                         static uint64_t last_drift_progress_log = 0;
                                         if (gps_seconds - last_drift_progress_log >= 10) {
+                                            // Calculate average drift in nanoseconds (1 ppm over 10s = 10ns)
+                                            int64_t drift_avg_ns = static_cast<int64_t>(drift_avg * 10.0);
+                                            
                                             std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
                                                      << drift_ppm << " ppm (" << error_change_ns << "ns/" << elapsed_sec << "s)"
                                                      << " | Avg(" << drift_buffer_count << "): " 
-                                                     << drift_avg << " ppm | Error: " 
+                                                     << drift_avg << " ppm (" << drift_avg_ns << "ns/10s)"
+                                                     << " | Error: " 
                                                      << (time_error_ns / 1000000.0) << " ms\n";
                                             last_drift_progress_log = gps_seconds;
                                         }
@@ -714,8 +718,13 @@ int main(int argc, char* argv[])
                         uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
                             ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
                         
+                        // Calculate average drift in nanoseconds for display (1 ppm over 10s = 10ns)
+                        int64_t drift_avg_ns = static_cast<int64_t>(drift_avg * 10.0);
+                        int64_t drift_tolerance_ns = static_cast<int64_t>(drift_tolerance_ppm * 10.0);
+                        
                         std::cout << "[RTC Adjust DEBUG] Evaluating aging offset adjustment:\n";
-                        std::cout << "  Drift Avg: " << drift_avg << " ppm | Threshold: ±" << drift_tolerance_ppm << " ppm\n";
+                        std::cout << "  Drift Avg: " << drift_avg << " ppm (" << drift_avg_ns << "ns/10s)"
+                                 << " | Threshold: ±" << drift_tolerance_ppm << " ppm (±" << drift_tolerance_ns << "ns/10s)\n";
                         std::cout << "  Time since last adjust: " << (time_since_last_adjustment == UINT64_MAX ? "NEVER" : std::to_string(time_since_last_adjustment) + "s") 
                                  << " | Min interval: " << min_adjustment_interval_sec << "s\n";
                         std::cout << "  Sync counter: " << sync_counter << " | Required: >1200\n";
@@ -776,7 +785,9 @@ int main(int argc, char* argv[])
                                 std::cout << "  ⏸ Warmup period (sync_counter=" << sync_counter << " ≤ 1200)\n";
                             }
                             if (std::abs(drift_avg) <= drift_tolerance_ppm) {
-                                std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ≤ " << drift_tolerance_ppm << " ppm)\n";
+                                // Calculate ns values for clarity (already defined above in this scope)
+                                std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ppm = |" << drift_avg_ns << "|ns/10s ≤ " 
+                                         << drift_tolerance_ppm << " ppm = " << drift_tolerance_ns << "ns/10s)\n";
                             }
                             if (time_since_last_adjustment < min_adjustment_interval_sec && time_since_last_adjustment != UINT64_MAX) {
                                 std::cout << "  ⏳ Too soon since last adjust (" << time_since_last_adjustment << "s < " << min_adjustment_interval_sec << "s)\n";
