@@ -146,6 +146,13 @@ public:
     const PpsData& get_pps_data() const { return pps_data_; }
     
     /**
+     * @brief Get PPS handle for direct time_pps_fetch() access
+     * @return PPS handle (-1 if not initialized)
+     * @note Used by RT thread for low-latency PPS monitoring
+     */
+    time_t get_pps_handle() const { return pps_handle_; }
+    
+    /**
      * @brief Get GPS fix quality
      * @return Fix quality indicator
      */

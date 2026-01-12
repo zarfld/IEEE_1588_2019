@@ -64,6 +64,17 @@ void signal_handler(int signum)
 }
 
 /**
+ * @brief RT Thread Arguments
+ * @details Passed to rt_thread_func for PPS/PHC access
+ */
+struct RtThreadArgs {
+    time_t pps_handle;              ///< PPS handle from GpsAdapter
+    LinuxPtpHal* ptp_hal;          ///< HAL for get_phc_sys_offset()
+    SharedTimingData* shared;       ///< Coordination data
+    std::atomic<bool>* running;     ///< Shutdown flag
+};
+
+/**
  * RT Thread: PPS monitoring + PHC sampling (CPU2, FIFO 80)
  * 
  * Per deb.md specification - mapped to OUR codebase:
@@ -80,33 +91,73 @@ void signal_handler(int signum)
  * Target: < 10ms latency from PPS edge to PHC sample
  */
 void* rt_thread_func(void* arg) {
-    SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
-    (void)shared;  // Will be used when implementing PPS/PHC logic
+    RtThreadArgs* args = static_cast<RtThreadArgs*>(arg);
     
     // Set thread name for debugging
     pthread_setname_np(pthread_self(), "ptp_rt");
     
     std::cout << "[RT Thread] Started on CPU" << sched_getcpu() << " (priority FIFO 80)\n";
     
-    // TODO: Receive pps_handle_ and LinuxPtpHal* from main thread via arg struct
-    // TODO: Initialize PPS handle (already done in GpsAdapter, need to expose)
-    // TODO: Get PHC clock ID from LinuxPtpHal
-    
-    while (g_running) {
-        // TODO: Tight loop implementation:
-        // 1. struct pps_fdata pps_info;
-        // 2. struct timespec timeout = {0, 10000000}; // 10ms
-        // 3. int ret = time_pps_fetch(pps_handle, PPS_TSFMT_TSPEC, &pps_info, &timeout);
-        // 4. if (ret == 0) {
-        // 5.     int64_t phc_ns, sys_ns;
-        // 6.     get_phc_sys_offset(&phc_ns, &sys_ns);  // IMMEDIATELY after PPS
-        // 7.     Push to observation ring buffer
-        // 8. }
-        
-        usleep(100000);  // Placeholder - will be replaced with PPS wait
+    // Verify PPS handle is valid
+    if (args->pps_handle < 0) {
+        std::cerr << "[RT Thread] ERROR: Invalid PPS handle\n";
+        return nullptr;
     }
     
-    std::cout << "[RT Thread] Shutdown\n";
+    // Statistics for monitoring
+    uint64_t pps_count = 0;
+    uint64_t phc_sample_count = 0;
+    uint64_t timeout_count = 0;
+    
+    while (*args->running) {
+        // Wait for PPS edge (10ms timeout for responsive shutdown)
+        struct pps_fdata pps_info;
+        struct timespec timeout = {0, 10000000};  // 10ms
+        
+        int ret = time_pps_fetch(args->pps_handle, PPS_TSFMT_TSPEC, &pps_info, &timeout);
+        
+        if (ret == 0 && pps_info.assert_sequence > 0) {
+            pps_count++;
+            
+            // CRITICAL: Sample PHC IMMEDIATELY after PPS event
+            int64_t phc_ns, sys_ns;
+            if (args->ptp_hal->get_phc_sys_offset(&phc_ns, &sys_ns)) {
+                phc_sample_count++;
+                
+                // Calculate PHC time at PPS edge (extrapolate backwards)
+                int64_t pps_sys_ns = (int64_t)pps_info.assert_tu.sec * 1000000000LL + pps_info.assert_tu.nsec;
+                int64_t sampling_latency_ns = sys_ns - pps_sys_ns;
+                int64_t phc_at_pps = phc_ns - sampling_latency_ns;
+                
+                // Update shared data (with mutex)
+                {
+                    std::lock_guard<std::mutex> lock(args->shared->mutex);
+                    args->shared->phc_at_pps_ns = phc_at_pps;
+                    args->shared->pps_sequence = pps_info.assert_sequence;
+                    args->shared->pps_data.assert_sec = pps_info.assert_tu.sec;
+                    args->shared->pps_data.assert_nsec = pps_info.assert_tu.nsec;
+                    args->shared->pps_data.sequence = pps_info.assert_sequence;
+                    args->shared->phc_sample_valid = true;
+                    args->shared->cv.notify_all();
+                }
+                
+                // Monitor latency (warn if > 10ms)
+                if (sampling_latency_ns > 10000000LL) {  // > 10ms
+                    std::cerr << "[RT Thread] ⚠️  Sampling latency: " 
+                             << (sampling_latency_ns / 1000000.0) << " ms\n";
+                }
+            }
+        } else if (ret != 0 && errno != ETIMEDOUT) {
+            // Log errors (except timeouts which are normal)
+            std::cerr << "[RT Thread] time_pps_fetch error: " << strerror(errno) << "\n";
+        } else if (ret != 0) {
+            timeout_count++;
+        }
+    }
+    
+    std::cout << "[RT Thread] Shutdown (PPS: " << pps_count 
+             << ", PHC samples: " << phc_sample_count
+             << ", Timeouts: " << timeout_count << ")\n";
     return nullptr;
 }
 
@@ -266,6 +317,43 @@ int main(int argc, char* argv[])
     } else {
         std::cout << "  ✓ RTC adapter initialized\n";
     }
+
+    // Shared data for thread coordination
+    SharedTimingData shared_data;
+    
+    // Launch RT thread with SCHED_FIFO priority and CPU2 affinity
+    std::cout << "\nLaunching RT thread (CPU2, FIFO 80)...\n";
+    
+    RtThreadArgs rt_args = {
+        .pps_handle = gps_adapter.get_pps_handle(),
+        .ptp_hal = &ptp_hal,
+        .shared = &shared_data,
+        .running = &g_running
+    };
+    
+    pthread_t rt_thread;
+    pthread_attr_t rt_attr;
+    pthread_attr_init(&rt_attr);
+    
+    // Set FIFO scheduling with priority 80
+    struct sched_param rt_param;
+    rt_param.sched_priority = 80;
+    pthread_attr_setschedpolicy(&rt_attr, SCHED_FIFO);
+    pthread_attr_setschedparam(&rt_attr, &rt_param);
+    
+    // Pin to CPU2 (isolated from USB IRQs)
+    cpu_set_t rt_cpuset;
+    CPU_ZERO(&rt_cpuset);
+    CPU_SET(2, &rt_cpuset);
+    pthread_attr_setaffinity_np(&rt_attr, sizeof(rt_cpuset), &rt_cpuset);
+    
+    if (pthread_create(&rt_thread, &rt_attr, rt_thread_func, &rt_args) != 0) {
+        std::cerr << "ERROR: Failed to create RT thread: " << strerror(errno) << "\n";
+        pthread_attr_destroy(&rt_attr);
+        return 1;
+    }
+    pthread_attr_destroy(&rt_attr);
+    std::cout << "  ✓ RT thread launched\n";
 
     std::cout << "\n🚀 Grandmaster running...\n\n";
 
@@ -925,6 +1013,10 @@ int main(int argc, char* argv[])
         // This gives 10 samples per second, ensuring we never miss a pulse
         usleep(100000);  // 100ms = 100,000 microseconds
     }
+
+    // Wait for RT thread to finish
+    std::cout << "\nWaiting for RT thread...\n";
+    pthread_join(rt_thread, nullptr);
 
     std::cout << "\n=== Shutdown Complete ===\n";
     return 0;
