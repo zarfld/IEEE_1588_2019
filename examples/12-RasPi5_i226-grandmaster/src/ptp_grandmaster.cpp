@@ -109,15 +109,19 @@ void* rt_thread_func(void* arg) {
     uint64_t phc_sample_count = 0;
     uint64_t timeout_count = 0;
     
+    // Track last PPS sequence to detect new events
+    uint64_t last_pps_sequence = 0;
+    
     while (*args->running) {
         // Wait for PPS edge (10ms timeout for responsive shutdown)
-        struct pps_fdata pps_info;
+        pps_info_t pps_info;
         struct timespec timeout = {0, 10000000};  // 10ms
         
         int ret = time_pps_fetch(args->pps_handle, PPS_TSFMT_TSPEC, &pps_info, &timeout);
         
-        if (ret == 0 && pps_info.assert_sequence > 0) {
+        if (ret == 0 && pps_info.assert_sequence > last_pps_sequence) {
             pps_count++;
+            last_pps_sequence = pps_info.assert_sequence;
             
             // CRITICAL: Sample PHC IMMEDIATELY after PPS event
             int64_t phc_ns, sys_ns;
@@ -125,7 +129,8 @@ void* rt_thread_func(void* arg) {
                 phc_sample_count++;
                 
                 // Calculate PHC time at PPS edge (extrapolate backwards)
-                int64_t pps_sys_ns = (int64_t)pps_info.assert_tu.sec * 1000000000LL + pps_info.assert_tu.nsec;
+                int64_t pps_sys_ns = (int64_t)pps_info.assert_timestamp.tv_sec * 1000000000LL 
+                                   + pps_info.assert_timestamp.tv_nsec;
                 int64_t sampling_latency_ns = sys_ns - pps_sys_ns;
                 int64_t phc_at_pps = phc_ns - sampling_latency_ns;
                 
@@ -134,8 +139,8 @@ void* rt_thread_func(void* arg) {
                     std::lock_guard<std::mutex> lock(args->shared->mutex);
                     args->shared->phc_at_pps_ns = phc_at_pps;
                     args->shared->pps_sequence = pps_info.assert_sequence;
-                    args->shared->pps_data.assert_sec = pps_info.assert_tu.sec;
-                    args->shared->pps_data.assert_nsec = pps_info.assert_tu.nsec;
+                    args->shared->pps_data.assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
+                    args->shared->pps_data.assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
                     args->shared->pps_data.sequence = pps_info.assert_sequence;
                     args->shared->phc_sample_valid = true;
                     args->shared->cv.notify_all();
