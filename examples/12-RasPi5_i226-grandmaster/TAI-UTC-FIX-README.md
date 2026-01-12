@@ -196,6 +196,23 @@ sudo ptp4l -i eth1 -s -m
 
 ## Troubleshooting
 
+### PHC Drift Variation
+
+**Expected drift range for i226 NIC**:
+- Typical crystal tolerance: ±10 to ±100 ppm
+- Measured stable value: **6-7 ppm** ← Excellent!
+- Occasional spikes (e.g., 47.8 ppm): Temperature effects or transient state
+
+**Why drift varies**:
+1. **Temperature**: Crystal frequency changes with temperature (~±1 ppm per °C)
+2. **Warm-up time**: System needs 5-10 minutes to stabilize
+3. **Measurement timing**: Transient effects from previous runs
+
+**For consistent results**:
+- Let system warm up 5-10 minutes before calibration
+- Run calibration 2-3 times and verify consistency
+- Consider longer calibration period (40+ pulses) for better accuracy
+
 ### If TAI offset is not working:
 
 1. **Check kernel configuration**:
