@@ -203,36 +203,7 @@ bool RtcAdapter::set_time(const RtcTime& rtc_time)
 
 bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
-    // If SQW/PPS available, read nanosecond-precision timestamp
-    if (pps_fd_ >= 0) {
-        struct pps_fdata pps_data{};
-        pps_data.timeout.sec = 0;
-        pps_data.timeout.nsec = 100000000;  // 100ms timeout
-        
-        if (ioctl(pps_fd_, PPS_FETCH, &pps_data) == 0) {
-            // Check if we got a new timestamp
-            if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
-                last_pps_seq_ = pps_data.info.assert_sequence;
-                last_pps_sec_ = pps_data.info.assert_tu.sec;
-                last_pps_nsec_ = pps_data.info.assert_tu.nsec;
-                
-                *seconds = last_pps_sec_;
-                *nanoseconds = last_pps_nsec_;
-                return true;
-            }
-        }
-        
-        // No new PPS edge, return last known timestamp
-        if (last_pps_seq_ >= 0) {
-            *seconds = last_pps_sec_;
-            *nanoseconds = last_pps_nsec_;
-            return true;
-        }
-        
-        // Fall through to RTC read if no PPS data yet
-    }
-    
-    // Fallback: Read integer-second RTC time
+    // Read RTC integer seconds (always needed for absolute time)
     RtcTime rtc_time{};
     if (!read_time(&rtc_time)) {
         return false;
@@ -249,8 +220,46 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
 
     time_t unix_time = timegm(&tm_time);
     *seconds = static_cast<uint64_t>(unix_time);
-    *nanoseconds = 0; // RTC has 1-second resolution (no PPS)
-
+    
+    // If SQW/PPS available, get sub-second precision from last edge timing
+    if (pps_fd_ >= 0) {
+        struct pps_fdata pps_data{};
+        pps_data.timeout.sec = 0;
+        pps_data.timeout.nsec = 10000000;  // 10ms timeout (non-blocking)
+        
+        if (ioctl(pps_fd_, PPS_FETCH, &pps_data) == 0) {
+            // Update cached PPS timestamp if new edge detected
+            if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
+                last_pps_seq_ = pps_data.info.assert_sequence;
+                last_pps_sec_ = pps_data.info.assert_tu.sec;
+                last_pps_nsec_ = pps_data.info.assert_tu.nsec;
+            }
+        }
+        
+        // Return nanosecond offset from last RTC edge
+        // This represents sub-second timing of when we read the RTC value
+        // relative to the last 1Hz SQW edge
+        if (last_pps_seq_ >= 0) {
+            // Get current system time to calculate offset from last edge
+            struct timespec now;
+            clock_gettime(CLOCK_REALTIME, &now);
+            
+            // Calculate nanoseconds since last RTC SQW edge
+            int64_t edge_time_ns = (int64_t)last_pps_sec_ * 1000000000LL + (int64_t)last_pps_nsec_;
+            int64_t now_ns = (int64_t)now.tv_sec * 1000000000LL + (int64_t)now.tv_nsec;
+            int64_t offset_ns = now_ns - edge_time_ns;
+            
+            // Clamp to 0-999999999 range (within one second)
+            if (offset_ns < 0) offset_ns = 0;
+            if (offset_ns >= 1000000000LL) offset_ns = 999999999LL;
+            
+            *nanoseconds = (uint32_t)offset_ns;
+            return true;
+        }
+    }
+    
+    // Fallback: no sub-second precision
+    *nanoseconds = 0;
     return true;
 }
 
