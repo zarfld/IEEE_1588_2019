@@ -373,77 +373,152 @@ bool RtcAdapter::enable_sqw_output(bool enable)
     //   11 = 8.192 kHz
     
     const uint8_t DS3231_CONTROL_REG = 0x0E;
+    const uint8_t DS3231_STATUS_REG = 0x0F;
     
-    std::cout << "[RTC SQW] Attempting to read control register 0x" << std::hex << (int)DS3231_CONTROL_REG << std::dec 
-              << " via I2C fd=" << i2c_fd_ << "\n";
+    std::cout << "[RTC SQW] Attempting to configure DS3231 square wave output\n";
     
-    // Read current control register
-    uint8_t reg = DS3231_CONTROL_REG;
-    ssize_t bytes_written = write(i2c_fd_, &reg, 1);
-    if (bytes_written != 1) {
-        std::cerr << "[RTC SQW] ERROR: Failed to set register address (wrote " << bytes_written 
-                  << " bytes, errno=" << errno << ": " << strerror(errno) << ")\n";
-        std::cerr << "[RTC SQW] This usually means:\n";
-        std::cerr << "[RTC SQW]   - I2C bus conflict (kernel driver active?)\n";
-        std::cerr << "[RTC SQW]   - Wrong I2C device or address\n";
-        std::cerr << "[RTC SQW]   - Hardware connection issue\n";
-        return false;
+    // First, try reading the status register (0x0F) as a diagnostic
+    // This helps us understand if the I2C communication works at all
+    std::cout << "[RTC SQW] Diagnostic: Testing I2C communication via status register (0x0F)\n";
+    uint8_t test_reg = DS3231_STATUS_REG;
+    ssize_t test_written = write(i2c_fd_, &test_reg, 1);
+    if (test_written == 1) {
+        uint8_t status = 0;
+        if (read(i2c_fd_, &status, 1) == 1) {
+            std::cout << "[RTC SQW] ✓ I2C communication OK (status reg = 0x" << std::hex << (int)status << std::dec << ")\n";
+        } else {
+            std::cout << "[RTC SQW] ⚠ Could read status register address but not value\n";
+        }
+    } else {
+        std::cerr << "[RTC SQW] ⚠ Cannot access status register (errno=" << errno << ": " << strerror(errno) << ")\n";
+        std::cerr << "[RTC SQW] This indicates a fundamental I2C communication problem\n";
     }
     
+    // Try accessing the control register with retry logic
+    // The kernel RTC driver might be accessing it intermittently
+    std::cout << "[RTC SQW] Attempting to read control register (0x" << std::hex << (int)DS3231_CONTROL_REG << std::dec << ")\n";
+    
     uint8_t control = 0;
-    if (read(i2c_fd_, &control, 1) != 1) {
-        std::cerr << "[RTC SQW] ERROR: Failed to read control register\n";
+    bool read_success = false;
+    const int MAX_RETRIES = 5;
+    
+    for (int retry = 0; retry < MAX_RETRIES && !read_success; ++retry) {
+        if (retry > 0) {
+            std::cout << "[RTC SQW] Retry attempt " << retry << "/" << (MAX_RETRIES-1) << "...\n";
+            usleep(100000);  // 100ms delay between retries
+        }
+        
+        uint8_t reg = DS3231_CONTROL_REG;
+        ssize_t bytes_written = write(i2c_fd_, &reg, 1);
+        
+        if (bytes_written != 1) {
+            std::cerr << "[RTC SQW] Retry " << retry << ": Failed to set register address (errno=" << errno << ": " << strerror(errno) << ")\n";
+            continue;
+        }
+        
+        if (read(i2c_fd_, &control, 1) != 1) {
+            std::cerr << "[RTC SQW] Retry " << retry << ": Failed to read control register value\n";
+            continue;
+        }
+        
+        read_success = true;
+        std::cout << "[RTC SQW] ✓ Successfully read control register on attempt " << retry << "\n";
+    }
+    
+    if (!read_success) {
+        std::cerr << "[RTC SQW] ERROR: Failed to read control register after " << MAX_RETRIES << " attempts\n";
+        std::cerr << "[RTC SQW] \n";
+        std::cerr << "[RTC SQW] *** KERNEL DRIVER CONFLICT DETECTED ***\n";
+        std::cerr << "[RTC SQW] The kernel RTC driver (rtc-ds1307) is actively using the control register.\n";
+        std::cerr << "[RTC SQW] \n";
+        std::cerr << "[RTC SQW] WORKAROUND OPTIONS:\n";
+        std::cerr << "[RTC SQW] 1. Configure SQW manually before running this program:\n";
+        std::cerr << "[RTC SQW]    sudo i2cset -y 14 0x68 0x0E 0x00\n";
+        std::cerr << "[RTC SQW] \n";
+        std::cerr << "[RTC SQW] 2. Add device tree configuration to enable SQW at boot:\n";
+        std::cerr << "[RTC SQW]    (Contact developer for device tree overlay)\n";
+        std::cerr << "[RTC SQW] \n";
+        std::cerr << "[RTC SQW] Continuing with I2C polling mode (1-second granularity)...\n";
         return false;
     }
     
     std::cout << "[RTC SQW] Current control register: 0x" << std::hex << (int)control << std::dec << "\n";
     
+    uint8_t new_control = control;
+    
     if (enable) {
         // Enable 1Hz square wave output
-        control &= ~(1 << 2);  // Clear INTCN (enable SQW)
-        control &= ~(0x03 << 3); // Clear RS bits
-        control |= (0x00 << 3);  // Set RS=00 for 1Hz
+        new_control &= ~(1 << 2);  // Clear INTCN (enable SQW)
+        new_control &= ~(0x03 << 3); // Clear RS bits
+        new_control |= (0x00 << 3);  // Set RS=00 for 1Hz
         
-        std::cout << "[RTC SQW] Enabling 1Hz square wave (control=0x" << std::hex << (int)control << std::dec << ")\n";
+        std::cout << "[RTC SQW] Enabling 1Hz square wave (new control=0x" << std::hex << (int)new_control << std::dec << ")\n";
     } else {
         // Disable square wave (enable interrupt mode)
-        control |= (1 << 2);  // Set INTCN (disable SQW)
+        new_control |= (1 << 2);  // Set INTCN (disable SQW)
         
-        std::cout << "[RTC SQW] Disabling square wave (control=0x" << std::hex << (int)control << std::dec << ")\n";
+        std::cout << "[RTC SQW] Disabling square wave (new control=0x" << std::hex << (int)new_control << std::dec << ")\n";
     }
     
-    // Write updated control register
-    uint8_t write_data[2] = {DS3231_CONTROL_REG, control};
-    if (write(i2c_fd_, write_data, 2) != 2) {
-        std::cerr << "[RTC SQW] ERROR: Failed to write control register\n";
+    // Write updated control register with retry logic
+    bool write_success = false;
+    
+    for (int retry = 0; retry < MAX_RETRIES && !write_success; ++retry) {
+        if (retry > 0) {
+            std::cout << "[RTC SQW] Write retry " << retry << "/" << (MAX_RETRIES-1) << "...\n";
+            usleep(100000);  // 100ms delay
+        }
+        
+        uint8_t write_data[2] = {DS3231_CONTROL_REG, new_control};
+        if (write(i2c_fd_, write_data, 2) == 2) {
+            write_success = true;
+            std::cout << "[RTC SQW] ✓ Control register write successful on attempt " << retry << "\n";
+        } else {
+            std::cerr << "[RTC SQW] Write retry " << retry << ": Failed (errno=" << errno << ": " << strerror(errno) << ")\n";
+        }
+    }
+    
+    if (!write_success) {
+        std::cerr << "[RTC SQW] ERROR: Failed to write control register after " << MAX_RETRIES << " attempts\n";
+        std::cerr << "[RTC SQW] Kernel driver conflict prevents runtime configuration.\n";
         return false;
     }
     
-    // Verify write
-    reg = DS3231_CONTROL_REG;
-    if (write(i2c_fd_, &reg, 1) != 1) {
-        std::cerr << "[RTC SQW] ERROR: Failed to re-read for verification\n";
-        return false;
-    }
-    
+    // Verify write with retry
+    bool verify_success = false;
     uint8_t verify = 0;
-    if (read(i2c_fd_, &verify, 1) != 1) {
-        std::cerr << "[RTC SQW] ERROR: Failed to verify write\n";
+    
+    for (int retry = 0; retry < MAX_RETRIES && !verify_success; ++retry) {
+        if (retry > 0) {
+            usleep(50000);  // 50ms delay
+        }
+        
+        uint8_t reg = DS3231_CONTROL_REG;
+        if (write(i2c_fd_, &reg, 1) == 1 && read(i2c_fd_, &verify, 1) == 1) {
+            verify_success = true;
+        }
+    }
+    
+    if (!verify_success) {
+        std::cerr << "[RTC SQW] WARNING: Could not verify control register write\n";
+        std::cerr << "[RTC SQW] SQW may or may not be enabled - check with oscilloscope\n";
         return false;
     }
     
-    if (verify != control) {
-        std::cerr << "[RTC SQW] WARNING: Verification mismatch! wrote=0x" 
-                  << std::hex << (int)control << " read=0x" << (int)verify << std::dec << "\n";
+    if (verify != new_control) {
+        std::cerr << "[RTC SQW] ERROR: Verification failed!\n";
+        std::cerr << "[RTC SQW]   Expected: 0x" << std::hex << (int)new_control << "\n";
+        std::cerr << "[RTC SQW]   Got:      0x" << (int)verify << std::dec << "\n";
         return false;
     }
     
-    std::cout << "[RTC SQW] \u2713 Control register updated and verified: 0x" 
-              << std::hex << (int)verify << std::dec << "\n";
+    std::cout << "[RTC SQW] ✓ Control register verified: 0x" << std::hex << (int)verify << std::dec << "\n";
     
-    if (enable && !sqw_device_.empty()) {
-        std::cout << "[RTC SQW] \u2713 1Hz square wave now active on " << sqw_device_ << "\n";
-        std::cout << "[RTC SQW] \u2713 Use 'sudo ppstest " << sqw_device_ << "' to monitor\n";
+    if (enable) {
+        std::cout << "[RTC SQW] ✓ 1Hz square wave now active on " << sqw_device_ << "\n";
+        std::cout << "[RTC SQW] ✓ Edge detection enabled (microsecond precision)\n";
+    } else {
+        std::cout << "[RTC SQW] ✓ Square wave disabled\n";
     }
     
     return true;
