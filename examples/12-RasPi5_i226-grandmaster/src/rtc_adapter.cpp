@@ -227,13 +227,30 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
         pps_data.timeout.sec = 0;
         pps_data.timeout.nsec = 10000000;  // 10ms timeout (non-blocking)
         
-        if (ioctl(pps_fd_, PPS_FETCH, &pps_data) == 0) {
+        int pps_ret = ioctl(pps_fd_, PPS_FETCH, &pps_data);
+        std::cout << "[DEBUG PPS] PPS_FETCH returned " << pps_ret 
+                  << " (errno=" << errno << ", fd=" << pps_fd_ << ")\n";
+        
+        if (pps_ret == 0) {
+            std::cout << "[DEBUG PPS] Fetched: seq=" << pps_data.info.assert_sequence 
+                      << " sec=" << pps_data.info.assert_tu.sec 
+                      << " nsec=" << pps_data.info.assert_tu.nsec << "\n";
+            std::cout << "[DEBUG PPS] Last cached: seq=" << last_pps_seq_ 
+                      << " sec=" << last_pps_sec_ 
+                      << " nsec=" << last_pps_nsec_ << "\n";
+            
             // Update cached PPS timestamp if new edge detected
             if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
+                std::cout << "[DEBUG PPS] ✓ New edge detected, updating cache\n";
                 last_pps_seq_ = pps_data.info.assert_sequence;
                 last_pps_sec_ = pps_data.info.assert_tu.sec;
                 last_pps_nsec_ = pps_data.info.assert_tu.nsec;
+            } else {
+                std::cout << "[DEBUG PPS] Same sequence, using cached timestamp\n";
             }
+        } else {
+            std::cout << "[DEBUG PPS] ⚠ PPS_FETCH failed (ret=" << pps_ret 
+                      << " errno=" << errno << ")\n";
         }
         
         // Return nanosecond offset from last RTC edge
@@ -244,18 +261,36 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             struct timespec now;
             clock_gettime(CLOCK_REALTIME, &now);
             
+            std::cout << "[DEBUG PPS] Current time: sec=" << now.tv_sec 
+                      << " nsec=" << now.tv_nsec << "\n";
+            
             // Calculate nanoseconds since last RTC SQW edge
             int64_t edge_time_ns = (int64_t)last_pps_sec_ * 1000000000LL + (int64_t)last_pps_nsec_;
             int64_t now_ns = (int64_t)now.tv_sec * 1000000000LL + (int64_t)now.tv_nsec;
             int64_t offset_ns = now_ns - edge_time_ns;
             
-            // Clamp to 0-999999999 range (within one second)
-            if (offset_ns < 0) offset_ns = 0;
-            if (offset_ns >= 1000000000LL) offset_ns = 999999999LL;
+            std::cout << "[DEBUG PPS] edge_ns=" << edge_time_ns 
+                      << " now_ns=" << now_ns 
+                      << " offset_ns=" << offset_ns << "\n";
             
+            // Clamp to 0-999999999 range (within one second)
+            if (offset_ns < 0) {
+                std::cout << "[DEBUG PPS] ⚠ Negative offset! Clamping to 0\n";
+                offset_ns = 0;
+            }
+            if (offset_ns >= 1000000000LL) {
+                std::cout << "[DEBUG PPS] ⚠ Offset > 1s! Clamping to 999999999\n";
+                offset_ns = 999999999LL;
+            }
+            
+            std::cout << "[DEBUG PPS] Final nanoseconds=" << offset_ns << "\n";
             *nanoseconds = (uint32_t)offset_ns;
             return true;
+        } else {
+            std::cout << "[DEBUG PPS] ⚠ No PPS sequence cached yet (last_pps_seq_=-1)\n";
         }
+    } else {
+        std::cout << "[DEBUG PPS] ⚠ PPS not available (pps_fd_=" << pps_fd_ << ")\n";
     }
     
     // Fallback: no sub-second precision
