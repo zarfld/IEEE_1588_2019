@@ -108,7 +108,9 @@ int main(int argc, char* argv[])
     std::cout << "PHC: " << phc_device << "\n";
     std::cout << "GPS: " << gps_device << "\n";
     std::cout << "PPS: " << pps_device << "\n";
-    std::cout << "RTC: " << rtc_device << "\n\n";
+    std::cout << "RTC: " << rtc_device << "\n";
+    std::cout << "\nℹ️  TAI-UTC offset is automatically retrieved from kernel via adjtimex()\n";
+    std::cout << "   To verify/set: adjtimex --print (shows 'tai' field)\n\n";
     
     // EXPERT ADVICE (deb.md): Verify PHC device mapping to interface
     // Check sysfs: /sys/class/net/<if>/ptp should point to our PHC device
@@ -239,8 +241,11 @@ int main(int argc, char* argv[])
         bool gps_available = gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);
 
         if (gps_available) {
-            if (verbose) {
+            // Rate-limit GPS time logging to once per second (reduces console I/O overhead)
+            static uint64_t last_gps_log_time = 0;
+            if (verbose && gps_seconds != last_gps_log_time) {
                 std::cout << "GPS Time: " << gps_seconds << "." << gps_nanoseconds << " TAI\n";
+                last_gps_log_time = gps_seconds;
             }
 
             // ═══════════════════════════════════════════════════════════════════════════
@@ -280,12 +285,18 @@ int main(int argc, char* argv[])
                         int64_t time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
                                                ? error_vs_gps : error_vs_gps_plus1;
                         
-                        // DEBUG: Print actual time values to verify fix
-                        printf("[RTC Drift] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
-                               gps_seconds, gps_nanoseconds, 
-                               rtc_seconds, rtc_nanoseconds,
-                               error_vs_gps, error_vs_gps_plus1,
-                               time_error_ns, time_error_ns / 1000000.0);
+                        // Rate-limited debug output (only when verbose, once per second)
+                        if (verbose) {
+                            static uint64_t last_drift_log_sec = 0;
+                            if (gps_seconds != last_drift_log_sec) {
+                                printf("[RTC Drift] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
+                                       gps_seconds, gps_nanoseconds, 
+                                       rtc_seconds, rtc_nanoseconds,
+                                       error_vs_gps, error_vs_gps_plus1,
+                                       time_error_ns, time_error_ns / 1000000.0);
+                                last_drift_log_sec = gps_seconds;
+                            }
+                        }
                         
                         // Drift rate = change in error / time interval
                         int64_t error_change_ns = time_error_ns - last_time_error_ns;

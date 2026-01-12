@@ -20,8 +20,22 @@ namespace PTP {
 namespace _2019 {
 namespace Linux {
 
-// TAI-UTC offset (37 seconds as of 2017, check leap second bulletins)
-static const int64_t TAI_UTC_OFFSET = 37;
+// Get TAI-UTC offset from kernel (adjtimex provides current value)
+// Fallback to 37 seconds (as of January 2026) if kernel doesn't provide it
+static int64_t get_tai_offset_seconds() {
+    struct timex tx = {0};
+    if (adjtimex(&tx) < 0) {
+        return 37;  // fallback to known value for 2026
+    }
+    // tx.tai contains TAI offset if kernel has been properly configured
+    // Validate range (TAI-UTC should be between 0-100 seconds)
+    if (tx.tai > 0 && tx.tai < 100) {
+        return tx.tai;
+    }
+    return 37;  // fallback if kernel value seems invalid
+}
+
+static const int64_t TAI_UTC_OFFSET = get_tai_offset_seconds();
 
 GpsAdapter::GpsAdapter(const std::string& serial_device,
                        const std::string& pps_device,
