@@ -230,8 +230,8 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
     // If SQW/PPS available, get sub-second precision from last edge timing
     if (pps_fd_ >= 0) {
         struct pps_fdata pps_data{};
-        pps_data.timeout.sec = 0;
-        pps_data.timeout.nsec = 10000000;  // 10ms timeout (non-blocking)
+        pps_data.timeout.sec = 2;      // 2 second timeout (wait for next 1Hz edge)
+        pps_data.timeout.nsec = 0;
         
         int pps_ret = ioctl(pps_fd_, PPS_FETCH, &pps_data);
         std::cout << "[DEBUG PPS] PPS_FETCH returned " << pps_ret 
