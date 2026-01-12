@@ -567,8 +567,12 @@ int main(int argc, char* argv[])
                             } else {
                             
                                 // RTC aligned to correct second (error_sec == 0)
-                                // Sub-second error tracking uses nanoseconds field (0 for DS3231)
-                                time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
+                                // EXPERT FIX: DS3231 has 1-second resolution (rtc_nanoseconds always 0)
+                                // Track cumulative error by comparing RTC seconds to GPS seconds
+                                // Drift shows up as gradual accumulation of integer-second errors over long periods
+                                int64_t rtc_tai_sec = static_cast<int64_t>(rtc_seconds);
+                                int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds) + 37;  // GPS to TAI
+                                time_error_ns = (rtc_tai_sec - gps_tai_sec) * 1000000000LL;
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)
