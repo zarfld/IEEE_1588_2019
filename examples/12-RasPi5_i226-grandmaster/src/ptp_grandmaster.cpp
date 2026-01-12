@@ -546,7 +546,9 @@ int main(int argc, char* argv[])
                     int64_t time_error_ns = 0;
                     double drift_avg = 0.0;
                     
-                    if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
+                    // EXPERT FIX: Use blocking mode (wait_for_edge=true) for drift measurement
+                    // This eliminates artificial race conditions per deb.md expert analysis
+                    if (rtc_adapter.get_time(&rtc_seconds, &rtc_nanoseconds, true)) {  // wait_for_edge=true
                         // EXPERT FIX: Use expected UTC second from PPS-UTC mapping (integer seconds domain)
                         // This is the CORRECT reference for a 1Hz RTC (DS3231)
                         uint64_t expected_utc_sec_at_pps = 0;

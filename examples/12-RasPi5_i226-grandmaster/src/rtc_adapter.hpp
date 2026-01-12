@@ -176,12 +176,15 @@ public:
      * @brief Get RTC time with nanosecond precision (from SQW if available)
      * @param seconds Output: Seconds since epoch
      * @param nanoseconds Output: Nanoseconds (from PPS if SQW enabled, else 0)
+     * @param wait_for_edge If true, wait for NEXT PPS edge (blocking, expert fix).
+     *                      If false, read immediately without waiting (non-blocking, for PHC calibration)
      * @return true on success, false on failure
      * 
-     * @note If SQW is available, reads PPS timestamp for nanosecond precision.
-     *       Otherwise falls back to integer-second RTC reading.
+     * @note Expert fix (deb.md): wait_for_edge=true eliminates artificial races
+     *       by reading RTC AFTER edge instead of before. Use true for drift measurement,
+     *       false for time queries that must not block (PHC calibration, etc.)
      */
-    bool get_time(uint64_t* seconds, uint32_t* nanoseconds);
+    bool get_time(uint64_t* seconds, uint32_t* nanoseconds, bool wait_for_edge = false);
     
     // DS3231 Square Wave Output (1Hz) - for high-precision drift measurement
     bool enable_sqw_output(bool enable = true);  ///< Enable/disable 1Hz square wave output
