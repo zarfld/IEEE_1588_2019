@@ -750,12 +750,13 @@ int main(int argc, char* argv[])
                 } else {
                     // Waiting for 1 second to elapse for drift measurement
                 }
-            } else {
-                // Initialize drift measurement baseline on first GPS lock
-                std::cout << "[RTC Drift] ℹ️ Initializing drift measurement (last_drift_calc_time was 0)\n";
-                std::cout << "[RTC Drift] DEBUG: gps_seconds=" << gps_seconds << ", pps_ready=" << pps_ready << "\n";
+            } else if (last_drift_calc_time == 0) {
+                // Initialize drift measurement baseline ONLY on first GPS lock (when last_drift_calc_time is actually 0)
+                // CRITICAL FIX: Don't re-initialize if pps_ready=false but last_drift_calc_time already set!
+                // Previous bug: Else block ran when EITHER last_drift_calc_time=0 OR pps_ready=false,
+                // causing re-initialization every iteration until PPS became ready.
+                std::cout << "[RTC Drift] ℹ️ Initializing drift measurement baseline (waiting for PPS ready)\n";
                 last_drift_calc_time = gps_seconds;
-                std::cout << "[RTC Drift] DEBUG: Set last_drift_calc_time to " << last_drift_calc_time << "\n";
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
@@ -766,6 +767,13 @@ int main(int argc, char* argv[])
                     int64_t error_vs_gps_plus1 = rtc_time_ns - gps_plus1_ns;
                     last_time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
                                         ? error_vs_gps : error_vs_gps_plus1;
+                }
+            } else {
+                // Waiting for PPS to become ready (last_drift_calc_time already initialized)
+                static uint64_t last_waiting_message_time = 0;
+                if (gps_seconds - last_waiting_message_time >= 10) {
+                    std::cout << "[RTC Drift] ⏳ Waiting for PPS ready (PHC calibration in progress...)\n";
+                    last_waiting_message_time = gps_seconds;
                 }
             }
 
