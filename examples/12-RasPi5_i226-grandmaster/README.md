@@ -453,6 +453,45 @@ sudo journalctl -u ptp4l-gm.service -f
 
 ## 🔧 Troubleshooting
 
+### TAI-UTC Offset Configuration
+
+**Issue**: GPS time (UTC-based) differs from PTP time (TAI-based) by current TAI-UTC offset.
+
+**Solution**: The grandmaster automatically retrieves TAI offset from kernel via `adjtimex()` system call.
+
+**Verify kernel TAI offset** (optional - code works without this utility):
+```bash
+# Check current setting:
+adjtimex --print | grep tai
+# Should show: tai: 37  (as of Jan 2026)
+
+# If zero, set it:
+sudo adjtimex --tai 37
+
+# Alternative verification (no utility needed):
+python3 -c "import ctypes; tx = type('timex', (), {'tai': ctypes.c_long(0)})(); libc = ctypes.CDLL('libc.so.6'); libc.adjtimex(ctypes.byref(tx)); print('TAI offset:', tx.tai)"
+```
+
+**Note**: Setting persists across reboots on most systems.
+
+### High Latency Warnings
+
+**Issue**: Console I/O causing 65-175ms delays in timing path.
+
+**Solutions**:
+1. **Run without verbose mode** (minimal console output):
+   ```bash
+   sudo chrt -f 80 taskset -c 2 ./ptp_grandmaster --interface=eth1
+   ```
+
+2. **Redirect output** (fastest - zero console overhead):
+   ```bash
+   sudo chrt -f 80 taskset -c 2 ./ptp_grandmaster --interface=eth1 --verbose >/tmp/gm.log 2>&1
+   tail -f /tmp/gm.log  # Monitor in separate terminal
+   ```
+
+3. **GPS/RTC logging is rate-limited** to 1 Hz in verbose mode (already optimized)
+
 ### PTP Not Achieving MASTER State
 ```bash
 # Check network interface
@@ -476,6 +515,27 @@ sudo cat /dev/ttyACM0  # Should show NMEA sentences
 sudo ppstest /dev/pps0
 ```
 
+### PHC Drift Analysis
+
+**Normal behavior**: PHC drift varies between runs due to:
+- **Crystal warm-up**: First run after power-on shows higher drift (40-80 ppm)
+- **Thermal stabilization**: Subsequent runs converge to 6-10 ppm (realistic i226 crystal offset)
+- **Measurement window**: 20-second calibration is a snapshot, not long-term average
+
+**Typical drift progression**:
+```
+Run 1 (cold start):  47.8 ppm → Crystal not yet stabilized
+Run 2 (warm):         6.7 ppm → Realistic offset
+Run 3 (stable):       6.1 ppm → Consistent measurement
+```
+
+**Expected PPS performance** (GPS-grade):
+- **Jitter**: 1.0-3.6 µs (excellent)
+- **Drift**: -0.14 to -0.16 ppm average (sub-ppm accuracy)
+- **RTC offset**: -2.4 ms consistent (correctable via aging offset)
+
+**Action required**: None if drift stabilizes <10 ppm after 2-3 runs.
+
 ### PHC Drift Too Large
 ```bash
 # Monitor PHC offset
@@ -484,6 +544,67 @@ sudo phc2sys -s CLOCK_REALTIME -c /dev/ptp0 -m
 # Check GPS lock quality
 chronyc sourcestats
 ```
+
+---
+
+## 🧪 Testing with Slave Device
+
+### Prerequisites
+- **Two Raspberry Pi 5 devices** with Intel i226 NICs
+- **Direct Ethernet connection** or same network switch
+- **Grandmaster running** on first device
+- **ptp4l installed** on second device: `sudo apt install linuxptp`
+
+### Slave Device Setup
+
+**1. Identify connected interface**:
+```bash
+ip link show
+# Look for "UP,LOWER_UP" (cable connected)
+# Example: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP>
+```
+
+**2. Verify PHC device mapping**:
+```bash
+readlink -f /sys/class/net/eth1/ptp
+# Example output: /sys/class/ptp/ptp1 → Use /dev/ptp1
+```
+
+### Run Slave Test
+
+**Basic synchronization** (use YOUR connected interface from step 1):
+```bash
+sudo ptp4l -i eth1 -s -m
+
+# Flags:
+# -i eth1  : Use eth1 interface (change if needed!)
+# -s       : Slave mode only
+# -m       : Print monitoring statistics
+```
+
+**Expected output** (after 30-60 seconds):
+```
+ptp4l: rms    234 max    456 freq  +12345 +/-  123 delay    456 +/-   12
+       ^^^                ^^^^^^
+       RMS offset         Frequency correction
+```
+
+**Success criteria**:
+- ✅ **Excellent**: rms < 100 ns (sub-100 nanosecond sync)
+- ✅ **Good**: rms < 1000 ns (sub-microsecond sync - goal achieved)
+- ✅ **Frequency stabilizes** after 60 seconds
+- ✅ **Path delay** < 10 µs (direct connection)
+
+**Verbose debugging**:
+```bash
+sudo ptp4l -i eth1 -s -m -l 7
+# Shows: Announce, Sync, Follow_Up message reception
+```
+
+**Troubleshooting**:
+- **No master clock found**: Check grandmaster is running and cable connected
+- **High offset jitter**: Verify hardware timestamping enabled
+- **Wrong interface**: Use `ip link show` to find connected interface (must show "UP,LOWER_UP")
 
 ---
 
