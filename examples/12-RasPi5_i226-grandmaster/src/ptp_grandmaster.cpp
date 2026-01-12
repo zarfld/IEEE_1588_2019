@@ -677,7 +677,8 @@ int main(int argc, char* argv[])
                                         static uint64_t last_drift_progress_log = 0;
                                         if (gps_seconds - last_drift_progress_log >= 10) {
                                             std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
-                                                     << drift_ppm << " ppm | Avg(" << drift_buffer_count << "): " 
+                                                     << drift_ppm << " ppm (" << error_change_ns << "ns/" << elapsed_sec << "s)"
+                                                     << " | Avg(" << drift_buffer_count << "): " 
                                                      << drift_avg << " ppm | Error: " 
                                                      << (time_error_ns / 1000000.0) << " ms\n";
                                             last_drift_progress_log = gps_seconds;
