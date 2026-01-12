@@ -753,7 +753,9 @@ int main(int argc, char* argv[])
             } else {
                 // Initialize drift measurement baseline on first GPS lock
                 std::cout << "[RTC Drift] ℹ️ Initializing drift measurement (last_drift_calc_time was 0)\n";
+                std::cout << "[RTC Drift] DEBUG: gps_seconds=" << gps_seconds << ", pps_ready=" << pps_ready << "\n";
                 last_drift_calc_time = gps_seconds;
+                std::cout << "[RTC Drift] DEBUG: Set last_drift_calc_time to " << last_drift_calc_time << "\n";
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
                 if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
