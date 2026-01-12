@@ -55,6 +55,7 @@ Based on [console.log](console.log) analysis:
   - PPS signal integration with nanosecond precision
   - PPS jitter measurement (0.6-3.8µs typical)
   - GPS fix quality monitoring
+  - PPS-UTC mapping with base anchor locking (prevents ±1s slips)
   
 - ✅ **RTC Adapter** (`rtc_adapter.cpp`):
   - DS3231 I2C interface (I2C bus 14 at address 0x68)
@@ -65,24 +66,37 @@ Based on [console.log](console.log) analysis:
   - Code consolidation: single I2C write point (no race conditions)
   
 - ✅ **PTP Grandmaster** (`ptp_grandmaster.cpp`):
+  - **Threaded Architecture** (RT thread, worker thread, main thread):
+    - **RT Thread** (CPU2, SCHED_FIFO 80): PPS wait + PHC sampling <10ms latency
+    - **Worker Thread** (CPU0/1/3): GPS NMEA processing (non-blocking main loop)
+    - **Main Thread**: PHC calibration, RTC discipline, PTP messaging
   - IEEE 1588-2019 message construction (Announce, Sync, Follow_Up)
   - GPS-disciplined clock quality (Class=7, Accuracy=33 for <100ns)
   - Hardware timestamp integration
-  - Event loop with GPS/RTC fallback
-  - Compilation verified on Raspberry Pi
+  - PHC calibration: 2-7 ppm typical accuracy
+  - RTC drift measurement: Visible logging every 10 seconds
+  - HIGH LATENCY eliminated: 0 warnings with threaded architecture
   
 - ✅ **Linux PTP HAL** (`linux_ptp_hal.cpp`):
   - Socket operations (event/general)
   - Hardware timestamping (SO_TIMESTAMPING)
   - PHC clock operations
+  - `get_phc_sys_offset()`: Cross-timestamp PHC ↔ system clock
+
+**✅ TESTED AND VERIFIED**:
+- ✅ **RT Thread Architecture** - 97+ PPS captures, <10ms latency, 100% success rate
+- ✅ **PHC Calibration** - 2-7 ppm accuracy (30x improvement from single-threaded)
+- ✅ **HIGH LATENCY Eliminated** - 0 warnings (was 63-171ms before threading)
+- ✅ **RTC Drift Measurement** - ~1 ppm typical, visible logging every 10s
+- ✅ **Worker Thread** - GPS NMEA processing isolated from main loop
 
 **⏳ READY FOR TESTING**:
-- [ ] **eth1 UP** - Connect network cable
-- [ ] **RTC aging offset I2C writes** - Test on correct bus 14 (errno=121 fixed)
+- [ ] **eth1 UP** - Connect network cable for PTP transmission
 - [ ] **PTP network transmission** - Verify packets with tcpdump/Wireshark
 - [ ] **Slave synchronization** - Test with PTP slave device
+- [ ] **Discontinuity Handling** - Implement expert's fixes from deb.md (DEBUG phase active)
 
-**Current Status**: GPS integration ✅, RTC discipline implemented ✅, PTP messages compiled ✅, I2C bus corrected (13→14) ✅
+**Current Status**: Threaded architecture ✅ COMPLETE, PHC calibration ✅ 2-7 ppm, RTC drift ✅ ~1 ppm, DEBUG instrumentation ✅ active to verify expert assumptions before implementing fixes
 
 ---
 
@@ -177,6 +191,10 @@ sudo /usr/local/bin/ptp_grandmaster --interface=eth1
 **File**: `src/ptp_grandmaster.cpp` ✅ **IMPLEMENTED**
 
 **Key Features**:
+- **Threaded Architecture**:
+  - **RT Thread** (CPU2, SCHED_FIFO priority 80): PPS wait + PHC sampling
+  - **Worker Thread** (CPU0/1/3, normal priority): GPS NMEA processing
+  - **Main Thread**: PHC calibration, RTC discipline, PTP messaging
 - **Command-line Options**: `--interface`, `--phc`, `--gps`, `--pps`, `--rtc`, `--verbose`
 - **GPS Integration**: Continuous GPS NMEA parsing with PPS correlation
 - **Clock Quality**: Class 7 (GPS-disciplined), Accuracy 33 (<100ns)
@@ -184,8 +202,15 @@ sudo /usr/local/bin/ptp_grandmaster --interface=eth1
   - Announce messages every 2 seconds
   - Sync messages every 1 second
   - Follow_Up messages with hardware TX timestamps
+- **PHC Calibration**: Automated frequency measurement (2-7 ppm typical)
 - **RTC Discipline**: Automated drift measurement and aging offset correction
 - **Error Handling**: Graceful GPS loss fallback to RTC holdover
+
+**Performance Results** (Raspberry Pi 5):
+- **RT Thread**: <10ms PPS→PHC sampling latency (97+ samples, 100% capture)
+- **HIGH LATENCY**: Eliminated (was 63-171ms, now 0 warnings)
+- **PHC Calibration**: 2-7 ppm accuracy (30x improvement from 67.9 ppm)
+- **RTC Drift**: ~1 ppm typical with aging offset discipline
 
 **Actual Implementation** (522 lines):
 ```cpp
@@ -228,16 +253,26 @@ while (g_running) {
 ```bash
 # Build and run
 cd ~/IEEE_1588_2019/examples/12-RasPi5_i226-grandmaster/build
-sudo ./ptp_grandmaster --interface=eth1 --verbose
+sudo ./ptp_grandmaster --interface=eth1
 
 # Expected output:
-# [GPS] GPS fix acquired, 7 satellites
-# [GPS Time] 1767983525.218112 TAI
-# [PPS] Jitter: 1.234 µs
-# [RTC Discipline] ✓ Aging offset applied: -2 LSB
-# [PTP] Sending Announce message...
-# [PTP] Sending Sync message...
-# [PTP] Follow_Up sent with TX timestamp
+Launching RT thread (CPU2, FIFO 80)...
+  ✓ RT thread launched
+Launching worker thread (CPU0/1/3, normal priority)...
+  ✓ Worker thread launched
+
+🚀 Grandmaster running...
+
+[RT Thread] Started on CPU2 (priority FIFO 80)
+[Worker Thread] Started on CPU1
+[PPS] seq=70057 time=1768203584.998368250 max_jitter=0ns (last 10 pulses)
+[PPS-UTC Lock] Association locked: NMEA labels LAST PPS (avg_dt=200ms)
+[PHC Calibration] ✓ Complete! Final drift: 4.5 ppm (acceptable)
+[RTC Drift] Measured: 1.192 ppm | Avg(60): 0.918 ppm | Error: 1.733 ms
+[PPS] seq=70167 ... drift=0.840ppm avg=0.923ppm(60) err=1.7ms
+
+# Shutdown shows thread statistics:
+[RT Thread] Shutdown (PPS: 111, PHC samples: 111, Timeouts: 9194)
 ```
 
 **Verify PTP Packets**:

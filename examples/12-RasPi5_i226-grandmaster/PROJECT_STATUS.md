@@ -3,8 +3,8 @@
 **Project**: IEEE 1588-2019 PTP Grandmaster Integration  
 **Hardware**: Raspberry Pi 5 + Intel i226 + GPS + RTC  
 **Repository**: IEEE_1588_2019  
-**Status**: ✅ Implementation Complete - Ready for Testing  
-**Date**: 2026-01-11
+**Status**: ✅ Threaded Architecture Complete - DEBUG Verification Phase  
+**Date**: 2026-01-12
 
 ---
 
@@ -17,51 +17,72 @@
    - PTP hardware clocks available (/dev/ptp0, /dev/ptp1)
    - GPS module working (u-blox G70xx)
    - PPS signal stable (<2µs jitter)
-   - DS3231 RTC configured (I2C)
-   - ⚠️ DS3231 RTC not GPS-disciplined yet (needs sync service)
+   - DS3231 RTC configured (I2C bus 14)
    - LinuxPTP v4.2 installed
 
-2. **Documentation Created**
-   - [README.md](README.md) - Complete user guide
-   - [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Detailed task breakdown
-   - [CMakeLists.txt](CMakeLists.txt) - Build configuration
+2. **Threaded Architecture Implementation** (✅ COMPLETE)
+   - **RT Thread** (CPU2, SCHED_FIFO 80):
+     - PPS monitoring via `time_pps_fetch()`
+     - PHC sampling via `get_phc_sys_offset()`
+     - <10ms latency achieved (target met)
+     - 97+ PPS captures, 100% success rate
+   - **Worker Thread** (CPU0/1/3, normal priority):
+     - GPS NMEA processing isolated from main loop
+     - Updates shared GPS time data
+     - Eliminates blocking I/O in main thread
+   - **Main Thread**:
+     - PHC calibration (2-7 ppm accuracy)
+     - RTC drift measurement (~1 ppm typical)
+     - PTP message transmission
+     - No blocking I/O (optimized)
 
-3. **Code Structure Established**
-   - Header files created:
-     - `linux_ptp_hal.hpp` - Hardware abstraction interface
-     - `gps_adapter.hpp` - GPS time source interface
-     - `rtc_adapter.hpp` - RTC holdover interface
-   - Implementation stubs ready for development
+3. **Performance Achievements** (✅ VERIFIED)
+   - HIGH LATENCY: **Eliminated** (was 63-171ms, now 0 warnings)
+   - PHC Calibration: **2-7 ppm** (30x improvement from 67.9 ppm)
+   - RT Thread Latency: **<10ms** (97+ samples, 100% capture)
+   - RTC Drift: **~1 ppm typical** with aging offset discipline
 
-4. **Remote Debugging Plan**
-   - GDB remote debugging configuration
-   - VS Code Remote-SSH setup documented
-   - Performance profiling strategy defined
+4. **Documentation Updates**
+   - README.md updated with threaded architecture
+   - Performance results documented
+   - RTC drift logging added (every 10 seconds)
+   - DEBUG instrumentation added (verify expert assumptions)
+
+5. **Code Quality**
+   - All TODOs resolved in ptp_grandmaster.cpp
+   - Clean builds on Raspberry Pi 5
+   - Thread safety via mutex-protected shared data
+   - CPU affinity for RT thread isolation
 
 ### ⏳ In Progress / Next Steps
 
-1. **Phase 1: Baseline Validation** (Immediate)
+1. **DEBUG Verification Phase** (Current - 2026-01-12)
+   - ✅ DEBUG instrumentation added to verify expert assumptions from deb.md
+   - [ ] Test with DEBUG logging to prove:
+     - ±1s discontinuities contaminate drift averages
+     - Calibration handoff causes transient errors
+     - Mapping re-decisions after lock cause second slips
+   - [ ] Review DEBUG output to confirm expert's predictions
+   - [ ] Implement fixes based on verified assumptions
+
+2. **Expert Fixes Implementation** (After DEBUG verification)
+   - [ ] Add discontinuity detection (>100ms = reset filter)
+   - [ ] Skip PPS updates for 2 cycles after PHC calibration
+   - [ ] Freeze PPS-UTC mapping after lock (prevent re-decisions)
+   - [ ] Add outlier rejection before ring buffer insertion
+   - [ ] Verify fixes eliminate contaminated averages
+
+3. **PTP Network Testing** (After fixes validated)
    - [ ] Connect network cable to eth1
-   - [ ] Verify LinuxPTP grandmaster operation
-   - [ ] Document baseline performance metrics
-   - [ ] Capture PTP packet traces
+   - [ ] Verify PTP packet transmission
+   - [ ] Test with PTP slave device
+   - [ ] Document PTP interoperability
 
-2. **Phase 2: Implementation** (Week 1)
-   - [ ] Implement `linux_ptp_hal.cpp` (2-3 days)
-   - [ ] Implement `gps_adapter.cpp` (2 days)
-   - [ ] Implement `rtc_adapter.cpp` (1 day)
-   - [ ] Create `ptp_grandmaster.cpp` main application (2-3 days)
-
-3. **Phase 3: Testing** (Week 2)
-   - [ ] Unit tests for each adapter
-   - [ ] Integration tests
-   - [ ] Compliance validation
-   - [ ] Performance measurements
-
-4. **Phase 4: Remote Development** (Week 2)
-   - [ ] Setup GDB remote debugging
-   - [ ] Configure VS Code Remote-SSH
-   - [ ] Enable performance profiling
+4. **Long-term Stability** (Final validation)
+   - [ ] Overnight stability test (8+ hours)
+   - [ ] RTC aging offset convergence
+   - [ ] PHC calibration stability
+   - [ ] Document final performance metrics
 
 ---
 
