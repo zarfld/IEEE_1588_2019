@@ -476,18 +476,46 @@ python3 -c "import ctypes; tx = type('timex', (), {'tai': ctypes.c_long(0)})(); 
 
 ### High Latency Warnings
 
-**Root Cause** (identified via strace analysis - see deb.md):
+**Root Cause** (identified via strace analysis - see [deb.md](deb.md)):
 - GPS serial blocking reads with `VTIME=10` (1 second timeout)  
 - 100ms `clock_nanosleep()` in main loop
 - PHC sampling happens AFTER GPS/RTC processing (70-170ms delayed)
 
-**Solution** (proper architecture):
-- **RT Thread** (CPU2, FIFO 80): PPS wait → PHC sample → ringbuffer push
-- **Worker Thread** (CPU0/1/3): GPS read/parse, RTC, PTP messaging, logging
-- Eliminates blocking GPS reads from critical timing path
-- Target PHC sampling latency: < 10ms from PPS edge
+**Solution** (threaded architecture per [deb.md](deb.md) specification):
 
-**Implementation Status**: ⏳ In progress (threaded architecture)
+**Thread Architecture** (mapped to our codebase):
+```
+Thread A: pps_phc_rt (CPU2, SCHED_FIFO 80)
+├─ Uses: pps_handle_ with time_pps_fetch()
+├─ Uses: LinuxPtpHal::get_phc_sys_offset()
+├─ Goal: < 10ms latency from PPS to PHC sample
+└─ Output: PHC servo + observation stream for RTC
+
+Thread B: gps_io (CPU0/1/3, normal priority)
+├─ Uses: GpsAdapter::update() with serial read
+├─ Uses: NMEA parsing (blocking OK)
+├─ Goal: Maintain GPS status + UTC labeling
+└─ Output: Atomic GPS state for Thread A
+
+Thread C: rtc_discipline (CPU0/1/3, normal priority)
+├─ Uses: RtcAdapter methods
+├─ Uses: Observation stream from Thread A
+├─ Goal: DS3231 aging offset tuning (slow loop)
+└─ Output: RTC holdover capability
+```
+
+**Data Exchange** (lock-free, bounded):
+- GPS → RT: Atomic UTC label (generation counter pattern)
+- RT → RTC: Ring buffer of PPS observations  
+- No blocking between threads
+
+**Implementation Status**: ⏳ Foundation committed (thread stubs)
+
+**Next Steps**:
+1. Implement Thread A: `time_pps_fetch()` + `get_phc_sys_offset()` tight loop
+2. Move `GpsAdapter::update()` to Thread B with poll-based serial reads
+3. Move RTC drift measurement to Thread C consuming observation buffer
+4. Add state machine: GPS_LOCKED → HOLDOVER_RTC → RECOVERY
 
 **Temporary workarounds** (if not using threaded version):
 1. **Run without verbose mode** (minimal console output):

@@ -66,12 +66,17 @@ void signal_handler(int signum)
 /**
  * RT Thread: PPS monitoring + PHC sampling (CPU2, FIFO 80)
  * 
- * CRITICAL PATH - Must execute with minimal latency:
- * 1. Wait for PPS edge
- * 2. IMMEDIATELY sample PHC time
- * 3. Push to shared data
+ * Per deb.md specification - mapped to OUR codebase:
+ * - Uses: pps_handle_ with time_pps_fetch() [OUR existing API]
+ * - Uses: LinuxPtpHal::get_phc_sys_offset() [OUR existing API]
+ * - No blocking I/O except PPS wait
+ * - No NMEA parsing, no I2C, no malloc
  * 
- * Expert (deb.md): "PHC sampling latency corrupts frequency measurements"
+ * CRITICAL PATH - Must execute with minimal latency:
+ * 1. time_pps_fetch() - wait for PPS edge
+ * 2. IMMEDIATELY sample PHC via get_phc_sys_offset()
+ * 3. Push observation to ring buffer for RTC thread
+ * 
  * Target: < 10ms latency from PPS edge to PHC sample
  */
 void* rt_thread_func(void* arg) {
@@ -82,13 +87,22 @@ void* rt_thread_func(void* arg) {
     
     std::cout << "[RT Thread] Started on CPU" << sched_getcpu() << " (priority FIFO 80)\n";
     
-    // TODO: Open PPS device and PHC
-    // TODO: Implement tight PPS wait loop
-    // TODO: Sample PHC immediately on PPS edge
+    // TODO: Receive pps_handle_ and LinuxPtpHal* from main thread via arg struct
+    // TODO: Initialize PPS handle (already done in GpsAdapter, need to expose)
+    // TODO: Get PHC clock ID from LinuxPtpHal
     
     while (g_running) {
-        // Placeholder - will implement PPS/PHC logic
-        usleep(100000);  // 100ms
+        // TODO: Tight loop implementation:
+        // 1. struct pps_fdata pps_info;
+        // 2. struct timespec timeout = {0, 10000000}; // 10ms
+        // 3. int ret = time_pps_fetch(pps_handle, PPS_TSFMT_TSPEC, &pps_info, &timeout);
+        // 4. if (ret == 0) {
+        // 5.     int64_t phc_ns, sys_ns;
+        // 6.     get_phc_sys_offset(&phc_ns, &sys_ns);  // IMMEDIATELY after PPS
+        // 7.     Push to observation ring buffer
+        // 8. }
+        
+        usleep(100000);  // Placeholder - will be replaced with PPS wait
     }
     
     std::cout << "[RT Thread] Shutdown\n";
@@ -98,9 +112,15 @@ void* rt_thread_func(void* arg) {
 /**
  * Worker Thread: GPS/RTC/PTP messaging (CPU0/1/3)
  * 
+ * Per deb.md specification - mapped to OUR codebase:
+ * - Uses: GpsAdapter::update() [OUR existing API]
+ * - Uses: RtcAdapter methods [OUR existing API]
+ * - Uses: poll() on serial FD for non-blocking reads
+ * - Updates atomic GPS label for RT thread consumption
+ * 
  * NON-CRITICAL PATH - Can tolerate delays:
- * 1. GPS serial read/parse (blocking OK)
- * 2. RTC drift measurement
+ * 1. GPS serial read/parse (blocking OK - won't affect RT thread)
+ * 2. RTC drift measurement (consume observation buffer)
  * 3. PTP message transmission
  * 4. Logging
  */
@@ -112,13 +132,22 @@ void* worker_thread_func(void* arg) {
     
     std::cout << "[Worker Thread] Started on CPU" << sched_getcpu() << "\n";
     
-    // TODO: Initialize GPS/RTC adapters
-    // TODO: Main GPS update loop
-    // TODO: RTC drift measurement
+    // TODO: Receive GpsAdapter* and RtcAdapter* from main thread via arg struct
+    // TODO: Initialize GPS adapter (already constructed, need reference)
+    // TODO: Initialize RTC adapter (already constructed, need reference)
     
     while (g_running) {
-        // Placeholder - will implement GPS/RTC logic
-        usleep(100000);  // 100ms
+        // TODO: Implementation:
+        // 1. gps_adapter->update();  // Read NMEA, parse, update internal state
+        // 2. if (gps_adapter->has_fix()) {
+        // 3.     uint64_t gps_sec, gps_ns;
+        // 4.     gps_adapter->get_ptp_time(&gps_sec, &gps_ns);
+        // 5.     // Update atomic GPS label for RT thread
+        // 6.     shared->gps_seconds = gps_sec;  // with proper mutex
+        // 7. }
+        // 8. // RTC drift measurement using observations from RT thread
+        
+        usleep(100000);  // Placeholder - will be replaced with GPS update loop
     }
     
     std::cout << "[Worker Thread] Shutdown\n";
