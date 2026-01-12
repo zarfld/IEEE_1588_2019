@@ -265,11 +265,11 @@ Launching worker thread (CPU0/1/3, normal priority)...
 
 [RT Thread] Started on CPU2 (priority FIFO 80)
 [Worker Thread] Started on CPU1
-[PPS] seq=70057 time=1768203584.998368250 max_jitter=0ns (last 10 pulses)
+[GPS PPS] seq=70057 time=1768203584.998368250 max_jitter=0ns (last 10 pulses)
 [PPS-UTC Lock] Association locked: NMEA labels LAST PPS (avg_dt=200ms)
 [PHC Calibration] ✓ Complete! Final drift: 4.5 ppm (acceptable)
 [RTC Drift] Measured: 1.192 ppm | Avg(60): 0.918 ppm | Error: 1.733 ms
-[PPS] seq=70167 ... drift=0.840ppm avg=0.923ppm(60) err=1.7ms
+[GPS PPS] seq=70167 ... drift=0.840ppm avg=0.923ppm(60) err=1.7ms
 
 # Shutdown shows thread statistics:
 [RT Thread] Shutdown (PPS: 111, PHC samples: 111, Timeouts: 9194)

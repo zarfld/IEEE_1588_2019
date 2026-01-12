@@ -1131,7 +1131,7 @@ int main(int argc, char* argv[])
         
         // Always show PPS output when ready (every 10 pulses) - separate from drift measurements
         if (pps_ready) {
-            std::cout << "[PPS] seq=" << pps_data.sequence 
+            std::cout << "[GPS PPS] seq=" << pps_data.sequence 
                      << " time=" << pps_data.assert_sec << "." << pps_data.assert_nsec
                      << " max_jitter=" << pps_max_jitter_ns << "ns (last 10 pulses)";
             

@@ -223,7 +223,7 @@ Breadboard (830-point standard):
   │ + Red  3.3V  │◄─────┤ 3.3V  [ESP32-DEV]  │    │   GT-U7 GPS  │
   │ - Blue GND   │◄─────┤ GND                │    │              │
   └──────────────┘      │                    │    │  Front View  │
-                        │ GPIO4  ◄──────[PPS]│◄───┤ PPS pin      │
+                        │ GPIO4  ◄──────[GPS PPS]│◄───┤ PPS pin      │
   Rows 1-30            │ GPIO16 ◄──────[TXD]│◄───┤ TXD (NMEA)   │
   (Power section)       │ GPIO17 ─────►[RXD]│───►│ RXD (cmd)    │
                         │ GPIO21 ◄═══►[SDA] │    │ GND ──┐      │

@@ -160,9 +160,9 @@ sudo ./ptp_grandmaster \
 
 **PPS Debug (every 10 seconds)**:
 ```
-[PPS] seq=10 time=14:23:45.000000000 jitter=150ns
-[PPS] seq=20 time=14:23:55.000000000 jitter=120ns
-[PPS] seq=30 time=14:24:05.000000000 jitter=95ns
+[GPS PPS] seq=10 time=14:23:45.000000000 jitter=150ns
+[GPS PPS] seq=20 time=14:23:55.000000000 jitter=120ns
+[GPS PPS] seq=30 time=14:24:05.000000000 jitter=95ns
 ```
 
 **RTC Discipline Start (after 10 minutes)**:

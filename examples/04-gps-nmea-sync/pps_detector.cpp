@@ -554,7 +554,7 @@ void PPSDetector::update_statistics(double interval_sec, bool valid) {
 void PPSDetector::log_detection_event(const char* message) {
     // Simple logging to stdout
     // In production, integrate with proper logging system
-    std::cout << "[PPS] " << message << std::endl;
+    std::cout << "[GPS PPS] " << message << std::endl;
 }
 
 } // namespace PPS

@@ -233,10 +233,10 @@ Starting PPS autodetection (10s timeout)...
 Monitoring pins: DCD (Pin 1), CTS (Pin 8), DSR (Pin 6)
 
 Waiting for PPS detection...
-...[PPS] Rising edge detected on DCD
-...[PPS] Rising edge detected on DCD (interval: 1.0023s)
-...[PPS] Rising edge detected on DCD (interval: 0.9987s)
-[PPS] PPS locked! Frequency: 1.00 Hz
+...[GPS PPS] Rising edge detected on DCD
+...[GPS PPS] Rising edge detected on DCD (interval: 1.0023s)
+...[GPS PPS] Rising edge detected on DCD (interval: 0.9987s)
+[GPS PPS] PPS locked! Frequency: 1.00 Hz
 
 ✓ PPS detected in 3.2 seconds
 
