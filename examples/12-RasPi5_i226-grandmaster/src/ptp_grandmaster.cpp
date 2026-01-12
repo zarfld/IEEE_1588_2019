@@ -75,6 +75,16 @@ struct RtThreadArgs {
 };
 
 /**
+ * @brief Worker Thread Arguments
+ * @details Passed to worker_thread_func for GPS/RTC access
+ */
+struct WorkerThreadArgs {
+    GpsAdapter* gps_adapter;        ///< GPS adapter for NMEA updates
+    SharedTimingData* shared;       ///< Coordination data
+    std::atomic<bool>* running;     ///< Shutdown flag
+};
+
+/**
  * RT Thread: PPS monitoring + PHC sampling (CPU2, FIFO 80)
  * 
  * Per deb.md specification - mapped to OUR codebase:
@@ -182,30 +192,38 @@ void* rt_thread_func(void* arg) {
  * 4. Logging
  */
 void* worker_thread_func(void* arg) {
-    SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
-    (void)shared;  // Will be used when implementing GPS/RTC logic
+    WorkerThreadArgs* args = static_cast<WorkerThreadArgs*>(arg);
     
     // Set thread name
     pthread_setname_np(pthread_self(), "ptp_worker");
     
     std::cout << "[Worker Thread] Started on CPU" << sched_getcpu() << "\n";
     
-    // TODO: Receive GpsAdapter* and RtcAdapter* from main thread via arg struct
-    // TODO: Initialize GPS adapter (already constructed, need reference)
-    // TODO: Initialize RTC adapter (already constructed, need reference)
-    
-    while (g_running) {
-        // TODO: Implementation:
-        // 1. gps_adapter->update();  // Read NMEA, parse, update internal state
-        // 2. if (gps_adapter->has_fix()) {
-        // 3.     uint64_t gps_sec, gps_ns;
-        // 4.     gps_adapter->get_ptp_time(&gps_sec, &gps_ns);
-        // 5.     // Update atomic GPS label for RT thread
-        // 6.     shared->gps_seconds = gps_sec;  // with proper mutex
-        // 7. }
-        // 8. // RTC drift measurement using observations from RT thread
+    while (*args->running) {
+        // Read GPS NMEA data and parse (blocking on serial I/O is OK here)
+        args->gps_adapter->update();
         
-        usleep(100000);  // Placeholder - will be replaced with GPS update loop
+        // Update shared GPS time if we have a valid fix
+        if (args->gps_adapter->has_fix()) {
+            uint64_t gps_sec = 0;
+            uint32_t gps_ns = 0;
+            
+            if (args->gps_adapter->get_ptp_time(&gps_sec, &gps_ns)) {
+                // Update shared data (mutex-protected)
+                std::lock_guard<std::mutex> lock(args->shared->mutex);
+                args->shared->gps_seconds = gps_sec;
+                args->shared->gps_nanoseconds = gps_ns;
+                args->shared->gps_available = true;
+                args->shared->cv.notify_all();
+            }
+        } else {
+            // No GPS fix - mark as unavailable
+            std::lock_guard<std::mutex> lock(args->shared->mutex);
+            args->shared->gps_available = false;
+        }
+        
+        // Sleep briefly to avoid busy-waiting (100ms update rate)
+        usleep(100000);
     }
     
     std::cout << "[Worker Thread] Shutdown\n";
@@ -360,6 +378,35 @@ int main(int argc, char* argv[])
     pthread_attr_destroy(&rt_attr);
     std::cout << "  ✓ RT thread launched\n";
 
+    // Launch worker thread with normal priority and CPU0/1/3 affinity
+    std::cout << "Launching worker thread (CPU0/1/3, normal priority)...\n";
+    
+    WorkerThreadArgs worker_args = {
+        .gps_adapter = &gps_adapter,
+        .shared = &shared_data,
+        .running = &g_running
+    };
+    
+    pthread_t worker_thread;
+    pthread_attr_t worker_attr;
+    pthread_attr_init(&worker_attr);
+    
+    // Pin to CPUs 0, 1, 3 (away from RT thread on CPU2)
+    cpu_set_t worker_cpuset;
+    CPU_ZERO(&worker_cpuset);
+    CPU_SET(0, &worker_cpuset);
+    CPU_SET(1, &worker_cpuset);
+    CPU_SET(3, &worker_cpuset);
+    pthread_attr_setaffinity_np(&worker_attr, sizeof(worker_cpuset), &worker_cpuset);
+    
+    if (pthread_create(&worker_thread, &worker_attr, worker_thread_func, &worker_args) != 0) {
+        std::cerr << "ERROR: Failed to create worker thread: " << strerror(errno) << "\n";
+        pthread_attr_destroy(&worker_attr);
+        return 1;
+    }
+    pthread_attr_destroy(&worker_attr);
+    std::cout << "  ✓ Worker thread launched\n";
+
     std::cout << "\n🚀 Grandmaster running...\n\n";
 
     // Main loop
@@ -407,10 +454,8 @@ int main(int argc, char* argv[])
     bool rtc_initial_sync_done = false;              // Flag to force initial RTC sync on GPS lock
     
     while (g_running) {
-        // Update GPS data (read NMEA sentences and PPS)
-        gps_adapter.update();
-        
         // Check for PPS output (every 10 pulses)
+        // Note: GPS NMEA updates now handled by worker thread
         PpsData pps_data;
         uint32_t pps_max_jitter_ns = 0;
         bool pps_ready = gps_adapter.get_pps_data(&pps_data, &pps_max_jitter_ns);
@@ -440,10 +485,16 @@ int main(int argc, char* argv[])
                      << "\n";
         }
         
-        // Get GPS time
+        // Get GPS time from shared data (updated by worker thread)
         uint64_t gps_seconds = 0;
         uint32_t gps_nanoseconds = 0;
-        bool gps_available = gps_adapter.get_ptp_time(&gps_seconds, &gps_nanoseconds);
+        bool gps_available = false;
+        {
+            std::lock_guard<std::mutex> lock(shared_data.mutex);
+            gps_seconds = shared_data.gps_seconds;
+            gps_nanoseconds = shared_data.gps_nanoseconds;
+            gps_available = shared_data.gps_available;
+        }
 
         if (gps_available) {
             // Rate-limit GPS time logging to once per second (reduces console I/O overhead)
@@ -1012,8 +1063,11 @@ int main(int argc, char* argv[])
         usleep(100000);  // 100ms = 100,000 microseconds
     }
 
-    // Wait for RT thread to finish
-    std::cout << "\nWaiting for RT thread...\n";
+    // Wait for threads to finish
+    std::cout << "\nWaiting for worker thread...\n";
+    pthread_join(worker_thread, nullptr);
+    
+    std::cout << "Waiting for RT thread...\n";
     pthread_join(rt_thread, nullptr);
 
     std::cout << "\n=== Shutdown Complete ===\n";
