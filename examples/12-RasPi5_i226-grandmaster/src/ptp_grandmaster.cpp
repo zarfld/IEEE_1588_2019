@@ -518,6 +518,10 @@ int main(int argc, char* argv[])
                     uint64_t rtc_seconds = 0;
                     uint32_t rtc_nanoseconds = 0;
                     
+                    // Declare variables that will be used after the get_base_mapping block
+                    int64_t time_error_ns = 0;
+                    double drift_avg = 0.0;
+                    
                     if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
                         // EXPERT FIX: Use expected UTC second from PPS-UTC mapping (integer seconds domain)
                         // This is the CORRECT reference for a 1Hz RTC (DS3231)
@@ -557,7 +561,7 @@ int main(int argc, char* argv[])
                             
                             // RTC aligned to correct second (error_sec == 0)
                             // Sub-second error tracking uses nanoseconds field (0 for DS3231)
-                            int64_t time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
+                            time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
                             
                             // EXPERT FIX: Require baseline sample after reset
                             if (!drift_valid || drift_buffer_count == 0) {
@@ -596,7 +600,7 @@ int main(int argc, char* argv[])
                             }
                             
                             // Calculate moving average
-                            double drift_avg = 0.0;
+                            drift_avg = 0.0;
                             for (size_t i = 0; i < drift_buffer_count; i++) {
                                 drift_avg += drift_buffer[i];
                             }
