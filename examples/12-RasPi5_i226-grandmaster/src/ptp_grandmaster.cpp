@@ -590,6 +590,15 @@ int main(int argc, char* argv[])
                                     int64_t error_change_ns = time_error_ns - last_time_error_ns;
                                     double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
                                     
+                                    // DEBUG: Show calculation details
+                                    std::cout << "[RTC Drift DEBUG] RTC=" << rtc_tai_sec 
+                                             << " Expected=" << expected_tai_sec
+                                             << " | CurrentErr=" << time_error_ns << "ns"
+                                             << " LastErr=" << last_time_error_ns << "ns"
+                                             << " | ΔErr=" << error_change_ns << "ns"
+                                             << " ΔTime=" << elapsed_sec << "s"
+                                             << " → " << drift_ppm << " ppm\n";
+                                    
                                     static bool first_drift_calc = true;
                                     if (first_drift_calc) {
                                         std::cout << "[RTC Drift] ℹ️ First drift calculation: " << drift_ppm << " ppm\n";
