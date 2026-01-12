@@ -573,14 +573,18 @@ int main(int argc, char* argv[])
                                     last_time_error_ns = time_error_ns;
                                     last_drift_calc_time = gps_seconds;
                                     drift_valid = false;  // Still not valid until we have drift calculation
-                                    if (verbose) {
-                                        std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
-                                    }
+                                    std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
                                 } else {
                             
                                     // Calculate drift: change in error over time interval
                                     int64_t error_change_ns = time_error_ns - last_time_error_ns;
                                     double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
+                                    
+                                    static bool first_drift_calc = true;
+                                    if (first_drift_calc) {
+                                        std::cout << "[RTC Drift] ℹ️ First drift calculation: " << drift_ppm << " ppm\n";
+                                        first_drift_calc = false;
+                                    }
                                     
                                     // Sanity check: drift should be small (sub-ppm for DS3231)
                                     // If >100 ppm, something is wrong (maybe sub-second rollover artifact)
@@ -748,6 +752,7 @@ int main(int argc, char* argv[])
                 }
             } else {
                 // Initialize drift measurement baseline on first GPS lock
+                std::cout << "[RTC Drift] ℹ️ Initializing drift measurement (last_drift_calc_time was 0)\n";
                 last_drift_calc_time = gps_seconds;
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
