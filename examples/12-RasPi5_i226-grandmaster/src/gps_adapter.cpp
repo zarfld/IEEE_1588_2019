@@ -779,6 +779,9 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
                           << " PPS (avg_dt=" << avg_dt_ms << "ms)\n";
                 std::cout << "[Base Mapping] base_pps_seq=" << base_pps_seq_ 
                           << " base_utc_sec=" << base_utc_sec_ << " (UTC epoch)\n";
+                std::cout << "[DEBUG Mapping Lock] ⚠️ Base mapping anchors SET at this point\n"
+                          << "  Expert prediction: These should FREEZE until GPS is lost\n"
+                          << "  If mapping changes AFTER lock → causes ±1s second slips\n";
             } else if (base_utc_sec_ == 0) {
                 // First sample only - initialize base tentatively
                 base_pps_seq_ = pps_data_.sequence;

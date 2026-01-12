@@ -1,228 +1,167 @@
-Understood. A separated-thread design is the right approach here, because you have **three different timing regimes** with very different latency sensitivity:
-
-* **PHC discipline + PTP traffic**: hard latency requirements (sub-ms scheduling jitter matters).
-* **PPS association / cross-timestamp**: must run “immediately after PPS” for clean measurements.
-* **RTC discipline**: slow control loop (seconds to minutes), must be stable and stateful, not “fast”.
-
-Below is a concrete architecture that keeps **PHC** and **RTC** both disciplined, while ensuring that **no blocking GPS/USB I/O can ever delay PPS→PHC sampling**.
+Your latest log is now *diagnostic-quality*: the remaining anomalies are not “general Linux jitter” anymore; they are **second-slip / discontinuity handling** and **filter contamination**.
 
 ---
 
-## 1) Threading model (recommended)
+## 1) The “16667 ppm” average is explainable (and fixable)
 
-### Thread A — `pps_phc_rt` (SCHED_FIFO, highest prio)
+This line is the key:
 
-**Purpose:** deterministically handle PPS, take PHC samples, produce “time observations” for PHC servo and for UTC mapping.
-
-**Hard rules**
-
-* Must not do any blocking I/O except *waiting for PPS*.
-* Must not parse NMEA.
-* Must not talk to I2C RTC.
-* Must not allocate memory (preallocate everything).
-
-**Inputs**
-
-* `/dev/pps0` (PPS events)
-* `/dev/ptp0` (PHC time queries + adjustments)
-* “latest UTC label” published by GPS thread (atomic struct)
-
-**Outputs**
-
-* PHC servo updates (frequency/phase corrections)
-* Observation stream for RTC thread (e.g., `(pps_seq, phc_ns_at_pps, utc_sec_label, quality)`)
-
-**CPU/affinity**
-
-* Pin to your isolated core (you used core 2): `pthread_setaffinity_np()`.
-* Use `mlockall(MCL_CURRENT|MCL_FUTURE)` at process start.
-* Consider `sched_setattr`/`SCHED_FIFO` and keep this thread’s work bounded.
-
----
-
-### Thread B — `gps_io` (normal priority or low FIFO)
-
-**Purpose:** read GPS data (USB CDC-ACM), parse NMEA/UBX, maintain “UTC labeling” and GPS status.
-
-**Hard rules**
-
-* It may block; that’s fine.
-* It must never block Thread A.
-
-**Inputs**
-
-* `/dev/ttyACM0` (NMEA or UBX), potentially GNSS status messages
-
-**Outputs**
-
-* Atomic “GPS state” + “current UTC second/date” + “confidence”
-* Optional: ring-buffer of last N parsed sentences for diagnostics
-
-**Implementation notes**
-
-* Use `poll()` on the serial FD and read in bursts.
-* Reduce the NMEA talker load (only RMC + maybe GGA) if you can configure the receiver.
-
----
-
-### Thread C — `rtc_discipline` (normal priority)
-
-**Purpose:** discipline RTC (DS3231) as a **fallback timebase** when GPS is lost, and as a long-term stable holdover reference.
-
-**Hard rules**
-
-* Never touches PHC control knobs directly.
-* Runs slow (e.g., 1 Hz sampling, but control actions every 30–300 s).
-
-**Inputs**
-
-* Observation stream from Thread A (ideally via lock-free ring buffer)
-* GPS state from Thread B (lock status, fix quality, etc.)
-* `/dev/rtc1` + `/dev/i2c-*` for DS3231
-
-**Outputs**
-
-* RTC time set on (re-)lock events
-* DS3231 aging offset updates (small incremental steps, hysteresis)
-* “holdover status” and RTC quality estimate, for the main state machine
-
----
-
-### Thread D — `ptp_net_txrx` (optional split)
-
-If your PTP network traffic involves any sockets that might block or wake spuriously, it can be beneficial to isolate it:
-
-* Thread A produces timestamps / Sync scheduling decisions.
-* Thread D handles packet I/O and timestamp retrieval.
-  Often you can keep it in Thread A if it’s fully non-blocking and bounded, but on Linux it’s usually cleaner to isolate.
-
----
-
-## 2) Data exchange: keep it lock-free and bounded
-
-### GPS → PPS/PHC thread: atomic “UTC label”
-
-A single struct updated by Thread B:
-
-```c
-typedef struct {
-  _Atomic uint64_t gen;
-  _Atomic int gps_locked;        // 0/1
-  _Atomic int fix_quality;       // NMEA quality
-  _Atomic uint64_t utc_sec;      // UTC epoch second for “LAST PPS”
-  _Atomic int utc_valid;         // 0/1
-  _Atomic int64_t nmea_to_pps_ns_est; // optional (for association diagnostics)
-} gps_label_t;
+```
+[PPS] ... drift=1.247ppm avg=16667.630ppm(60) err=1.7ms
 ```
 
-Use a generation counter (`gen`) pattern: writer increments before+after write to avoid tearing.
+`16667 ppm ≈ 1,000,000 / 60`.
 
-### PPS/PHC → RTC thread: ring buffer of observations
+That is exactly what you get when your rolling window (60 samples) still contains **one** catastrophic outlier of roughly **±1,000,000 ppm** (i.e., a **±1 second slip** in a 1-second interval), and you compute an average over 60.
 
-Each PPS produces a compact record:
+You *also* see the same contamination earlier:
 
-```c
-typedef struct {
-  uint64_t pps_seq;
-  int gps_locked;
-  uint64_t utc_sec;          // if available
-  uint64_t phc_ns_at_pps;    // PHC time sampled immediately after PPS
-  uint32_t flags;            // association ok, jitter flags, etc.
-} pps_obs_t;
+```
+[PPS] ... avg=-35713.233ppm(28) err=-998.3ms
 ```
 
-RTC thread consumes this at its own pace; if it falls behind, it can drop old samples (bounded buffer) rather than stalling Thread A.
+`-35713 ppm ≈ -1,000,000 / 28`. Same phenomenon.
+
+### What is producing the outlier?
+
+A one-second discontinuity is already visible in your log:
+
+* RTC side:
+
+  ```
+  [RTC Drift] Measured: -999998.716 ppm ... Error: -998.342 ms
+  ```
+* PHC/PPS side:
+
+  ```
+  [PPS] ... err=-998.3ms
+  ```
+
+So the system occasionally computes “this PPS is about one second off”, and then your drift estimator dutifully converts that into an absurd ppm value, poisoning the moving average until the window flushes the outlier.
 
 ---
 
-## 3) State machine: ensure both PHC and RTC get disciplined properly
+## 2) Immediate corrective action: treat ±1s as a discontinuity, not “drift”
 
-### States (practical)
+### A. In BOTH estimators (PHC drift and RTC drift)
 
-* **`GPS_LOCKED`**: GPS+PPS valid; PHC disciplined to PPS; RTC periodically corrected/trimmed.
-* **`GPS_DEGRADED`**: PPS present but GPS labeling degraded (no fix or invalid UTC); PHC can still be disciplined in frequency (if you trust PPS), but UTC mapping is suspect.
-* **`HOLDOVER_RTC`**: GPS lost; PHC runs on holdover discipline strategy; RTC becomes authoritative for “wall clock” continuity.
-* **`RECOVERY`**: GPS returns; re-associate PPS↔UTC, step/slew decisions, re-sync RTC and re-enter lock.
+Add a hard gate: if the phase error is too large, **do not feed it into the drift estimator** and **reset** the rolling window.
 
-### Control principles
+Recommended thresholds:
 
-* **PHC discipline**:
+* `abs(err_ms) > 100 ms` → discontinuity (very safe)
+* or `abs(err_ms) > 500 ms` → “almost certainly ±1s slip” (more permissive)
 
-  * In `GPS_LOCKED`: use PPS as the primary reference (phase/frequency).
-  * In `HOLDOVER_RTC`: do *not* chase RTC every second; instead, use a slow steering policy (PHC free-runs with last freq + optional very low-gain correction from RTC) to avoid injecting RTC noise into PHC.
+### B. Also protect calibration transitions
 
-* **RTC discipline**:
+Right now you still emit a catastrophic PPS line immediately after calibration:
 
-  * In `GPS_LOCKED`: ensure RTC time is correct (one-time set) and then use **aging offset** adjustments slowly to minimize drift.
-  * In `HOLDOVER_RTC`: RTC becomes the fallback source for system time or for UTC estimate, but do not repeatedly “set” it unless you have a superior reference.
+```
+[PHC Calibration] ✓ Complete!
+[PPS] ... err=-998.3ms
+```
 
----
+That is a classic “handoff” point; treat it as a discontinuity by design:
 
-## 4) Scheduling/affinity recommendations (RPi 5 specific, aligned with what you already do)
-
-* Pin **Thread A** to isolated core 2.
-* Move USB/xHCI interrupts off core 2 (you already did).
-* Also move your NIC interrupts off core 2 if you haven’t yet (important for PHC thread determinism).
-* Give Thread A `SCHED_FIFO` (e.g., prio 80), keep it short.
-* Give Thread B and C normal priority (or low FIFO if you want bounded latency without starving the system).
+* after calibration completes: **skip 1–3 PPS cycles** (or until mapping is stable) before computing/printing drift/avg/err.
 
 ---
 
-## 5) The key fix your trace demonstrated: GPS must never block the PPS→PHC path
+## 3) Why you still see intermittent “-998ms” events after lock
 
-With this architecture, even if `/dev/ttyACM0` blocks for ~1 second (as your `strace` shows), it only blocks **Thread B**, and **Thread A** continues to:
+You already report:
 
-* take the PPS
-* sample PHC immediately
-* run the PHC servo loop
-* feed both PTP traffic and RTC discipline
+```
+[PPS-UTC Lock] ... LAST PPS (avg_dt=200ms)
+[Base Mapping] base_pps_seq=70062 base_utc_sec=...
+```
 
-That directly targets your “HIGH LATENCY” symptom.
+Yet later (during calibration) you still get:
 
----
+```
+[RTC Drift] ... Error: -998.342 ms
+```
 
-## 6) RTC discipline details (DS3231) that work well in practice
+That strongly suggests **the worker thread sometimes uses a different second association** (or updates mapping inputs) even after “lock”, causing a ±1s interpretation. The lock message is not sufficient unless you enforce a policy like:
 
-A robust DS3231 discipline loop tends to behave best if you:
+* Once locked, **freeze the mapping anchor** (`base_pps_seq`, `base_utc_sec`) and never “re-decide” LAST/NEXT on a per-message basis.
+* If a newly observed NMEA/PPS delta deviates strongly, **drop that NMEA sample** as out-of-family rather than re-labeling the second.
 
-1. **On initial lock / after GPS recovery**
+Practical rule:
 
-   * Set RTC time once (step) to GPS UTC.
-   * Clear drift accumulator.
-
-2. **During steady lock**
-
-   * Estimate RTC drift over a longer window (e.g., 5–30 minutes).
-   * Adjust aging offset in small steps with hysteresis:
-
-     * e.g., only change if estimated drift exceeds ±0.1 ppm (your current threshold seems in this spirit)
-     * clamp step size (±1 or ±2 LSB per update)
-     * enforce a minimum interval between changes (e.g., 10 minutes)
-
-3. **Holdover**
-
-   * Freeze aging offset updates (or reduce aggressiveness).
-   * Keep RTC running as-is; treat it as a stable oscillator.
-
-This prevents the RTC servo from “hunting” and avoids coupling transient GPS noise into your fallback clock.
+* Maintain a running mean/variance of NMEA arrival offset relative to PPS (`dt`).
+* If `abs(dt - mean_dt) > 200 ms` (tune), ignore that NMEA sample for mapping/discipline.
 
 ---
 
-## 7) Implementation priority order (practical next steps)
+## 4) Phase error of ~1.7 ms: likely not a servo issue yet, but a timestamping issue
 
-1. **Split threads**: create Thread A (PPS+PHC) and Thread B (GPS).
-2. **Make Thread A bounded**: no serial reads, no I2C, no allocations.
-3. **Add observation ring buffer** Thread A → Thread C (RTC).
-4. **Add state machine** for GPS lock / holdover / recovery.
-5. Only then tune servo gains and thresholds.
+Even once you eliminate the ±1s slips, this persists:
+
+```
+err=1.6–1.7ms
+```
+
+That magnitude is consistent with “PHC sampled *some milliseconds after* PPS edge” and then compared as if it were sampled *at* PPS.
+
+If you want microsecond-class alignment, you need a **cross-timestamp** between system time and PHC at (or immediately around) PPS, e.g.:
+
+* `ioctl(fd_ptp, PTP_SYS_OFFSET_PRECISE, ...)` (preferred if supported)
+* or `PTP_SYS_OFFSET_EXTENDED`
+
+Then compute **PHC time at PPS edge** by combining:
+
+* the PPS timestamp you get from `/dev/pps0` (system clock domain)
+* the system↔PHC offset from `PTP_SYS_OFFSET*_…` taken immediately after PPS
+
+This can reduce your “phase error floor” dramatically compared to “read PHC sometime later”.
 
 ---
 
-If you paste:
+## 5) Minimal implementation pattern (what to change)
 
-* your current main loop structure (high level is fine),
-* how you read PPS (`time_pps_fetch` or something else),
-* how you sample PHC (which ioctl / method),
-* and how you currently set/adjust DS3231,
+### A. Add “discontinuity handling” to drift update (PHC + RTC)
 
-…I can propose a concrete thread split + data structures that minimally disrupts your existing codebase while ensuring PHC and RTC are both disciplined correctly.
+Conceptually:
+
+```cpp
+if (!mapping_ready || !phc_calibrated) return;
+
+if (std::abs(err_ms) > 100.0) {
+  log_second_slip(err_ms);
+  drift_filter.reset();      // clears ring buffer, sums, counters
+  return;                    // do not update drift/avg
+}
+
+drift_filter.push(drift_ppm);
+avg = drift_filter.avg();
+```
+
+### B. Add “skip-after-calibration” guard
+
+```cpp
+if (just_finished_calibration) {
+  skip_pps_updates = 2; // e.g. 2 PPS cycles
+}
+
+if (skip_pps_updates > 0) {
+  skip_pps_updates--;
+  return;
+}
+```
+
+### C. Enforce “mapping freeze” after lock
+
+Once you set `base_pps_seq/base_utc_sec`, do not overwrite them unless you explicitly transition to a “relock” state (GPS lost → reacquire).
+
+---
+
+## 6) What to expect after these fixes
+
+1. The ±1s “-998ms” events should disappear from normal operation; if they still appear, they will be logged as discontinuities and **won’t poison averages**.
+2. Your `avg` values will stay near ~1 ppm instead of swinging to ±(1e6 / window).
+3. The remaining ~1.7 ms offset will become the next primary target, addressed via **PHC-at-PPS cross timestamping** (PTP_SYS_OFFSET_PRECISE/EXTENDED) and/or by taking the PHC sample deterministically as close to PPS as possible.
+
+---
+
+If you paste the specific drift/avg code paths (PHC and RTC) from `ptp_grandmaster.cpp` (the functions that compute `err`, `drift_ppm`, and maintain the rolling window), I can provide an exact patch (including a small, RT-safe rolling filter with a `reset()` and an outlier gate) consistent with your C++14 codebase and the current thread split.

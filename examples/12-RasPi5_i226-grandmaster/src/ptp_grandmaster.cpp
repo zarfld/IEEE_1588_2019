@@ -541,6 +541,18 @@ int main(int argc, char* argv[])
                         int64_t time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
                                                ? error_vs_gps : error_vs_gps_plus1;
                         
+                        // DEBUG: Track error magnitude for discontinuity analysis
+                        double time_error_ms = time_error_ns / 1000000.0;
+                        if (std::abs(time_error_ms) > 100.0) {
+                            std::cout << "[DEBUG Discontinuity] ⚠️ Large error detected!\n"
+                                     << "  RTC time: " << rtc_seconds << "." << rtc_nanoseconds << "\n"
+                                     << "  GPS time: " << gps_seconds << "." << gps_nanoseconds << "\n"
+                                     << "  Error vs GPS: " << (error_vs_gps / 1000000.0) << " ms\n"
+                                     << "  Error vs GPS+1: " << (error_vs_gps_plus1 / 1000000.0) << " ms\n"
+                                     << "  USING: " << time_error_ms << " ms (abs > 100ms!)\n"
+                                     << "  ⚠️ Expert prediction: This will contaminate drift average!\n";
+                        }
+                        
                         // Rate-limited debug output (only when verbose, once per second)
                         if (verbose) {
                             static uint64_t last_drift_log_sec = 0;
@@ -558,6 +570,17 @@ int main(int argc, char* argv[])
                         int64_t error_change_ns = time_error_ns - last_time_error_ns;
                         double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
                         
+                        // DEBUG: Track outlier drift values being added to ring buffer
+                        if (std::abs(drift_ppm) > 10000.0) {
+                            std::cout << "[DEBUG Ring Buffer] ⚠️ OUTLIER drift added to buffer!\n"
+                                     << "  Drift PPM: " << std::fixed << std::setprecision(1) << drift_ppm << " ppm\n"
+                                     << "  Error change: " << error_change_ns << " ns over " << elapsed_sec << " sec\n"
+                                     << "  Current error: " << time_error_ns << " ns\n"
+                                     << "  Last error: " << last_time_error_ns << " ns\n"
+                                     << "  Buffer index: " << drift_buffer_index << ", count: " << drift_buffer_count << "\n"
+                                     << "  ⚠️ Expert prediction: This will poison average for ~" << (drift_buffer_size - drift_buffer_count) << " more samples!\n";
+                        }
+                        
                         // Add to circular buffer
                         drift_buffer[drift_buffer_index] = drift_ppm;
                         drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
@@ -567,10 +590,25 @@ int main(int argc, char* argv[])
                         
                         // Calculate moving average
                         double drift_avg = 0.0;
+                        double min_val = 1e9, max_val = -1e9;
+                        size_t outlier_count = 0;
                         for (size_t i = 0; i < drift_buffer_count; i++) {
                             drift_avg += drift_buffer[i];
+                            if (drift_buffer[i] < min_val) min_val = drift_buffer[i];
+                            if (drift_buffer[i] > max_val) max_val = drift_buffer[i];
+                            if (std::abs(drift_buffer[i]) > 10000.0) outlier_count++;
                         }
                         drift_avg /= drift_buffer_count;
+                        
+                        // DEBUG: Show buffer contamination when average is suspicious
+                        if (std::abs(drift_avg) > 100.0) {
+                            std::cout << "[DEBUG Average Contamination] ⚠️ Poisoned average detected!\n"
+                                     << "  Average: " << std::fixed << std::setprecision(1) << drift_avg << " ppm\n"
+                                     << "  Buffer count: " << drift_buffer_count << " / " << drift_buffer_size << "\n"
+                                     << "  Min/Max in buffer: " << min_val << " / " << max_val << " ppm\n"
+                                     << "  Outliers (>10000 ppm): " << outlier_count << "\n"
+                                     << "  ⚠️ Expert prediction: " << drift_avg << " ≈ " << (outlier_count * 1000000.0 / drift_buffer_count) << " (1e6 * " << outlier_count << " / " << drift_buffer_count << ")\n";
+                        }
                         
                         // Store for PPS display
                         current_drift_ppm = drift_ppm;
@@ -837,6 +875,9 @@ int main(int argc, char* argv[])
                                 std::cout << "[PHC Calibration] ✓ Complete! Final drift: " 
                                           << std::fixed << std::setprecision(1) << drift_ppm << " ppm (acceptable)\n"
                                           << "  Final cumulative: " << phc_servo.cumulative_freq_ppb << " ppb\n";
+                                std::cout << "[DEBUG Calibration Handoff] PHC calibration finished at PPS " << pps_data.sequence << "\n"
+                                          << "  ⚠️ Expert prediction: Next 1-3 PPS cycles may show transient errors\n"
+                                          << "  ⚠️ These should be SKIPPED from drift calculation to avoid contamination\n";
                                 phc_servo.freq_calibrated = true;
                             }
                         } else {
