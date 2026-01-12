@@ -451,6 +451,7 @@ int main(int argc, char* argv[])
     // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
     constexpr size_t drift_buffer_size = 60;         // 60 samples = 60 seconds = 1 minute
     double drift_buffer[drift_buffer_size] = {0};   // Circular buffer for drift rate (ppm)
+    int64_t error_change_buffer[drift_buffer_size] = {0};  // Raw nanosecond error changes
     size_t drift_buffer_index = 0;                   // Current index
     size_t drift_buffer_count = 0;                   // Valid samples
     uint64_t last_drift_calc_time = 0;              // Last GPS time when drift was calculated
@@ -666,17 +667,25 @@ int main(int argc, char* argv[])
                             
                             // Add to circular buffer (now clean, no outliers)
                             drift_buffer[drift_buffer_index] = drift_ppm;
+                            error_change_buffer[drift_buffer_index] = error_change_ns;  // Store raw ns error
                             drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
                             if (drift_buffer_count < drift_buffer_size) {
                                 drift_buffer_count++;
                             }
                             
-                            // Calculate moving average
+                            // Calculate moving average (ppm)
                             drift_avg = 0.0;
                             for (size_t i = 0; i < drift_buffer_count; i++) {
                                 drift_avg += drift_buffer[i];
                             }
                             drift_avg /= drift_buffer_count;
+                            
+                            // Calculate average error change (raw nanoseconds)
+                            int64_t error_change_avg_ns = 0;
+                            for (size_t i = 0; i < drift_buffer_count; i++) {
+                                error_change_avg_ns += error_change_buffer[i];
+                            }
+                            error_change_avg_ns /= drift_buffer_count;
                             current_drift_ppm = drift_ppm;
                             current_drift_avg = drift_avg;
                             current_time_error_ms = time_error_ns / 1000000.0;
@@ -689,13 +698,10 @@ int main(int argc, char* argv[])
                                         // Log RTC drift measurement progress every 10 seconds
                                         static uint64_t last_drift_progress_log = 0;
                                         if (gps_seconds - last_drift_progress_log >= 10) {
-                                            // Calculate average drift in nanoseconds (1 ppm over 10s = 10ns)
-                                            int64_t drift_avg_ns = static_cast<int64_t>(drift_avg * 10.0);
-                                            
                                             std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
                                                      << drift_ppm << " ppm (" << error_change_ns << "ns/" << elapsed_sec << "s)"
                                                      << " | Avg(" << drift_buffer_count << "): " 
-                                                     << drift_avg << " ppm (" << drift_avg_ns << "ns/10s)"
+                                                     << drift_avg << " ppm (" << error_change_avg_ns << "ns/10s)"
                                                      << " | Error: " 
                                                      << (time_error_ns / 1000000.0) << " ms\n";
                                             last_drift_progress_log = gps_seconds;
@@ -718,12 +724,18 @@ int main(int argc, char* argv[])
                         uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
                             ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
                         
-                        // Calculate average drift in nanoseconds for display (1 ppm over 10s = 10ns)
-                        int64_t drift_avg_ns = static_cast<int64_t>(drift_avg * 10.0);
-                        int64_t drift_tolerance_ns = static_cast<int64_t>(drift_tolerance_ppm * 10.0);
+                        // Calculate average error change from buffer (raw ns values)
+                        int64_t error_change_avg_ns = 0;
+                        for (size_t i = 0; i < drift_buffer_count; i++) {
+                            error_change_avg_ns += error_change_buffer[i];
+                        }
+                        if (drift_buffer_count > 0) {
+                            error_change_avg_ns /= drift_buffer_count;
+                        }
+                        int64_t drift_tolerance_ns = static_cast<int64_t>(drift_tolerance_ppm * 10000.0);  // 1 ppm over 10s = 10000ns
                         
                         std::cout << "[RTC Adjust DEBUG] Evaluating aging offset adjustment:\n";
-                        std::cout << "  Drift Avg: " << drift_avg << " ppm (" << drift_avg_ns << "ns/10s)"
+                        std::cout << "  Drift Avg: " << drift_avg << " ppm (" << error_change_avg_ns << "ns/10s)"
                                  << " | Threshold: ±" << drift_tolerance_ppm << " ppm (±" << drift_tolerance_ns << "ns/10s)\n";
                         std::cout << "  Time since last adjust: " << (time_since_last_adjustment == UINT64_MAX ? "NEVER" : std::to_string(time_since_last_adjustment) + "s") 
                                  << " | Min interval: " << min_adjustment_interval_sec << "s\n";
@@ -785,8 +797,8 @@ int main(int argc, char* argv[])
                                 std::cout << "  ⏸ Warmup period (sync_counter=" << sync_counter << " ≤ 1200)\n";
                             }
                             if (std::abs(drift_avg) <= drift_tolerance_ppm) {
-                                // Calculate ns values for clarity (already defined above in this scope)
-                                std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ppm = |" << drift_avg_ns << "|ns/10s ≤ " 
+                                // Use raw averaged error change (already defined above in this scope)
+                                std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ppm = |" << error_change_avg_ns << "|ns/10s ≤ " 
                                          << drift_tolerance_ppm << " ppm = " << drift_tolerance_ns << "ns/10s)\n";
                             }
                             if (time_since_last_adjustment < min_adjustment_interval_sec && time_since_last_adjustment != UINT64_MAX) {
