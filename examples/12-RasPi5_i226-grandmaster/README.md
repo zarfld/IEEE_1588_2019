@@ -476,9 +476,20 @@ python3 -c "import ctypes; tx = type('timex', (), {'tai': ctypes.c_long(0)})(); 
 
 ### High Latency Warnings
 
-**Issue**: Console I/O causing 65-175ms delays in timing path.
+**Root Cause** (identified via strace analysis - see deb.md):
+- GPS serial blocking reads with `VTIME=10` (1 second timeout)  
+- 100ms `clock_nanosleep()` in main loop
+- PHC sampling happens AFTER GPS/RTC processing (70-170ms delayed)
 
-**Solutions**:
+**Solution** (proper architecture):
+- **RT Thread** (CPU2, FIFO 80): PPS wait → PHC sample → ringbuffer push
+- **Worker Thread** (CPU0/1/3): GPS read/parse, RTC, PTP messaging, logging
+- Eliminates blocking GPS reads from critical timing path
+- Target PHC sampling latency: < 10ms from PPS edge
+
+**Implementation Status**: ⏳ In progress (threaded architecture)
+
+**Temporary workarounds** (if not using threaded version):
 1. **Run without verbose mode** (minimal console output):
    ```bash
    sudo chrt -f 80 taskset -c 2 ./ptp_grandmaster --interface=eth1

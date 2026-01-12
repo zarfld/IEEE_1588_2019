@@ -24,17 +24,105 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <cmath>
+#include <pthread.h>
+#include <sched.h>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 using namespace IEEE::_1588::PTP::_2019;
 using namespace IEEE::_1588::PTP::_2019::Linux;
 
-// Global flag for graceful shutdown
-static volatile bool g_running = true;
+// Global flag for graceful shutdown (atomic for thread safety)
+static std::atomic<bool> g_running{true};
+
+// Shared data between RT thread and worker thread
+struct SharedTimingData {
+    std::mutex mutex;
+    std::condition_variable cv;
+    
+    // PHC calibration results (written by RT thread, read by worker)
+    int64_t phc_at_pps_ns{0};
+    uint64_t pps_sequence{0};
+    bool phc_sample_valid{false};
+    
+    // GPS time (written by worker thread, read by RT thread)
+    uint64_t gps_seconds{0};
+    uint32_t gps_nanoseconds{0};
+    bool gps_available{false};
+    
+    // PPS data (read by RT thread)
+    PpsData pps_data{};
+    uint32_t pps_max_jitter_ns{0};
+    bool pps_ready{false};
+};
 
 void signal_handler(int signum)
 {
     std::cout << "\n Signal " << signum << " received. Shutting down...\n";
     g_running = false;
+}
+
+/**
+ * RT Thread: PPS monitoring + PHC sampling (CPU2, FIFO 80)
+ * 
+ * CRITICAL PATH - Must execute with minimal latency:
+ * 1. Wait for PPS edge
+ * 2. IMMEDIATELY sample PHC time
+ * 3. Push to shared data
+ * 
+ * Expert (deb.md): "PHC sampling latency corrupts frequency measurements"
+ * Target: < 10ms latency from PPS edge to PHC sample
+ */
+void* rt_thread_func(void* arg) {
+    SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
+    
+    // Set thread name for debugging
+    pthread_setname_np(pthread_self(), "ptp_rt");
+    
+    std::cout << "[RT Thread] Started on CPU" << sched_getcpu() << " (priority FIFO 80)\n";
+    
+    // TODO: Open PPS device and PHC
+    // TODO: Implement tight PPS wait loop
+    // TODO: Sample PHC immediately on PPS edge
+    
+    while (g_running) {
+        // Placeholder - will implement PPS/PHC logic
+        usleep(100000);  // 100ms
+    }
+    
+    std::cout << "[RT Thread] Shutdown\n";
+    return nullptr;
+}
+
+/**
+ * Worker Thread: GPS/RTC/PTP messaging (CPU0/1/3)
+ * 
+ * NON-CRITICAL PATH - Can tolerate delays:
+ * 1. GPS serial read/parse (blocking OK)
+ * 2. RTC drift measurement
+ * 3. PTP message transmission
+ * 4. Logging
+ */
+void* worker_thread_func(void* arg) {
+    SharedTimingData* shared = static_cast<SharedTimingData*>(arg);
+    
+    // Set thread name
+    pthread_setname_np(pthread_self(), "ptp_worker");
+    
+    std::cout << "[Worker Thread] Started on CPU" << sched_getcpu() << "\n";
+    
+    // TODO: Initialize GPS/RTC adapters
+    // TODO: Main GPS update loop
+    // TODO: RTC drift measurement
+    
+    while (g_running) {
+        // Placeholder - will implement GPS/RTC logic
+        usleep(100000);  // 100ms
+    }
+    
+    std::cout << "[Worker Thread] Shutdown\n";
+    return nullptr;
 }
 
 void print_usage(const char* program_name)
