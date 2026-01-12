@@ -686,7 +686,7 @@ int main(int argc, char* argv[])
                             for (size_t i = 0; i < drift_buffer_count; i++) {
                                 error_change_avg_ns += error_change_buffer[i];
                             }
-                            error_change_avg_ns /= drift_buffer_count;
+                            error_change_avg_ns /= static_cast<int64_t>(drift_buffer_count);  // Cast to preserve sign
                             current_drift_ppm = drift_ppm;
                             current_drift_avg = drift_avg;
                             current_error_change_avg_ns = error_change_avg_ns;  // Store for reuse
