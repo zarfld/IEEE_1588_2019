@@ -276,17 +276,20 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
                       << " System now sec=" << now.tv_sec 
                       << " TAI-UTC=" << tai_utc_offset << "\n";
             
-            // Convert CLOCK_REALTIME (UTC) to TAI for comparison with RTC
-            // RTC is in TAI, PPS timestamps are UTC
+            // Convert BOTH times from CLOCK_REALTIME (UTC) to TAI for comparison with RTC
+            // CRITICAL: PPS edge timestamps are in UTC (from CLOCK_REALTIME)
+            //           RTC is in TAI
+            //           Need to convert both to same domain!
+            int64_t edge_tai_sec = last_pps_sec_ + tai_utc_offset;
             int64_t now_tai_sec = now.tv_sec + tai_utc_offset;
             
             // Calculate nanoseconds since last SQW edge
-            // Both times now in TAI domain
-            int64_t edge_time_ns = (int64_t)last_pps_sec_ * 1000000000LL + (int64_t)last_pps_nsec_;
+            // Both times now in TAI domain - can compare directly
+            int64_t edge_time_ns = (int64_t)edge_tai_sec * 1000000000LL + (int64_t)last_pps_nsec_;
             int64_t now_tai_ns = (int64_t)now_tai_sec * 1000000000LL + (int64_t)now.tv_nsec;
             int64_t offset_from_edge_ns = now_tai_ns - edge_time_ns;
             
-            std::cout << "[DEBUG PPS] edge_ns=" << edge_time_ns 
+            std::cout << "[DEBUG PPS] edge_tai_ns=" << edge_time_ns 
                       << " now_tai_ns=" << now_tai_ns 
                       << " offset_from_edge=" << offset_from_edge_ns << " ns\n";
             
