@@ -894,6 +894,21 @@ bool GpsAdapter::get_ptp_clock_quality(uint8_t* clock_class,
     return true;
 }
 
+bool GpsAdapter::get_base_mapping(uint64_t* expected_utc_sec) {
+    if (!expected_utc_sec) return false;
+    
+    // Return false if mapping not locked yet
+    if (!pps_utc_locked_ || base_utc_sec_ == 0) {
+        return false;
+    }
+    
+    // Calculate expected UTC second for current PPS
+    // UTC(seq) = base_utc + (seq - base_seq)
+    *expected_utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);
+    
+    return true;
+}
+
 } // namespace Linux
 } // namespace _2019
 } // namespace PTP

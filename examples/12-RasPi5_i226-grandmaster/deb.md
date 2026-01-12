@@ -1,167 +1,174 @@
-Your latest log is now *diagnostic-quality*: the remaining anomalies are not “general Linux jitter” anymore; they are **second-slip / discontinuity handling** and **filter contamination**.
+You now have hard proof of *what is wrong*:
+
+1. **You are detecting the ±1 s condition correctly**, but
+2. **you are still feeding it into the drift estimator**, and
+3. the “GPS time” you compare against for RTC drift is **not the correct reference for a 1-Hz RTC** (you are effectively comparing an *integer RTC second* to a *near-end-of-second* “GPS time”, hence the repeated `-997 ms`).
+
+That combination guarantees poisoning.
 
 ---
 
-## 1) The “16667 ppm” average is explainable (and fixable)
+## 1) Stop poisoning: discontinuity must RESET + SKIP, not “add outlier”
 
-This line is the key:
-
-```
-[PPS] ... drift=1.247ppm avg=16667.630ppm(60) err=1.7ms
-```
-
-`16667 ppm ≈ 1,000,000 / 60`.
-
-That is exactly what you get when your rolling window (60 samples) still contains **one** catastrophic outlier of roughly **±1,000,000 ppm** (i.e., a **±1 second slip** in a 1-second interval), and you compute an average over 60.
-
-You *also* see the same contamination earlier:
+Your debug literally says:
 
 ```
-[PPS] ... avg=-35713.233ppm(28) err=-998.3ms
+USING: -997.615 ms (abs > 100ms!)
+Expert prediction: This will contaminate drift average!
+[DEBUG Ring Buffer] OUTLIER drift added to buffer!
 ```
 
-`-35713 ppm ≈ -1,000,000 / 28`. Same phenomenon.
+That is the bug. The correct behavior is:
 
-### What is producing the outlier?
+* if `abs(err_ms) > threshold` (100 ms is fine):
 
-A one-second discontinuity is already visible in your log:
+  * **reset ring buffer**
+  * **reset last_error / last_valid**
+  * **do not compute drift_ppm**
+  * **do not push anything**
+  * optionally **step RTC** (if you decide it is truly off by ≥1 s)
+  * return
 
-* RTC side:
+### Implementation pattern (drop-in logic)
 
-  ```
-  [RTC Drift] Measured: -999998.716 ppm ... Error: -998.342 ms
-  ```
-* PHC/PPS side:
-
-  ```
-  [PPS] ... err=-998.3ms
-  ```
-
-So the system occasionally computes “this PPS is about one second off”, and then your drift estimator dutifully converts that into an absurd ppm value, poisoning the moving average until the window flushes the outlier.
-
----
-
-## 2) Immediate corrective action: treat ±1s as a discontinuity, not “drift”
-
-### A. In BOTH estimators (PHC drift and RTC drift)
-
-Add a hard gate: if the phase error is too large, **do not feed it into the drift estimator** and **reset** the rolling window.
-
-Recommended thresholds:
-
-* `abs(err_ms) > 100 ms` → discontinuity (very safe)
-* or `abs(err_ms) > 500 ms` → “almost certainly ±1s slip” (more permissive)
-
-### B. Also protect calibration transitions
-
-Right now you still emit a catastrophic PPS line immediately after calibration:
-
-```
-[PHC Calibration] ✓ Complete!
-[PPS] ... err=-998.3ms
-```
-
-That is a classic “handoff” point; treat it as a discontinuity by design:
-
-* after calibration completes: **skip 1–3 PPS cycles** (or until mapping is stable) before computing/printing drift/avg/err.
-
----
-
-## 3) Why you still see intermittent “-998ms” events after lock
-
-You already report:
-
-```
-[PPS-UTC Lock] ... LAST PPS (avg_dt=200ms)
-[Base Mapping] base_pps_seq=70062 base_utc_sec=...
-```
-
-Yet later (during calibration) you still get:
-
-```
-[RTC Drift] ... Error: -998.342 ms
-```
-
-That strongly suggests **the worker thread sometimes uses a different second association** (or updates mapping inputs) even after “lock”, causing a ±1s interpretation. The lock message is not sufficient unless you enforce a policy like:
-
-* Once locked, **freeze the mapping anchor** (`base_pps_seq`, `base_utc_sec`) and never “re-decide” LAST/NEXT on a per-message basis.
-* If a newly observed NMEA/PPS delta deviates strongly, **drop that NMEA sample** as out-of-family rather than re-labeling the second.
-
-Practical rule:
-
-* Maintain a running mean/variance of NMEA arrival offset relative to PPS (`dt`).
-* If `abs(dt - mean_dt) > 200 ms` (tune), ignore that NMEA sample for mapping/discipline.
-
----
-
-## 4) Phase error of ~1.7 ms: likely not a servo issue yet, but a timestamping issue
-
-Even once you eliminate the ±1s slips, this persists:
-
-```
-err=1.6–1.7ms
-```
-
-That magnitude is consistent with “PHC sampled *some milliseconds after* PPS edge” and then compared as if it were sampled *at* PPS.
-
-If you want microsecond-class alignment, you need a **cross-timestamp** between system time and PHC at (or immediately around) PPS, e.g.:
-
-* `ioctl(fd_ptp, PTP_SYS_OFFSET_PRECISE, ...)` (preferred if supported)
-* or `PTP_SYS_OFFSET_EXTENDED`
-
-Then compute **PHC time at PPS edge** by combining:
-
-* the PPS timestamp you get from `/dev/pps0` (system clock domain)
-* the system↔PHC offset from `PTP_SYS_OFFSET*_…` taken immediately after PPS
-
-This can reduce your “phase error floor” dramatically compared to “read PHC sometime later”.
-
----
-
-## 5) Minimal implementation pattern (what to change)
-
-### A. Add “discontinuity handling” to drift update (PHC + RTC)
-
-Conceptually:
+In your RTC drift update function:
 
 ```cpp
-if (!mapping_ready || !phc_calibrated) return;
+const double err_ms = (double)err_ns / 1e6;
 
 if (std::abs(err_ms) > 100.0) {
-  log_second_slip(err_ms);
-  drift_filter.reset();      // clears ring buffer, sums, counters
-  return;                    // do not update drift/avg
+    rtc_drift_filter.reset();
+    rtc_last_error_valid = false;   // critical: prevents err_delta using old value
+    // optionally: log + maybe force a one-time RTC set
+    return;                         // critical: do not push to buffer
 }
 
-drift_filter.push(drift_ppm);
-avg = drift_filter.avg();
+if (!rtc_last_error_valid) {
+    rtc_last_error_ns = err_ns;
+    rtc_last_error_valid = true;
+    return;                         // first valid sample establishes baseline
+}
+
+const int64_t delta_ns = err_ns - rtc_last_error_ns;
+const double drift_ppm = (double)delta_ns / 1e3; // (ns/sec)/1000 = ppm
+
+rtc_last_error_ns = err_ns;
+rtc_drift_filter.push(drift_ppm);
 ```
 
-### B. Add “skip-after-calibration” guard
+Do the *same* for PHC drift.
+
+This alone will eliminate the persistent `16667 ppm` averages, because they will never get created.
+
+---
+
+## 2) Your RTC error of ~ -997 ms is not “drift” – it’s a reference mismatch
+
+Look at the first discontinuity dump:
+
+```
+RTC time: 1768204460.0
+GPS time: 1768204460.997615050
+Error vs GPS: -997.615 ms
+```
+
+That is exactly what happens if:
+
+* **RTC read is integer seconds** (e.g., `...4460.0`)
+* your “GPS time” includes a fractional part that is **near the end of the second** (`...4460.9976`)
+
+So even when the RTC second is correct, you can manufacture a ~-997 ms “error” simply by comparing to the wrong fractional reference.
+
+### Correct reference for disciplining a 1 Hz RTC (DS3231)
+
+For DS3231 you should discipline against an **integer second boundary** derived from your PPS↔UTC mapping, not against “NMEA arrival time” or any time-with-fraction unless you explicitly model the read latency.
+
+Concretely:
+
+* After `[PPS-UTC Lock]` you already compute:
+
+```
+base_pps_seq
+base_utc_sec
+```
+
+From that, the expected UTC second at PPS `seq` is:
 
 ```cpp
-if (just_finished_calibration) {
-  skip_pps_updates = 2; // e.g. 2 PPS cycles
-}
-
-if (skip_pps_updates > 0) {
-  skip_pps_updates--;
-  return;
-}
+expected_utc_sec = base_utc_sec + (seq - base_pps_seq);
 ```
 
-### C. Enforce “mapping freeze” after lock
+That is the correct reference for a seconds-resolution RTC.
 
-Once you set `base_pps_seq/base_utc_sec`, do not overwrite them unless you explicitly transition to a “relock” state (GPS lost → reacquire).
+### Practical rule for comparing RTC to UTC at PPS
+
+When you sample RTC shortly *after* PPS, it might still read the same second or the next second depending on read latency. So compare against both and choose the closest:
+
+```cpp
+int64_t rtc_sec = read_rtc_seconds();
+int64_t exp_sec = expected_utc_sec;
+
+// candidates: exp_sec and exp_sec+1 (or also exp_sec-1 if you sample before PPS)
+int64_t e0 = rtc_sec - exp_sec;
+int64_t e1 = rtc_sec - (exp_sec + 1);
+
+int64_t chosen_err_sec = (std::llabs(e0) <= std::llabs(e1)) ? e0 : e1;
+```
+
+Then:
+
+* if `abs(chosen_err_sec) >= 1` → RTC is off by seconds → step it
+* else → treat as aligned (no “-997 ms” nonsense exists in this domain)
+
+If you want sub-second diagnostics, you can track *read latency* separately, but you must not interpret it as RTC phase error.
 
 ---
 
-## 6) What to expect after these fixes
+## 3) Why you saw repeated “-997 ms” every second
 
-1. The ±1s “-998ms” events should disappear from normal operation; if they still appear, they will be logged as discontinuities and **won’t poison averages**.
-2. Your `avg` values will stay near ~1 ppm instead of swinging to ±(1e6 / window).
-3. The remaining ~1.7 ms offset will become the next primary target, addressed via **PHC-at-PPS cross timestamping** (PTP_SYS_OFFSET_PRECISE/EXTENDED) and/or by taking the PHC sample deterministically as close to PPS as possible.
+Because your code is repeatedly constructing an error in the wrong domain (seconds RTC vs fractional GPS). Once you do that once, your drift estimator then alternates between:
+
+* `-997 ms` (wrong-domain error)
+* `+2.4 ms` (after some set / different sampling)
+* which yields `±1e9 ns` deltas → `±1e6 ppm`
+
+That is exactly what your outlier logs show.
 
 ---
 
-If you paste the specific drift/avg code paths (PHC and RTC) from `ptp_grandmaster.cpp` (the functions that compute `err`, `drift_ppm`, and maintain the rolling window), I can provide an exact patch (including a small, RT-safe rolling filter with a `reset()` and an outlier gate) consistent with your C++14 codebase and the current thread split.
+## 4) Concrete action list
+
+### A. Fix the estimator behavior
+
+* **Discontinuity → reset+skip** (do not push outliers)
+* **After reset → require one baseline sample** before computing drift
+
+### B. Fix the RTC reference
+
+* For DS3231 drift/offset, compute error using **expected_utc_sec_at_pps(seq)**, not “GPS time with fraction”.
+
+### C. Keep the threads separated (your preference)
+
+* RT thread: PPS wait + PHC sample (minimal work)
+* Worker thread: GPS parsing + mapping lock + RTC discipline + logging
+* RTC discipline should be triggered by PPS events but should **use seconds-domain logic**.
+
+---
+
+## 5) Minor compile warnings you showed (quick cleanup)
+
+* `last_nmea_time_` should be `time_t` (or cast explicitly) to silence signedness warning.
+* `nmea_arrival_mono_ms` is unused; either use it in the lock logic or remove it.
+
+---
+
+If you paste the two specific code blocks where you compute:
+
+1. `err_ns` for RTC vs GPS, and
+2. the ring-buffer drift update (`push`, `avg`, `count`),
+
+I can provide an exact patch with minimal diffs (C++14, no new dependencies) that implements:
+
+* correct discontinuity handling,
+* correct seconds-domain RTC discipline,
+* and a clean “baseline sample required” state.

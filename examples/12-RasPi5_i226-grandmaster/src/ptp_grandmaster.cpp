@@ -507,10 +507,10 @@ int main(int argc, char* argv[])
             // ═══════════════════════════════════════════════════════════════════════════
             // RTC Drift Measurement and Discipline (runs INDEPENDENTLY of PHC calibration)
             // ═══════════════════════════════════════════════════════════════════════════
-            // Drift measurement based on ACTUAL elapsed GPS time (not iteration counter)
-            // Loop timing varies (NMEA I/O overhead), so iteration count is unreliable
-            // Use actual GPS time difference for precise 1-second drift measurements
-            if (last_drift_calc_time > 0) {
+            // EXPERT FIX (deb.md): Use integer-seconds reference from PPS-UTC mapping
+            // RTC has 1-second resolution, so compare against UTC second boundary (not fractional GPS time)
+            // Discontinuities (>100ms) trigger buffer reset and skip (prevent contamination)
+            if (last_drift_calc_time > 0 && pps_ready) {
                 uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
                 
                 // Only perform drift measurement when GPS time has advanced (1+ seconds)
@@ -519,98 +519,88 @@ int main(int argc, char* argv[])
                     uint32_t rtc_nanoseconds = 0;
                     
                     if (rtc_adapter.get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
-                        // Calculate time error (RTC - GPS)
-                        // NOTE: RTC is set to GPS+1 second (see sync_from_gps in rtc_adapter.cpp)
-                        // to compensate for I2C write latency and 1-second RTC resolution.
-                        // 
-                        // RACE CONDITION FIX: RTC has 1-second resolution and ticks independently.
-                        // Depending on timing between GPS read and RTC read, RTC might show:
-                        //   - GPS second (if RTC hasn't ticked yet)
-                        //   - GPS+1 second (if RTC ticked already - this is expected)
-                        // 
-                        // Solution: Compare RTC to whichever is closer (GPS or GPS+1)
-                        int64_t rtc_time_ns = static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds;
-                        int64_t gps_time_ns = static_cast<int64_t>(gps_seconds) * 1000000000LL + gps_nanoseconds;
-                        int64_t gps_plus1_ns = static_cast<int64_t>(gps_seconds + 1) * 1000000000LL + gps_nanoseconds;
-                        
-                        // Calculate error for both possibilities
-                        int64_t error_vs_gps = rtc_time_ns - gps_time_ns;
-                        int64_t error_vs_gps_plus1 = rtc_time_ns - gps_plus1_ns;
-                        
-                        // Use whichever comparison gives smaller absolute error
-                        int64_t time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
-                                               ? error_vs_gps : error_vs_gps_plus1;
-                        
-                        // DEBUG: Track error magnitude for discontinuity analysis
-                        double time_error_ms = time_error_ns / 1000000.0;
-                        if (std::abs(time_error_ms) > 100.0) {
-                            std::cout << "[DEBUG Discontinuity] ⚠️ Large error detected!\n"
-                                     << "  RTC time: " << rtc_seconds << "." << rtc_nanoseconds << "\n"
-                                     << "  GPS time: " << gps_seconds << "." << gps_nanoseconds << "\n"
-                                     << "  Error vs GPS: " << (error_vs_gps / 1000000.0) << " ms\n"
-                                     << "  Error vs GPS+1: " << (error_vs_gps_plus1 / 1000000.0) << " ms\n"
-                                     << "  USING: " << time_error_ms << " ms (abs > 100ms!)\n"
-                                     << "  ⚠️ Expert prediction: This will contaminate drift average!\n";
-                        }
-                        
-                        // Rate-limited debug output (only when verbose, once per second)
-                        if (verbose) {
-                            static uint64_t last_drift_log_sec = 0;
-                            if (gps_seconds != last_drift_log_sec) {
-                                printf("[RTC Drift] GPS=%lu.%09u RTC=%lu.%09u err_vs_GPS=%ld err_vs_GPS+1=%ld USED=%ld (%.3fms)\n",
-                                       gps_seconds, gps_nanoseconds, 
-                                       rtc_seconds, rtc_nanoseconds,
-                                       error_vs_gps, error_vs_gps_plus1,
-                                       time_error_ns, time_error_ns / 1000000.0);
-                                last_drift_log_sec = gps_seconds;
+                        // EXPERT FIX: Use expected UTC second from PPS-UTC mapping (integer seconds domain)
+                        // This is the CORRECT reference for a 1Hz RTC (DS3231)
+                        uint64_t expected_utc_sec_at_pps = 0;
+                        if (gps_adapter.get_base_mapping(&expected_utc_sec_at_pps)) {
+                            // expected_utc_sec_at_pps is already the UTC second for current PPS
+                            // Convert to TAI for comparison with RTC (which is set to TAI)
+                            expected_utc_sec_at_pps += 37;  // TAI-UTC offset
+                            
+                            // Compare RTC (integer seconds) to expected second
+                            // RTC might read same second or next second depending on read latency
+                            int64_t err_vs_exp = static_cast<int64_t>(rtc_seconds) - static_cast<int64_t>(expected_utc_sec_at_pps);
+                            int64_t err_vs_exp_plus1 = static_cast<int64_t>(rtc_seconds) - static_cast<int64_t>(expected_utc_sec_at_pps + 1);
+                            
+                            // Choose closest
+                            int64_t error_sec = (std::llabs(err_vs_exp) <= std::llabs(err_vs_exp_plus1)) ? err_vs_exp : err_vs_exp_plus1;
+                            
+                            // EXPERT FIX: Discontinuity detection (>= 1 second = RTC is off)
+                            if (std::llabs(error_sec) >= 1) {
+                                std::cout << "[RTC Discontinuity] ⚠️ RTC off by " << error_sec << " second(s)\n"
+                                         << "  RTC: " << rtc_seconds << " TAI\n"
+                                         << "  Expected: " << expected_utc_sec_at_pps << " TAI\n"
+                                         << "  → Resetting drift buffer and skipping this sample\n";
+                                
+                                // Reset ring buffer
+                                drift_buffer_count = 0;
+                                drift_buffer_index = 0;
+                                drift_valid = false;
+                                
+                                // Optionally step RTC (for now, just log)
+                                // rtc_adapter.sync_from_gps(expected_utc_sec_at_pps - 37, 0);  // Convert back to UTC
+                                
+                                last_drift_calc_time = gps_seconds;
+                                // last_time_error_ns is intentionally NOT updated (no valid baseline yet)
+                                continue;  // Skip this iteration
                             }
-                        }
-                        
-                        // Drift rate = change in error / time interval
-                        int64_t error_change_ns = time_error_ns - last_time_error_ns;
-                        double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
-                        
-                        // DEBUG: Track outlier drift values being added to ring buffer
-                        if (std::abs(drift_ppm) > 10000.0) {
-                            std::cout << "[DEBUG Ring Buffer] ⚠️ OUTLIER drift added to buffer!\n"
-                                     << "  Drift PPM: " << std::fixed << std::setprecision(1) << drift_ppm << " ppm\n"
-                                     << "  Error change: " << error_change_ns << " ns over " << elapsed_sec << " sec\n"
-                                     << "  Current error: " << time_error_ns << " ns\n"
-                                     << "  Last error: " << last_time_error_ns << " ns\n"
-                                     << "  Buffer index: " << drift_buffer_index << ", count: " << drift_buffer_count << "\n"
-                                     << "  ⚠️ Expert prediction: This will poison average for ~" << (drift_buffer_size - drift_buffer_count) << " more samples!\n";
-                        }
-                        
-                        // Add to circular buffer
-                        drift_buffer[drift_buffer_index] = drift_ppm;
-                        drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
-                        if (drift_buffer_count < drift_buffer_size) {
-                            drift_buffer_count++;
-                        }
-                        
-                        // Calculate moving average
-                        double drift_avg = 0.0;
-                        double min_val = 1e9, max_val = -1e9;
-                        size_t outlier_count = 0;
-                        for (size_t i = 0; i < drift_buffer_count; i++) {
-                            drift_avg += drift_buffer[i];
-                            if (drift_buffer[i] < min_val) min_val = drift_buffer[i];
-                            if (drift_buffer[i] > max_val) max_val = drift_buffer[i];
-                            if (std::abs(drift_buffer[i]) > 10000.0) outlier_count++;
-                        }
-                        drift_avg /= drift_buffer_count;
-                        
-                        // DEBUG: Show buffer contamination when average is suspicious
-                        if (std::abs(drift_avg) > 100.0) {
-                            std::cout << "[DEBUG Average Contamination] ⚠️ Poisoned average detected!\n"
-                                     << "  Average: " << std::fixed << std::setprecision(1) << drift_avg << " ppm\n"
-                                     << "  Buffer count: " << drift_buffer_count << " / " << drift_buffer_size << "\n"
-                                     << "  Min/Max in buffer: " << min_val << " / " << max_val << " ppm\n"
-                                     << "  Outliers (>10000 ppm): " << outlier_count << "\n"
-                                     << "  ⚠️ Expert prediction: " << drift_avg << " ≈ " << (outlier_count * 1000000.0 / drift_buffer_count) << " (1e6 * " << outlier_count << " / " << drift_buffer_count << ")\n";
-                        }
-                        
-                        // Store for PPS display
+                            
+                            // RTC aligned to correct second (error_sec == 0)
+                            // Sub-second error tracking uses nanoseconds field (0 for DS3231)
+                            int64_t time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
+                            
+                            // EXPERT FIX: Require baseline sample after reset
+                            if (!drift_valid || drift_buffer_count == 0) {
+                                // First valid sample after reset - establish baseline
+                                last_time_error_ns = time_error_ns;
+                                last_drift_calc_time = gps_seconds;
+                                drift_valid = false;  // Still not valid until we have drift calculation
+                                if (verbose) {
+                                    std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
+                                }
+                                continue;  // Wait for next sample
+                            }
+                            
+                            // Calculate drift: change in error over time interval
+                            int64_t error_change_ns = time_error_ns - last_time_error_ns;
+                            double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
+                            
+                            // Sanity check: drift should be small (sub-ppm for DS3231)
+                            // If >100 ppm, something is wrong (maybe sub-second rollover artifact)
+                            if (std::abs(drift_ppm) > 100.0) {
+                                std::cout << "[RTC Drift] ⚠️ Suspicious drift " << drift_ppm << " ppm (>100 ppm)\n"
+                                         << "  → Resetting drift buffer\n";
+                                drift_buffer_count = 0;
+                                drift_buffer_index = 0;
+                                drift_valid = false;
+                                last_time_error_ns = time_error_ns;
+                                last_drift_calc_time = gps_seconds;
+                                continue;
+                            }
+                            
+                            // Add to circular buffer (now clean, no outliers)
+                            drift_buffer[drift_buffer_index] = drift_ppm;
+                            drift_buffer_index = (drift_buffer_index + 1) % drift_buffer_size;
+                            if (drift_buffer_count < drift_buffer_size) {
+                                drift_buffer_count++;
+                            }
+                            
+                            // Calculate moving average
+                            double drift_avg = 0.0;
+                            for (size_t i = 0; i < drift_buffer_count; i++) {
+                                drift_avg += drift_buffer[i];
+                            }
+                            drift_avg /= drift_buffer_count;
                         current_drift_ppm = drift_ppm;
                         current_drift_avg = drift_avg;
                         current_time_error_ms = time_error_ns / 1000000.0;

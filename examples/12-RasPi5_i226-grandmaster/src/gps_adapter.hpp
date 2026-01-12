@@ -172,6 +172,16 @@ public:
      * @return true if GPS provides valid clock quality, false otherwise
      */
     bool get_ptp_clock_quality(uint8_t* clock_class, uint8_t* clock_accuracy, uint16_t* offset_variance = nullptr);
+    
+    /**
+     * @brief Get PPS-UTC base mapping for RTC discipline
+     * @param expected_utc_sec Output: Expected UTC second for current PPS
+     * @return true if mapping is locked and valid, false otherwise
+     * @note Used by RTC drift measurement to get integer-seconds reference
+     *       Implements expert fix from deb.md: RTC should be compared against
+     *       integer UTC seconds from PPS mapping, not fractional GPS time
+     */
+    bool get_base_mapping(uint64_t* expected_utc_sec);
 
 private:
     std::string serial_device_;   ///< GPS serial device path
