@@ -556,6 +556,17 @@ int main(int argc, char* argv[])
                                 std::cout << "[RTC Drift] ✓ Base mapping available, starting drift measurement\n";
                                 first_mapping_success = false;
                             }
+                            
+                            // EXPERT FIX: Skip samples after discontinuities (PHC cal, RTC sync)
+                            // Prevents contamination from transients (100001 ppm outliers)
+                            if (rtc_adapter.should_skip_sample()) {
+                                std::cout << "[RTC Drift] ⏸ Skipping sample (post-discontinuity transient)\n";
+                                // Don't update baseline or calculate drift
+                                // But DO update last_drift_calc_time to prevent stale intervals
+                                last_drift_calc_time = gps_seconds;
+                                continue;  // Skip to next iteration
+                            }
+                            
                             // expected_utc_sec_at_pps is already the UTC second for current PPS
                             // Convert to TAI for comparison with RTC (which is set to TAI)
                             expected_utc_sec_at_pps += 37;  // TAI-UTC offset

@@ -155,6 +155,7 @@ private:
     uint64_t    last_pps_sec_;   ///< Last PPS timestamp (seconds)
     uint32_t    last_pps_nsec_;  ///< Last PPS timestamp (nanoseconds)
     int         last_pps_seq_;   ///< Last PPS sequence number
+    int         skip_samples_;   ///< Skip N samples after discontinuity (PHC cal/RTC sync)
     
     // Private helper methods
     void convert_rtc_to_ptp(const RtcTime& rtc, uint64_t* seconds);
@@ -186,6 +187,21 @@ public:
     bool enable_sqw_output(bool enable = true);  ///< Enable/disable 1Hz square wave output
     bool is_sqw_available() const { return !sqw_device_.empty(); }  ///< Check if SQW configured
     const std::string& get_sqw_device() const { return sqw_device_; }  ///< Get SQW PPS device path
+    
+    /**
+     * @brief Check and decrement skip counter (for post-discontinuity sample skipping)
+     * @return true if samples should be skipped, false if ready for drift measurement
+     * 
+     * Expert recommendation: Skip 3-5 PPS samples after PHC calibration or RTC sync
+     * to avoid contamination from transients (prevents 100001 ppm outliers).
+     */
+    bool should_skip_sample() {
+        if (skip_samples_ > 0) {
+            skip_samples_--;
+            return true;
+        }
+        return false;
+    }
 };
 
 } // namespace Linux

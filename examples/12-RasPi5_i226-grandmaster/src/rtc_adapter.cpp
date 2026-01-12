@@ -67,6 +67,7 @@ RtcAdapter::RtcAdapter(const std::string& rtc_device, const std::string& sqw_dev
     , last_pps_sec_(0)
     , last_pps_nsec_(0)
     , last_pps_seq_(-1)
+    , skip_samples_(0)
 {
 }
 
@@ -209,55 +210,67 @@ bool RtcAdapter::set_time(const RtcTime& rtc_time)
 
 bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
-    // Read RTC integer seconds (always needed for absolute time)
-    RtcTime rtc_time{};
-    if (!read_time(&rtc_time)) {
-        return false;
-    }
-
-    // Convert to Unix timestamp
-    struct tm tm_time{};
-    tm_time.tm_year = rtc_time.year - 1900;
-    tm_time.tm_mon = rtc_time.month - 1;
-    tm_time.tm_mday = rtc_time.day;
-    tm_time.tm_hour = rtc_time.hours;
-    tm_time.tm_min = rtc_time.minutes;
-    tm_time.tm_sec = rtc_time.seconds;
-
-    time_t unix_time = timegm(&tm_time);
-    *seconds = static_cast<uint64_t>(unix_time);
+    // CRITICAL FIX per expert (deb.md):
+    // REVERSE the ordering to eliminate artificial race conditions!
+    //
+    // OLD (broken): Read RTC → Fetch PPS → Artificial "read before edge" every time
+    // NEW (correct): Wait for NEXT PPS edge → Read RTC immediately after
+    //
+    // This ensures RTC read happens AFTER the edge we're synchronizing to,
+    // eliminating the artificial race corrections that contaminated measurements.
     
-    // If SQW/PPS available, get sub-second precision from last edge timing
+    // If SQW/PPS available, wait for next edge FIRST
     if (pps_fd_ >= 0) {
         struct pps_fdata pps_data{};
         pps_data.timeout.sec = 2;      // 2 second timeout (wait for next 1Hz edge)
         pps_data.timeout.nsec = 0;
         
         int pps_ret = ioctl(pps_fd_, PPS_FETCH, &pps_data);
-        std::cout << "[RTC PPS] PPS_FETCH returned " << pps_ret 
-                  << " (errno=" << errno << ", fd=" << pps_fd_ << ")\n";
-        
-        if (pps_ret == 0) {
-            std::cout << "[RTC PPS] Fetched: seq=" << pps_data.info.assert_sequence 
-                      << " sec=" << pps_data.info.assert_tu.sec 
-                      << " nsec=" << pps_data.info.assert_tu.nsec << "\n";
-            std::cout << "[RTC PPS] Last cached: seq=" << last_pps_seq_ 
-                      << " sec=" << last_pps_sec_ 
-                      << " nsec=" << last_pps_nsec_ << "\n";
-            
-            // Update cached PPS timestamp if new edge detected
-            if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
-                std::cout << "[RTC PPS] ✓ New edge detected, updating cache\n";
-                last_pps_seq_ = pps_data.info.assert_sequence;
-                last_pps_sec_ = pps_data.info.assert_tu.sec;
-                last_pps_nsec_ = pps_data.info.assert_tu.nsec;
-            } else {
-                std::cout << "[RTC PPS] Same sequence, using cached timestamp\n";
-            }
-        } else {
+        if (pps_ret < 0) {
             std::cout << "[RTC PPS] ⚠ PPS_FETCH failed (ret=" << pps_ret 
                       << " errno=" << errno << ")\n";
+            // Fall back to RTC-only reading
+            goto rtc_fallback;
         }
+        
+        std::cout << "[RTC PPS] PPS_FETCH returned " << pps_ret << " (fd=" << pps_fd_ << ")\n";
+        
+        std::cout << "[RTC PPS] Fetched: seq=" << pps_data.info.assert_sequence 
+                  << " sec=" << pps_data.info.assert_tu.sec 
+                  << " nsec=" << pps_data.info.assert_tu.nsec << "\n";
+        std::cout << "[RTC PPS] Last cached: seq=" << last_pps_seq_ 
+                  << " sec=" << last_pps_sec_ 
+                  << " nsec=" << last_pps_nsec_ << "\n";
+        
+        // Update cached PPS timestamp if new edge detected
+        if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
+            std::cout << "[RTC PPS] ✓ New edge detected, updating cache\n";
+            last_pps_seq_ = pps_data.info.assert_sequence;
+            last_pps_sec_ = pps_data.info.assert_tu.sec;
+            last_pps_nsec_ = pps_data.info.assert_tu.nsec;
+        } else {
+            std::cout << "[RTC PPS] Same sequence, using cached timestamp\n";
+        }
+        
+        // NOW read RTC immediately after edge (within ~5ms I2C latency)
+        // This ensures RTC read happens AFTER the edge we just detected
+        RtcTime rtc_time{};
+        if (!read_time(&rtc_time)) {
+            std::cout << "[RTC PPS] ⚠ RTC read failed after PPS edge\n";
+            return false;
+        }
+        
+        // Convert to Unix timestamp
+        struct tm tm_time{};
+        tm_time.tm_year = rtc_time.year - 1900;
+        tm_time.tm_mon = rtc_time.month - 1;
+        tm_time.tm_mday = rtc_time.day;
+        tm_time.tm_hour = rtc_time.hours;
+        tm_time.tm_min = rtc_time.minutes;
+        tm_time.tm_sec = rtc_time.seconds;
+        
+        time_t unix_time = timegm(&tm_time);
+        *seconds = static_cast<uint64_t>(unix_time);
         
         // Return nanosecond offset within current RTC second
         // SQW edges mark second boundaries - we measure offset from last edge
@@ -304,23 +317,23 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             std::cout << "[RTC PPS] Seconds since edge=" << seconds_since_edge
                       << " ns within current second=" << ns_within_second << "\n";
             
-            // CRITICAL FIX: Second-boundary race correction
-            // RTC I2C read takes ~5ms. If PPS edge occurred DURING the read,
-            // we might have captured the OLD second (before edge) but PPS shows NEW second.
+            // SIMPLIFIED race detection (should be extremely rare now)
+            // Since we wait for edge THEN read RTC, the RTC should show NEW second.
+            // Only detect races if somehow RTC shows OLD second within 50ms of edge.
             // 
             // Convert edge to RTC timescale (TAI) for comparison:
             int64_t edge_rtc_sec = edge_utc_sec + tai_utc_offset;  // UTC → TAI conversion
             
-            // Race detection window: 200ms (tuneable, but safe for 5ms I2C reads)
-            const int64_t kRaceWindowNs = 200000000LL;  // 200ms
+            // Much tighter race window: 50ms (since we read AFTER edge, not before)
+            const int64_t kRaceWindowNs = 50000000LL;  // 50ms
             
-            // If we are shortly after the edge AND RTC seconds reflect "previous second":
+            // Only if VERY close to edge AND RTC still shows previous second:
             if (offset_from_edge_ns >= 0 && offset_from_edge_ns < kRaceWindowNs) {
                 if ((int64_t)*seconds == edge_rtc_sec - 1) {
-                    std::cout << "[RTC PPS] ✓ Detected second boundary race: RTC read before edge\n"
+                    std::cout << "[RTC PPS] ⚠ Rare race: RTC still shows old second despite reading after edge\n"
                               << "  RTC=" << *seconds << " Edge(TAI)=" << edge_rtc_sec 
                               << " offset=" << ns_within_second << "ns\n"
-                              << "  → Incrementing RTC second to match edge (race correction)\n";
+                              << "  → Incrementing RTC second to match edge\n";
                     (*seconds)++;  // Advance RTC to match the second we're actually in
                 }
             }
@@ -342,11 +355,28 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
         } else {
             std::cout << "[RTC PPS] ⚠ No PPS sequence cached yet (last_pps_seq_=-1)\n";
         }
-    } else {
-        std::cout << "[RTC PPS] ⚠ PPS not available (pps_fd_=" << pps_fd_ << ")\n";
     }
     
-    // Fallback: no sub-second precision
+rtc_fallback:
+    // Fallback: PPS not available, read RTC without sub-second precision
+    std::cout << "[RTC] Using RTC-only reading (no PPS)\n";
+    
+    RtcTime rtc_time{};
+    if (!read_time(&rtc_time)) {
+        return false;
+    }
+    
+    // Convert to Unix timestamp
+    struct tm tm_time{};
+    tm_time.tm_year = rtc_time.year - 1900;
+    tm_time.tm_mon = rtc_time.month - 1;
+    tm_time.tm_mday = rtc_time.day;
+    tm_time.tm_hour = rtc_time.hours;
+    tm_time.tm_min = rtc_time.minutes;
+    tm_time.tm_sec = rtc_time.seconds;
+    
+    time_t unix_time = timegm(&tm_time);
+    *seconds = static_cast<uint64_t>(unix_time);
     *nanoseconds = 0;
     return true;
 }
@@ -396,6 +426,12 @@ bool RtcAdapter::sync_from_gps(uint64_t gps_seconds, uint32_t gps_nanoseconds)
     }
 
     last_sync_time_ = gps_seconds;
+    
+    // Skip next 5 PPS samples after time discontinuity (expert recommendation)
+    // This prevents contamination from PHC calibration/RTC sync transients
+    skip_samples_ = 5;
+    std::cout << "[RTC Sync] ℹ Skipping next 5 drift samples (discontinuity transient)\\n";
+    
     return true;
 }
 
