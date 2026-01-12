@@ -510,7 +510,8 @@ int main(int argc, char* argv[])
             // EXPERT FIX (deb.md): Use integer-seconds reference from PPS-UTC mapping
             // RTC has 1-second resolution, so compare against UTC second boundary (not fractional GPS time)
             // Discontinuities (>100ms) trigger buffer reset and skip (prevent contamination)
-            if (last_drift_calc_time > 0 && pps_ready) {
+            // NOTE: No pps_ready check needed - we use GPS time from PPS-UTC mapping, not PPS pulse directly
+            if (last_drift_calc_time > 0) {
                 uint64_t elapsed_sec = gps_seconds - last_drift_calc_time;
                 
                 // Only perform drift measurement when GPS time has advanced (1+ seconds)
@@ -752,10 +753,7 @@ int main(int argc, char* argv[])
                 }
             } else if (last_drift_calc_time == 0) {
                 // Initialize drift measurement baseline ONLY on first GPS lock (when last_drift_calc_time is actually 0)
-                // CRITICAL FIX: Don't re-initialize if pps_ready=false but last_drift_calc_time already set!
-                // Previous bug: Else block ran when EITHER last_drift_calc_time=0 OR pps_ready=false,
-                // causing re-initialization every iteration until PPS became ready.
-                std::cout << "[RTC Drift] ℹ️ Initializing drift measurement baseline (waiting for PPS ready)\n";
+                std::cout << "[RTC Drift] ℹ️ Initializing drift measurement baseline\n";
                 last_drift_calc_time = gps_seconds;
                 uint64_t rtc_seconds = 0;
                 uint32_t rtc_nanoseconds = 0;
@@ -768,14 +766,8 @@ int main(int argc, char* argv[])
                     last_time_error_ns = (std::abs(error_vs_gps) < std::abs(error_vs_gps_plus1)) 
                                         ? error_vs_gps : error_vs_gps_plus1;
                 }
-            } else {
-                // Waiting for PPS to become ready (last_drift_calc_time already initialized)
-                static uint64_t last_waiting_message_time = 0;
-                if (gps_seconds - last_waiting_message_time >= 10) {
-                    std::cout << "[RTC Drift] ⏳ Waiting for PPS ready (PHC calibration in progress...)\n";
-                    last_waiting_message_time = gps_seconds;
-                }
             }
+            // Note: No else block needed - drift measurement runs whenever GPS time available
 
             // ═══════════════════════════════════════════════════════════════════════════
             // PHC Discipline to GPS (frequency calibration then PI servo)
