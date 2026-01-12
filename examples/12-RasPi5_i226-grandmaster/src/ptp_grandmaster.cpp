@@ -415,28 +415,21 @@ int main(int argc, char* argv[])
         uint32_t pps_max_jitter_ns = 0;
         bool pps_ready = gps_adapter.get_pps_data(&pps_data, &pps_max_jitter_ns);
         
-        // CRITICAL: Sample PHC time IMMEDIATELY when PPS data is fresh!
-        // Expert (deb.md): "Sampling latency corrupts frequency measurements"
-        // Must sample within milliseconds of PPS edge, not 70ms+ later in loop
-        int64_t phc_at_pps_ns = 0;  // PHC time at PPS edge (for calibration)
+        // Get PHC sample from RT thread (low-latency PPS+PHC capture)
+        // RT thread samples PHC immediately after PPS edge with <10ms latency
+        int64_t phc_at_pps_ns = 0;
         bool phc_sample_valid = false;
         if (pps_ready && pps_data.sequence > 0) {
-            int64_t phc_now_ns, sys_now_ns;
-            if (ptp_hal.get_phc_sys_offset(&phc_now_ns, &sys_now_ns)) {
-                // PPS edge happened at: pps_data.assert_sec/nsec (system time)
-                int64_t pps_sys_ns = (int64_t)pps_data.assert_sec * 1000000000LL + pps_data.assert_nsec;
-                
-                // Calculate PHC time at PPS edge (extrapolate backwards)
-                int64_t sampling_latency_ns = sys_now_ns - pps_sys_ns;
-                phc_at_pps_ns = phc_now_ns - sampling_latency_ns;
+            // Read RT thread's PHC sample (mutex-protected)
+            std::lock_guard<std::mutex> lock(shared_data.mutex);
+            
+            // Verify RT thread has matching PPS sequence
+            if (shared_data.phc_sample_valid && shared_data.pps_sequence == pps_data.sequence) {
+                phc_at_pps_ns = shared_data.phc_at_pps_ns;
                 phc_sample_valid = true;
                 
-                // Expert: latency should be < 10ms for accurate measurements
-                // If > 50ms, we're sampling too late (loop delays)
-                if (sampling_latency_ns > 50000000LL) {  // > 50ms
-                    std::cerr << "[PHC Sample] ⚠️  HIGH LATENCY: " << (sampling_latency_ns / 1000000.0) 
-                             << " ms (loop processing delayed PHC sampling)\n";
-                }
+                // RT thread captured this sample with low latency
+                // No need for HIGH LATENCY warning - RT thread already monitors this
             }
         }
         
