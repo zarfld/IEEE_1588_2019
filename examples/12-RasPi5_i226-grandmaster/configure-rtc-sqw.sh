@@ -26,12 +26,33 @@ CONTROL_REG="0x0E"
 SQW_VALUE="0x00"  # INTCN=0 (SQW enabled), RS=00 (1Hz)
 
 echo "Step 1: Finding DS3231 RTC device in kernel..."
-RTC_DEVICE=$(ls /sys/class/rtc/ | grep rtc)
+
+# Look for DS3231 specifically on I2C bus 14, address 0x68
+# The device name format is "14-0068"
+EXPECTED_I2C_DEVICE="$I2C_BUS-0068"
+
+# Search all RTC devices for the one matching our I2C bus and address
+RTC_DEVICE=""
+for rtc in /sys/class/rtc/rtc*; do
+    if [ -e "$rtc/device" ]; then
+        device_path=$(readlink -f $rtc/device)
+        device_name=$(basename $device_path)
+        echo "  Checking: $(basename $rtc) → $device_name"
+        
+        if [ "$device_name" = "$EXPECTED_I2C_DEVICE" ]; then
+            RTC_DEVICE=$(basename $rtc)
+            echo "  ✓ Found DS3231: /dev/$RTC_DEVICE"
+            break
+        fi
+    fi
+done
+
 if [ -z "$RTC_DEVICE" ]; then
-    echo "ERROR: No RTC device found in /sys/class/rtc/"
+    echo "ERROR: DS3231 RTC not found at I2C address $I2C_BUS-0068"
+    echo "Available RTC devices:"
+    ls -la /sys/class/rtc/
     exit 1
 fi
-echo "  Found: /dev/$RTC_DEVICE"
 
 # Find the I2C device path
 I2C_DEVICE_PATH=$(readlink -f /sys/class/rtc/$RTC_DEVICE/device)
