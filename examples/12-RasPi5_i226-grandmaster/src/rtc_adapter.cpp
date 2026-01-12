@@ -266,31 +266,26 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             struct timespec now;
             clock_gettime(CLOCK_REALTIME, &now);
             
-            // Get TAI-UTC offset from kernel
-            struct timex tx{};
-            adjtimex(&tx);
-            int tai_utc_offset = tx.tai;  // Usually 37 seconds
-            
             std::cout << "[RTC PPS] RTC seconds=" << *seconds 
                       << " PPS edge sec=" << last_pps_sec_
-                      << " System now sec=" << now.tv_sec 
-                      << " TAI-UTC=" << tai_utc_offset << "\n";
+                      << " System now sec=" << now.tv_sec << "\n";
             
-            // Convert BOTH times from CLOCK_REALTIME (UTC) to TAI for comparison with RTC
-            // CRITICAL: PPS edge timestamps are in UTC (from CLOCK_REALTIME)
-            //           RTC is in TAI
-            //           Need to convert both to same domain!
-            int64_t edge_tai_sec = last_pps_sec_ + tai_utc_offset;
-            int64_t now_tai_sec = now.tv_sec + tai_utc_offset;
+            // CRITICAL: Keep everything in UTC domain!
+            // - PPS edge timestamps are UTC (from CLOCK_REALTIME)
+            // - RTC is UTC (hwclock --utc)
+            // - System now is UTC (CLOCK_REALTIME)
+            // Do NOT convert to TAI - that's only for PHC/PTP side
+            int64_t edge_utc_sec = last_pps_sec_;
+            int64_t now_utc_sec = now.tv_sec;
             
             // Calculate nanoseconds since last SQW edge
-            // Both times now in TAI domain - can compare directly
-            int64_t edge_time_ns = (int64_t)edge_tai_sec * 1000000000LL + (int64_t)last_pps_nsec_;
-            int64_t now_tai_ns = (int64_t)now_tai_sec * 1000000000LL + (int64_t)now.tv_nsec;
-            int64_t offset_from_edge_ns = now_tai_ns - edge_time_ns;
+            // All times in UTC domain - compare directly
+            int64_t edge_time_ns = (int64_t)edge_utc_sec * 1000000000LL + (int64_t)last_pps_nsec_;
+            int64_t now_utc_ns = (int64_t)now_utc_sec * 1000000000LL + (int64_t)now.tv_nsec;
+            int64_t offset_from_edge_ns = now_utc_ns - edge_time_ns;
             
-            std::cout << "[RTC PPS] edge_tai_ns=" << edge_time_ns 
-                      << " now_tai_ns=" << now_tai_ns 
+            std::cout << "[RTC PPS] edge_utc_ns=" << edge_time_ns 
+                      << " now_utc_ns=" << now_utc_ns 
                       << " offset_from_edge=" << offset_from_edge_ns << " ns\n";
             
             // Since SQW edges are at second boundaries, calculate which second we're in
@@ -305,7 +300,7 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             // we might have captured the OLD second (before edge) but PPS shows NEW second.
             // 
             // Detect this race condition:
-            // - If edge_tai_sec == rtc_seconds + 1 (edge is 1 second ahead)
+            // - If edge_utc_sec == rtc_seconds + 1 (edge is 1 second ahead)
             // - AND offset is small (< 100ms, edge just happened)
             // - Then RTC was read BEFORE edge, adjust RTC second forward by 1
             //
@@ -317,9 +312,9 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             //   Result: RTC=N, PPS edge=N+1, offset=6ms
             //   Fix: Increment RTC to N+1 since we're actually in the new second now
             
-            if (edge_tai_sec == (int64_t)*seconds + 1 && ns_within_second < 100000000LL) {
+            if (edge_utc_sec == (int64_t)*seconds + 1 && ns_within_second < 100000000LL) {
                 std::cout << "[RTC PPS] ✓ Detected second boundary race: RTC read before edge\n"
-                          << "  RTC=" << *seconds << " Edge=" << edge_tai_sec 
+                          << "  RTC=" << *seconds << " Edge=" << edge_utc_sec 
                           << " offset=" << ns_within_second << "ns\n"
                           << "  → Incrementing RTC second to match edge (race correction)\n";
                 (*seconds)++;  // Advance RTC to match the second we're actually in
