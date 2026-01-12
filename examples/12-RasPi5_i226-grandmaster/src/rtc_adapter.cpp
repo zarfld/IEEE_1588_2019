@@ -301,6 +301,30 @@ bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
             std::cout << "[RTC PPS] Seconds since edge=" << seconds_since_edge
                       << " ns within current second=" << ns_within_second << "\n";
             
+            // CRITICAL FIX: RTC I2C read takes ~5ms. If PPS edge occurred DURING the read,
+            // we might have captured the OLD second (before edge) but PPS shows NEW second.
+            // 
+            // Detect this race condition:
+            // - If edge_tai_sec == rtc_seconds + 1 (edge is 1 second ahead)
+            // - AND offset is small (< 100ms, edge just happened)
+            // - Then RTC was read BEFORE edge, adjust RTC second forward by 1
+            //
+            // Example timeline:
+            //   t=0ms: Start RTC I2C read
+            //   t=3ms: Second boundary passes, PPS edge fires (new second starts)
+            //   t=5ms: RTC read completes with OLD second
+            //   t=6ms: PPS_FETCH returns NEW second
+            //   Result: RTC=N, PPS edge=N+1, offset=6ms
+            //   Fix: Increment RTC to N+1 since we're actually in the new second now
+            
+            if (edge_tai_sec == (int64_t)*seconds + 1 && ns_within_second < 100000000LL) {
+                std::cout << "[RTC PPS] ✓ Detected second boundary race: RTC read before edge\n"
+                          << "  RTC=" << *seconds << " Edge=" << edge_tai_sec 
+                          << " offset=" << ns_within_second << "ns\n"
+                          << "  → Incrementing RTC second to match edge (race correction)\n";
+                (*seconds)++;  // Advance RTC to match the second we're actually in
+            }
+            
             // Sanity check: offset should be reasonable (< 10 seconds typically)
             if (offset_from_edge_ns < 0) {
                 std::cout << "[RTC PPS] ⚠ Negative offset! (clock went backwards?) Using 0\n";
