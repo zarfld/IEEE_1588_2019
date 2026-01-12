@@ -449,7 +449,12 @@ int main(int argc, char* argv[])
     bool drift_valid = false;                        // True when drift has been calculated
     
     constexpr double drift_tolerance_ppm = 0.1;      // Aging offset adjustment threshold
-    constexpr int64_t time_sync_tolerance_ns = 100000000; // 100ms - only sync if error exceeds this
+    
+    // CRITICAL: DS3231 RTC has 1-second resolution → ±1s quantization noise
+    // Sync tolerance MUST be > 1 second to prevent re-sync from quantization
+    // Only sync on TRUE discontinuity (> 2 seconds) or drift-based adjustment
+    constexpr int64_t time_sync_tolerance_ns = 2000000000; // 2 seconds - only sync if error exceeds this
+    
     constexpr uint64_t min_adjustment_interval_sec = 600; // 10 minutes minimum between aging offset adjustments
     uint64_t last_aging_offset_adjustment_time = 0;  // GPS time of last aging offset adjustment
     bool rtc_initial_sync_done = false;              // Flag to force initial RTC sync on GPS lock
