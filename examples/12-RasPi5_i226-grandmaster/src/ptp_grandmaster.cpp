@@ -527,6 +527,11 @@ int main(int argc, char* argv[])
                         // This is the CORRECT reference for a 1Hz RTC (DS3231)
                         uint64_t expected_utc_sec_at_pps = 0;
                         if (gps_adapter.get_base_mapping(&expected_utc_sec_at_pps)) {
+                            static bool first_mapping_success = true;
+                            if (first_mapping_success) {
+                                std::cout << "[RTC Drift] ✓ Base mapping available, starting drift measurement\n";
+                                first_mapping_success = false;
+                            }
                             // expected_utc_sec_at_pps is already the UTC second for current PPS
                             // Convert to TAI for comparison with RTC (which is set to TAI)
                             expected_utc_sec_at_pps += 37;  // TAI-UTC offset
@@ -619,6 +624,13 @@ int main(int argc, char* argv[])
                                     }  // end if (!sanity check)
                                 }  // end else (!baseline)
                             }  // end else (!discontinuity)
+                        } else {
+                            // get_base_mapping() returned false - mapping not locked yet
+                            static uint64_t last_mapping_warning = 0;
+                            if (gps_seconds - last_mapping_warning >= 10) {
+                                std::cout << "[RTC Drift] ⚠️ Waiting for PPS-UTC base mapping lock...\n";
+                                last_mapping_warning = gps_seconds;
+                            }
                         }  // end if (gps_adapter.get_base_mapping(...))
                         
                         // Phase 1: Adjust aging offset if average drift exceeds tolerance
