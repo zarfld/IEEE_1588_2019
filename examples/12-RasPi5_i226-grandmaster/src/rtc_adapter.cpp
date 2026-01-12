@@ -14,6 +14,31 @@
 #include <sys/ioctl.h>
 #include <linux/rtc.h>
 #include <linux/i2c-dev.h>
+#include <sys/timex.h>  // For PPS API
+
+// PPS API structures
+#ifndef PPS_FETCH
+#define PPS_FETCH _IOWR('p', 4, struct pps_fdata*)
+
+struct pps_ktime {
+    int64_t sec;
+    int32_t nsec;
+    uint32_t flags;
+};
+
+struct pps_kinfo {
+    uint32_t assert_sequence;
+    uint32_t clear_sequence;
+    struct pps_ktime assert_tu;
+    struct pps_ktime clear_tu;
+    int current_mode;
+};
+
+struct pps_fdata {
+    struct pps_kinfo info;
+    struct pps_ktime timeout;
+};
+#endif
 
 namespace IEEE {
 namespace _1588 {
@@ -30,8 +55,12 @@ RtcAdapter::RtcAdapter(const std::string& rtc_device, const std::string& sqw_dev
     , sqw_device_(sqw_device)
     , rtc_fd_(-1)
     , i2c_fd_(-1)
+    , pps_fd_(-1)
     , last_sync_time_(0)
     , measured_drift_ppm_(0.0)
+    , last_pps_sec_(0)
+    , last_pps_nsec_(0)
+    , last_pps_seq_(-1)
 {
 }
 
@@ -42,6 +71,9 @@ RtcAdapter::~RtcAdapter()
     }
     if (i2c_fd_ >= 0) {
         close(i2c_fd_);
+    }
+    if (pps_fd_ >= 0) {
+        close(pps_fd_);
     }
 }
 
@@ -95,9 +127,19 @@ bool RtcAdapter::initialize()
                 usleep(50000);  // 50ms delay
                 
                 if (enable_sqw_output(true)) {
-                    std::cout << "[RTC SQW] ✓ Square wave enabled on " << sqw_device_ << "\n";
-                    std::cout << "[RTC SQW] ✓ Precision: ±1µs (vs ±1s from I2C polling)\n";
-                    std::cout << "[RTC SQW] ✓ Drift measurement: 1,000,000x more accurate!\n";
+                    // Open PPS device for reading SQW timestamps
+                    pps_fd_ = open(sqw_device_.c_str(), O_RDONLY);
+                    if (pps_fd_ < 0) {
+                        std::cerr << "[RTC SQW] ⚠ Failed to open PPS device " << sqw_device_ 
+                                  << " (errno=" << errno << ": " << strerror(errno) << ")\n";
+                        std::cerr << "[RTC SQW] ⚠ SQW configured but cannot read timestamps - using I2C polling\n";
+                        sqw_device_.clear();
+                    } else {
+                        std::cout << "[RTC SQW] ✓ PPS device " << sqw_device_ << " opened (fd=" << pps_fd_ << ")\n";
+                        std::cout << "[RTC SQW] ✓ Square wave enabled on " << sqw_device_ << "\n";
+                        std::cout << "[RTC SQW] ✓ Precision: ±1µs (vs ±1s from I2C polling)\n";
+                        std::cout << "[RTC SQW] ✓ Drift measurement: 1,000,000x more accurate!\n";
+                    }
                 } else {
                     std::cerr << "[RTC SQW] ⚠ Failed to enable square wave (continuing with I2C polling)\n";
                     sqw_device_.clear();  // Disable SQW if configuration failed
@@ -159,8 +201,38 @@ bool RtcAdapter::set_time(const RtcTime& rtc_time)
     return true;
 }
 
-bool RtcAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
+bool RtcAdapter::get_time(uint64_t* seconds, uint32_t* nanoseconds)
 {
+    // If SQW/PPS available, read nanosecond-precision timestamp
+    if (pps_fd_ >= 0) {
+        struct pps_fdata pps_data{};
+        pps_data.timeout.sec = 0;
+        pps_data.timeout.nsec = 100000000;  // 100ms timeout
+        
+        if (ioctl(pps_fd_, PPS_FETCH, &pps_data) == 0) {
+            // Check if we got a new timestamp
+            if (pps_data.info.assert_sequence != (uint32_t)last_pps_seq_) {
+                last_pps_seq_ = pps_data.info.assert_sequence;
+                last_pps_sec_ = pps_data.info.assert_tu.sec;
+                last_pps_nsec_ = pps_data.info.assert_tu.nsec;
+                
+                *seconds = last_pps_sec_;
+                *nanoseconds = last_pps_nsec_;
+                return true;
+            }
+        }
+        
+        // No new PPS edge, return last known timestamp
+        if (last_pps_seq_ >= 0) {
+            *seconds = last_pps_sec_;
+            *nanoseconds = last_pps_nsec_;
+            return true;
+        }
+        
+        // Fall through to RTC read if no PPS data yet
+    }
+    
+    // Fallback: Read integer-second RTC time
     RtcTime rtc_time{};
     if (!read_time(&rtc_time)) {
         return false;
@@ -177,9 +249,15 @@ bool RtcAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
 
     time_t unix_time = timegm(&tm_time);
     *seconds = static_cast<uint64_t>(unix_time);
-    *nanoseconds = 0; // RTC has 1-second resolution
+    *nanoseconds = 0; // RTC has 1-second resolution (no PPS)
 
     return true;
+}
+
+bool RtcAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
+{
+    // Use the new get_time() which supports both PPS and RTC fallback
+    return get_time(seconds, nanoseconds);
 }
 
 bool RtcAdapter::set_ptp_time(uint64_t seconds, uint32_t nanoseconds)

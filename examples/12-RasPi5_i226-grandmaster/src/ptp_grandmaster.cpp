@@ -589,22 +589,24 @@ int main(int argc, char* argv[])
                             } else {
                             
                                 // RTC aligned to correct second (error_sec == 0)
-                                // EXPERT FIX: DS3231 has 1-second resolution (rtc_nanoseconds always 0)
+                                // DS3231 resolution: 1 second (I2C polling) OR nanoseconds (SQW edge detection)
                                 // Track cumulative error by comparing RTC to GPS time
                                 // NOTE: gps_seconds from get_ptp_time() is TAI (UTC+37, see gps_adapter.cpp:797)
                                 // NOTE: RTC is set via sync_from_gps() to gps_seconds+1 (TAI+1, see rtc_adapter.cpp:197)
                                 // 
                                 // CRITICAL: For drift measurement, we do NOT use "closest" logic!
-                                // - RTC has ±1 second quantization noise (read timing artifact)
+                                // - RTC I2C has ±1 second quantization noise (read timing artifact)
+                                // - RTC SQW has ±1 microsecond precision (PPS edge detection)
                                 // - We measure over 10+ second intervals to average this out
                                 // - Let error accumulate naturally to see real drift
                                 // - Discontinuity detection (above) already uses "closest" to filter outliers
                                 int64_t rtc_tai_sec = static_cast<int64_t>(rtc_seconds);
+                                int64_t rtc_tai_nsec = static_cast<int64_t>(rtc_nanoseconds);
                                 int64_t gps_tai_sec = static_cast<int64_t>(gps_seconds);
                                 
-                                // Raw error (with quantization noise)
+                                // Raw error (with quantization noise for I2C, or precise for SQW)
                                 // RTC is set to GPS+1 during sync, so normal state is RTC == GPS+1
-                                time_error_ns = (rtc_tai_sec - (gps_tai_sec + 1)) * 1000000000LL;
+                                time_error_ns = ((rtc_tai_sec - (gps_tai_sec + 1)) * 1000000000LL) + rtc_tai_nsec;
                                 
                                 // EXPERT FIX: Require baseline sample after reset
                                 // Check baseline_established flag (declared at function scope with drift_buffer variables)

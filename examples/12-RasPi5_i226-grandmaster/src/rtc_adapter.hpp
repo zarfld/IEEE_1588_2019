@@ -144,12 +144,17 @@ private:
     std::string sqw_device_;     ///< SQW PPS device path (optional, for edge detection)
     int         rtc_fd_;         ///< RTC device file descriptor
     int         i2c_fd_;         ///< I2C bus file descriptor for DS3231
+    int         pps_fd_;         ///< PPS device file descriptor for SQW (optional)
     
     uint64_t    last_sync_sec_;  ///< Last GPS sync time (seconds)
     uint64_t    last_sync_nsec_; ///< Last GPS sync time (nanoseconds)
     uint64_t    last_sync_time_; ///< Last GPS sync combined time
     uint32_t    drift_ppb_;      ///< Estimated RTC drift (parts-per-billion)
     double      measured_drift_ppm_; ///< Measured drift in PPM
+    
+    uint64_t    last_pps_sec_;   ///< Last PPS timestamp (seconds)
+    uint32_t    last_pps_nsec_;  ///< Last PPS timestamp (nanoseconds)
+    int         last_pps_seq_;   ///< Last PPS sequence number
     
     // Private helper methods
     void convert_rtc_to_ptp(const RtcTime& rtc, uint64_t* seconds);
@@ -165,6 +170,17 @@ public:
     int8_t read_aging_offset();
     bool write_aging_offset(int8_t offset);  // Direct write for incremental adjustments
     double get_temperature();
+    
+    /**
+     * @brief Get RTC time with nanosecond precision (from SQW if available)
+     * @param seconds Output: Seconds since epoch
+     * @param nanoseconds Output: Nanoseconds (from PPS if SQW enabled, else 0)
+     * @return true on success, false on failure
+     * 
+     * @note If SQW is available, reads PPS timestamp for nanosecond precision.
+     *       Otherwise falls back to integer-second RTC reading.
+     */
+    bool get_time(uint64_t* seconds, uint32_t* nanoseconds);
     
     // DS3231 Square Wave Output (1Hz) - for high-precision drift measurement
     bool enable_sqw_output(bool enable = true);  ///< Enable/disable 1Hz square wave output
