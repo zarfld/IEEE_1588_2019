@@ -23,7 +23,9 @@ namespace Linux {
 // Get TAI-UTC offset from kernel (adjtimex provides current value)
 // Fallback to 37 seconds (as of January 2026) if kernel doesn't provide it
 static int64_t get_tai_offset_seconds() {
-    struct timex tx = {0};
+    struct timex tx;
+    std::memset(&tx, 0, sizeof(tx));  // Zero-initialize to avoid warnings
+    
     if (adjtimex(&tx) < 0) {
         return 37;  // fallback to known value for 2026
     }

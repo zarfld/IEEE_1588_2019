@@ -93,12 +93,20 @@ cmake --build .
 
 ### 1. Verify Kernel TAI Offset
 
+**Note**: The `adjtimex` command-line utility is **optional** - the system call `adjtimex()` in the code works regardless. The utility is only for manual verification/configuration.
+
 ```bash
-# Check if kernel has TAI offset configured:
+# Check if kernel has TAI offset configured (requires adjtimex utility):
 adjtimex --print | grep tai
 
-# If output shows "tai: 37" → Kernel is configured correctly ✅
-# If output shows "tai: 0"  → Need to set it (see below)
+# If command not found, install it (optional):
+sudo apt install adjtimex
+
+# Alternative: Check using direct system call (always works):
+python3 -c "import ctypes; tx = type('timex', (), {'tai': ctypes.c_long(0)})(); libc = ctypes.CDLL('libc.so.6'); libc.adjtimex(ctypes.byref(tx)); print('TAI offset:', tx.tai)"
+
+# If output shows "tai: 37" or "TAI offset: 37" → Kernel is configured correctly ✅
+# If output shows "tai: 0" or "TAI offset: 0"  → Need to set it (see below)
 ```
 
 ### 2. Set Kernel TAI Offset (If Needed)
