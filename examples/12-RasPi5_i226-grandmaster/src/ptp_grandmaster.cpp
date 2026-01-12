@@ -683,6 +683,12 @@ int main(int argc, char* argv[])
                         uint64_t time_since_last_adjustment = last_aging_offset_adjustment_time > 0 
                             ? (gps_seconds - last_aging_offset_adjustment_time) : UINT64_MAX;
                         
+                        std::cout << "[RTC Adjust DEBUG] Evaluating aging offset adjustment:\n";
+                        std::cout << "  Drift Avg: " << drift_avg << " ppm | Threshold: ±" << drift_tolerance_ppm << " ppm\n";
+                        std::cout << "  Time since last adjust: " << (time_since_last_adjustment == UINT64_MAX ? "NEVER" : std::to_string(time_since_last_adjustment) + "s") 
+                                 << " | Min interval: " << min_adjustment_interval_sec << "s\n";
+                        std::cout << "  Sync counter: " << sync_counter << " | Required: >1200\n";
+                        
                         if (sync_counter > 1200 && 
                             std::abs(drift_avg) > drift_tolerance_ppm &&
                             time_since_last_adjustment >= min_adjustment_interval_sec) {
@@ -730,6 +736,19 @@ int main(int argc, char* argv[])
                                 } else {
                                     std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset\n";
                                 }
+                            } else {
+                                std::cout << "[RTC Adjust DEBUG] ℹ No adjustment needed (drift within threshold or conditions not met)\n";
+                            }
+                        } else {
+                            std::cout << "[RTC Adjust DEBUG] ℹ Adjustment criteria NOT met:\n";
+                            if (sync_counter <= 1200) {
+                                std::cout << "  ⏸ Warmup period (sync_counter=" << sync_counter << " ≤ 1200)\n";
+                            }
+                            if (std::abs(drift_avg) <= drift_tolerance_ppm) {
+                                std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ≤ " << drift_tolerance_ppm << " ppm)\n";
+                            }
+                            if (time_since_last_adjustment < min_adjustment_interval_sec && time_since_last_adjustment != UINT64_MAX) {
+                                std::cout << "  ⏳ Too soon since last adjust (" << time_since_last_adjustment << "s < " << min_adjustment_interval_sec << "s)\n";
                             }
                         }
                         
