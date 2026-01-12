@@ -440,6 +440,7 @@ int main(int argc, char* argv[])
     size_t drift_buffer_count = 0;                   // Valid samples
     uint64_t last_drift_calc_time = 0;              // Last GPS time when drift was calculated
     int64_t last_time_error_ns = 0;                 // Last measured time error
+    bool baseline_established = false;               // Flag to prevent re-establishing baseline
     
     // Latest drift measurements for PPS display
     double current_drift_ppm = 0.0;                 // Most recent drift measurement
@@ -570,8 +571,7 @@ int main(int argc, char* argv[])
                                 time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
                                 
                                 // EXPERT FIX: Require baseline sample after reset
-                                // Use static flag to ensure baseline only established once per reset
-                                static bool baseline_established = false;
+                                // Check baseline_established flag (declared at function scope with drift_buffer variables)
                                 if (!baseline_established && drift_buffer_count == 0) {
                                     // First valid sample after reset - establish baseline
                                     // CRITICAL: Do NOT reset last_drift_calc_time here!
