@@ -556,41 +556,38 @@ int main(int argc, char* argv[])
                                 
                                 last_drift_calc_time = gps_seconds;
                                 // last_time_error_ns is intentionally NOT updated (no valid baseline yet)
-                                continue;  // Skip this iteration
-                            }
+                            } else {
                             
-                            // RTC aligned to correct second (error_sec == 0)
-                            // Sub-second error tracking uses nanoseconds field (0 for DS3231)
-                            time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
+                                // RTC aligned to correct second (error_sec == 0)
+                                // Sub-second error tracking uses nanoseconds field (0 for DS3231)
+                                time_error_ns = static_cast<int64_t>(rtc_nanoseconds);
+                                
+                                // EXPERT FIX: Require baseline sample after reset
+                                if (!drift_valid || drift_buffer_count == 0) {
+                                    // First valid sample after reset - establish baseline
+                                    last_time_error_ns = time_error_ns;
+                                    last_drift_calc_time = gps_seconds;
+                                    drift_valid = false;  // Still not valid until we have drift calculation
+                                    if (verbose) {
+                                        std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
+                                    }
+                                } else {
                             
-                            // EXPERT FIX: Require baseline sample after reset
-                            if (!drift_valid || drift_buffer_count == 0) {
-                                // First valid sample after reset - establish baseline
-                                last_time_error_ns = time_error_ns;
-                                last_drift_calc_time = gps_seconds;
-                                drift_valid = false;  // Still not valid until we have drift calculation
-                                if (verbose) {
-                                    std::cout << "[RTC Drift] Baseline established: " << time_error_ns << " ns\n";
-                                }
-                                continue;  // Wait for next sample
-                            }
-                            
-                            // Calculate drift: change in error over time interval
-                            int64_t error_change_ns = time_error_ns - last_time_error_ns;
-                            double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
-                            
-                            // Sanity check: drift should be small (sub-ppm for DS3231)
-                            // If >100 ppm, something is wrong (maybe sub-second rollover artifact)
-                            if (std::abs(drift_ppm) > 100.0) {
-                                std::cout << "[RTC Drift] ⚠️ Suspicious drift " << drift_ppm << " ppm (>100 ppm)\n"
-                                         << "  → Resetting drift buffer\n";
-                                drift_buffer_count = 0;
-                                drift_buffer_index = 0;
-                                drift_valid = false;
-                                last_time_error_ns = time_error_ns;
-                                last_drift_calc_time = gps_seconds;
-                                continue;
-                            }
+                                    // Calculate drift: change in error over time interval
+                                    int64_t error_change_ns = time_error_ns - last_time_error_ns;
+                                    double drift_ppm = (error_change_ns / 1000.0) / static_cast<double>(elapsed_sec);
+                                    
+                                    // Sanity check: drift should be small (sub-ppm for DS3231)
+                                    // If >100 ppm, something is wrong (maybe sub-second rollover artifact)
+                                    if (std::abs(drift_ppm) > 100.0) {
+                                        std::cout << "[RTC Drift] ⚠️ Suspicious drift " << drift_ppm << " ppm (>100 ppm)\n"
+                                                 << "  → Resetting drift buffer\n";
+                                        drift_buffer_count = 0;
+                                        drift_buffer_index = 0;
+                                        drift_valid = false;
+                                        last_time_error_ns = time_error_ns;
+                                        last_drift_calc_time = gps_seconds;
+                                    } else {
                             
                             // Add to circular buffer (now clean, no outliers)
                             drift_buffer[drift_buffer_index] = drift_ppm;
@@ -610,15 +607,18 @@ int main(int argc, char* argv[])
                             current_time_error_ms = time_error_ns / 1000000.0;
                             drift_valid = true;
                             
-                            // Log RTC drift measurement progress every 10 seconds
-                            static uint64_t last_drift_progress_log = 0;
-                            if (gps_seconds - last_drift_progress_log >= 10) {
-                                std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
-                                         << drift_ppm << " ppm | Avg(" << drift_buffer_count << "): " 
-                                         << drift_avg << " ppm | Error: " 
-                                         << (time_error_ns / 1000000.0) << " ms\n";
-                                last_drift_progress_log = gps_seconds;
-                            }
+                                        // Log RTC drift measurement progress every 10 seconds
+                                        static uint64_t last_drift_progress_log = 0;
+                                        if (gps_seconds - last_drift_progress_log >= 10) {
+                                            std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
+                                                     << drift_ppm << " ppm | Avg(" << drift_buffer_count << "): " 
+                                                     << drift_avg << " ppm | Error: " 
+                                                     << (time_error_ns / 1000000.0) << " ms\n";
+                                            last_drift_progress_log = gps_seconds;
+                                        }
+                                    }  // end if (!sanity check)
+                                }  // end else (!baseline)
+                            }  // end else (!discontinuity)
                         }  // end if (gps_adapter.get_base_mapping(...))
                         
                         // Phase 1: Adjust aging offset if average drift exceeds tolerance
