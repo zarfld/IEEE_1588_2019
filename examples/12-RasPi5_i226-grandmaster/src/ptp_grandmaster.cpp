@@ -578,6 +578,16 @@ int main(int argc, char* argv[])
                         current_time_error_ms = time_error_ns / 1000000.0;
                         drift_valid = true;
                         
+                        // Log RTC drift measurement progress every 10 seconds
+                        static uint64_t last_drift_progress_log = 0;
+                        if (gps_seconds - last_drift_progress_log >= 10) {
+                            std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
+                                     << drift_ppm << " ppm | Avg(" << drift_buffer_count << "): " 
+                                     << drift_avg << " ppm | Error: " 
+                                     << (time_error_ns / 1000000.0) << " ms\n";
+                            last_drift_progress_log = gps_seconds;
+                        }
+                        
                         // Phase 1: Adjust aging offset if average drift exceeds tolerance
                         // Best practice: small incremental adjustments, not full recalculation
                         // Wait minimum interval between adjustments to allow settling
