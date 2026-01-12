@@ -14,21 +14,28 @@
 #include <sys/ioctl.h>
 #include <linux/rtc.h>
 #include <linux/i2c-dev.h>
-#include <sys/timex.h>  // For PPS API
+#include <sys/timex.h>
 
-// PPS API structures
-#ifndef PPS_FETCH
-#define PPS_FETCH _IOWR('p', 4, struct pps_fdata*)
+// Kernel PPS API (RFC 2783)
+#include <sys/time.h>
+
+// PPS API structures (from kernel uapi/linux/pps.h)
+#ifndef PPS_GETPARAMS
+#define PPS_GETPARAMS   _IOR('p', 0xa1, struct pps_kparams *)
+#define PPS_SETPARAMS   _IOW('p', 0xa2, struct pps_kparams *)
+#define PPS_GETCAP      _IOR('p', 0xa3, int *)
+#define PPS_FETCH       _IOWR('p', 0xa4, struct pps_fdata *)
+#endif
 
 struct pps_ktime {
-    int64_t sec;
-    int32_t nsec;
-    uint32_t flags;
+    __s64 sec;
+    __s32 nsec;
+    __u32 flags;
 };
 
 struct pps_kinfo {
-    uint32_t assert_sequence;
-    uint32_t clear_sequence;
+    __u32 assert_sequence;
+    __u32 clear_sequence;
     struct pps_ktime assert_tu;
     struct pps_ktime clear_tu;
     int current_mode;
@@ -38,7 +45,6 @@ struct pps_fdata {
     struct pps_kinfo info;
     struct pps_ktime timeout;
 };
-#endif
 
 namespace IEEE {
 namespace _1588 {
