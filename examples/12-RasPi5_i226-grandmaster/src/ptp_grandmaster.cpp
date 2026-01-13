@@ -1112,10 +1112,26 @@ int main(int argc, char* argv[])
                     continue;
                 }
                 
-                // Step correction for large offsets (>100ms for faster initial lock)
-                if (std::abs(offset_ns) > 100000000LL) {  // 100ms threshold
+                // Step correction for large offsets
+                // EXPERT FIX (deb.md): Use state-dependent step thresholds to avoid oscillation
+                // - RECOVERY_GPS: High threshold (1s) to allow smooth slewing through initial errors
+                // - LOCKED_GPS: Medium threshold (100ms) for faster corrections during operation
+                // - HOLDOVER_RTC: No stepping (preserve GPS mapping anchors)
+                int64_t step_threshold_ns = 100000000LL;  // Default: 100ms
+                
+                if (phc_servo.servo_state == RECOVERY_GPS) {
+                    // During recovery, use 1-second threshold to prevent step oscillation
+                    // Let PI servo slew through errors <1s for smooth convergence
+                    step_threshold_ns = 1000000000LL;  // 1 second
+                } else if (phc_servo.servo_state == HOLDOVER_RTC) {
+                    // During holdover, NEVER step (would corrupt GPS mapping)
+                    step_threshold_ns = INT64_MAX;  // Effectively disable stepping
+                }
+                
+                if (std::abs(offset_ns) > step_threshold_ns) {
                     if (verbose) {
-                        std::cout << "[PHC Discipline] Step correction: " << (offset_ns / 1000000.0) << " ms\n";
+                        std::cout << "[PHC Discipline] Step correction: " << (offset_ns / 1000000.0) << " ms"
+                                 << " (threshold=" << (step_threshold_ns / 1000000.0) << "ms)\n";
                     }
                     ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
                     phc_servo.integral = 0.0;  // Reset integral on step
