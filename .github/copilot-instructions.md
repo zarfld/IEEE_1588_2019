@@ -503,6 +503,25 @@ A well-executed task should:
 - ✅ Pass all quality gates
 - ✅ Satisfy user acceptance criteria
 
+## Documentation & Instruction Files
+
+always do:
+- ensure existing documentation is updated alongside code changes
+- keep documentation consistent with implemented features
+- 
+
+never do:
+- leave documentation outdated or inconsistent with code
+- create speculative documentation for unimplemented features
+- create new MD when existing documenation already captures that topic
+
+### correction of newly created files which should have been updates to existing documentation:
+
+Documentation Integrity (The Boy Scout Rule): Always leave the documentation healthier than you found it. Instead of allowing documentation to fragment into multiple files, practice Litter-Pickup Refactoring:
+• Consolidate: Integrate new scopes into the primary information items rather than spawning "orphaned" files.
+• Validate: Ensure the baseline document is semantically correct and inclusive of all new details before discarding the temporary artifact.
+• Purge: After verifying full content parity remove redundant files immediately once their content is successfully merged to prevent misdirection.
+
 ## 🔗 Related Files
 
 - Phase-specific instructions: `.github/instructions/phase-NN-*.instructions.md` (auto-applied by file location)
