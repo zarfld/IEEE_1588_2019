@@ -56,6 +56,9 @@ GpsAdapter::GpsAdapter(const std::string& serial_device,
     , association_dt_sum_(0)
     , last_nmea_time_(0)
 {
+    // Initialize PPS data with dropout detection fields
+    pps_data_.dropout_detected = false;
+    pps_data_.seq_delta = 0;
 }
 
 GpsAdapter::~GpsAdapter()
@@ -479,6 +482,8 @@ bool GpsAdapter::update_pps_data()
     pps_data_.sequence = pps_info.assert_sequence;
     pps_data_.jitter_nsec = current_jitter;
     pps_data_.valid = true;
+    pps_data_.dropout_detected = dropout_detected;  // EXPERT FIX: Track dropout
+    pps_data_.seq_delta = static_cast<uint32_t>(seq_delta);
     
     // Track max jitter (output handled by caller)
     static uint32_t max_jitter = 0;

@@ -428,6 +428,13 @@ int main(int argc, char* argv[])
     uint64_t announce_counter = 0;
     uint64_t sync_counter = 0;
     
+    // Servo state enum (deb.holdover.md: GPS → RTC holdover → GPS recovery)
+    enum ServoState {
+        LOCKED_GPS,      // Normal operation: PHC disciplined to GPS PPS + GPS ToD
+        HOLDOVER_RTC,    // GPS lost: PHC frequency stabilized via RTC PPS (frozen anchors)
+        RECOVERY_GPS     // GPS returning: Reacquisition window before LOCKED_GPS
+    };
+    
     // PHC discipline servo state
     struct {
         double kp = 0.7;              // Proportional gain
@@ -444,8 +451,24 @@ int main(int argc, char* argv[])
         int64_t baseline_phc_ns = 0;       // PHC time (ns) at baseline PPS edge
         uint32_t calib_interval_pulses = 20; // Measure over 20 PPS pulses (20 seconds)
         
+        // Expert-recommended frequency-error servo (deb.md Session 4)
+        int64_t last_phase_err_ns = 0;      // Previous phase error for frequency calculation
+        double freq_ema = 0.0;              // EMA-filtered frequency error (ppb)
+        uint32_t last_pps_seq = 0;          // Last PPS sequence (for dropout detection)
+        ServoState servo_state = RECOVERY_GPS;  // Start in recovery (wait for GPS lock)
+        uint32_t consecutive_locked = 0;    // Consecutive locked samples (for stability)
+        uint32_t consecutive_gps_good = 0;  // GPS recovery: consecutive good samples
+        uint64_t last_state_change_time = 0; // Time of last state transition
+        
         const double integral_max = 10000000000.0;  // ±10 seconds max integral (anti-windup)
         const int32_t freq_max_ppb = 500000;        // ±500ppm per adjustment (safe iterative steps)
+        const double freq_ema_alpha = 0.1;          // EMA filter coefficient (10-sample smoothing)
+        const double freq_threshold_ppb = 1.0;      // Apply correction if |freq_ema| > 1 ppb
+        const int64_t phase_lock_threshold_ns = 100; // Phase lock at ±100ns (expert: ±100ns)
+        const double freq_lock_threshold_ppb = 5.0;  // Frequency lock at ±5ppb (expert: ±5ppb)
+        const uint32_t lock_stability_samples = 10;  // Require 10 consecutive samples to declare LOCKED
+        const uint32_t recovery_samples = 10;        // GPS recovery: 10 good samples before LOCKED_GPS
+        const int64_t holdover_phase_limit_ns = 100000000; // 100ms: RTC phase error limit
     } phc_servo;
     
     // Fast drift tracking with 60-sample moving average (1 minute @ 1 sec intervals)
@@ -483,11 +506,23 @@ int main(int argc, char* argv[])
         uint32_t pps_max_jitter_ns = 0;
         bool pps_ready = gps_adapter.get_pps_data(&pps_data, &pps_max_jitter_ns);
         
+        // EXPERT FIX (deb.md): Check for PPS dropout BEFORE using PPS data
+        // If seq_delta != 1, freeze frequency corrections to prevent corrupted data
+        bool pps_dropout = false;
+        if (pps_ready && pps_data.dropout_detected) {
+            pps_dropout = true;
+            std::cout << "[PHC Discipline] ⚠️ PPS DROPOUT - Freezing frequency corrections "
+                     << "(seq_delta=" << pps_data.seq_delta << ", missed " 
+                     << (pps_data.seq_delta - 1) << " pulse(s))\\n";
+            // Continue to next iteration - do NOT use this corrupted data
+            // This prevents "one missed wakeup...pollute your frequency correction for minutes" (deb.md)
+        }
+        
         // Get PHC sample from RT thread (low-latency PPS+PHC capture)
         // RT thread samples PHC immediately after PPS edge with <10ms latency
         int64_t phc_at_pps_ns = 0;
         bool phc_sample_valid = false;
-        if (pps_ready && pps_data.sequence > 0) {
+        if (pps_ready && !pps_dropout && pps_data.sequence > 0) {
             // Read RT thread's PHC sample (mutex-protected)
             std::lock_guard<std::mutex> lock(shared_data.mutex);
             
@@ -525,6 +560,55 @@ int main(int argc, char* argv[])
             if (verbose && gps_seconds != last_gps_log_time) {
                 std::cout << "GPS Time: " << gps_seconds << "." << gps_nanoseconds << " TAI\n";
                 last_gps_log_time = gps_seconds;
+            }
+
+            // ═══════════════════════════════════════════════════════════════════════════
+            // Servo State Machine (deb.holdover.md: LOCKED_GPS ↔ HOLDOVER_RTC ↔ RECOVERY_GPS)
+            // ═══════════════════════════════════════════════════════════════════════════
+            
+            bool gps_pps_valid = pps_ready && !pps_dropout;
+            bool gps_tod_valid = gps_available;  // Already checked above
+            
+            // State transition logic
+            switch (phc_servo.servo_state) {
+                case RECOVERY_GPS:
+                    // Waiting for GPS to stabilize before declaring lock
+                    if (gps_pps_valid && gps_tod_valid) {
+                        phc_servo.consecutive_gps_good++;
+                        if (phc_servo.consecutive_gps_good >= phc_servo.recovery_samples) {
+                            std::cout << "[Servo State] RECOVERY_GPS → LOCKED_GPS (GPS stable for " 
+                                     << phc_servo.recovery_samples << " samples)\n";
+                            phc_servo.servo_state = LOCKED_GPS;
+                            phc_servo.last_state_change_time = gps_seconds;
+                            phc_servo.integral = 0.0;  // Reset integrator on transition
+                            phc_servo.consecutive_locked = 0;
+                        }
+                    } else {
+                        phc_servo.consecutive_gps_good = 0;  // Reset on bad sample
+                    }
+                    break;
+                    
+                case LOCKED_GPS:
+                    // Check for GPS loss
+                    if (!gps_pps_valid || !gps_tod_valid) {
+                        std::cout << "[Servo State] ⚠️ LOCKED_GPS → HOLDOVER_RTC (GPS lost: PPS=" 
+                                 << (gps_pps_valid ? "OK" : "FAIL") << ", ToD=" 
+                                 << (gps_tod_valid ? "OK" : "FAIL") << ")\n";
+                        phc_servo.servo_state = HOLDOVER_RTC;
+                        phc_servo.last_state_change_time = gps_seconds;
+                        // Freeze GPS mapping anchors (deb.holdover.md: do NOT rebuild from RTC)
+                    }
+                    break;
+                    
+                case HOLDOVER_RTC:
+                    // Check for GPS recovery
+                    if (gps_pps_valid && gps_tod_valid) {
+                        std::cout << "[Servo State] HOLDOVER_RTC → RECOVERY_GPS (GPS returning)\n";
+                        phc_servo.servo_state = RECOVERY_GPS;
+                        phc_servo.last_state_change_time = gps_seconds;
+                        phc_servo.consecutive_gps_good = 0;
+                    }
+                    break;
             }
 
             // ═══════════════════════════════════════════════════════════════════════════
@@ -1036,56 +1120,158 @@ int main(int argc, char* argv[])
                     ptp_hal.set_phc_time(gps_seconds, gps_nanoseconds);
                     phc_servo.integral = 0.0;  // Reset integral on step
                     phc_servo.locked = false;
-                } else {
-                    // PI servo for smooth tracking
-                    phc_servo.integral += offset_ns;
+                } else if (!pps_dropout) {  // EXPERT FIX: Only apply frequency corrections if NO dropout
+                    // ═══════════════════════════════════════════════════════════════════
+                    // STATE-DEPENDENT SERVO (deb.holdover.md expert recommendation)
+                    // ═══════════════════════════════════════════════════════════════════
                     
-                    // Anti-windup: Clamp integral to prevent accumulation
-                    if (phc_servo.integral > phc_servo.integral_max) {
-                        phc_servo.integral = phc_servo.integral_max;
-                    } else if (phc_servo.integral < -phc_servo.integral_max) {
-                        phc_servo.integral = -phc_servo.integral_max;
-                    }
-                    
-                    // Calculate frequency adjustment from PI controller
-                    // CRITICAL: This is the TOTAL frequency needed, not incremental!
-                    // The PI servo integrates over time, so the output IS the total correction.
-                    double adjustment = phc_servo.kp * offset_ns + phc_servo.ki * phc_servo.integral;
-                    int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
-                    
-                    // Clamp frequency adjustment to safe bounds
-                    if (freq_ppb > phc_servo.freq_max_ppb) {
-                        freq_ppb = phc_servo.freq_max_ppb;
-                    } else if (freq_ppb < -phc_servo.freq_max_ppb) {
-                        freq_ppb = -phc_servo.freq_max_ppb;
-                    }
-                    
-                    // PI servo output is TOTAL frequency (calibration already applied)
-                    // Add to calibrated base frequency for final adjustment
-                    int32_t total_freq_ppb = phc_servo.cumulative_freq_ppb + freq_ppb;
-                    
-                    // Clamp total to hardware limits
-                    const int32_t max_total_freq = 500000;
-                    if (total_freq_ppb > max_total_freq) total_freq_ppb = max_total_freq;
-                    if (total_freq_ppb < -max_total_freq) total_freq_ppb = -max_total_freq;
-                    
-                    ptp_hal.adjust_phc_frequency(total_freq_ppb);
-                    
-                    // Lock detection at 1µs threshold (looser than original 100ns)
-                    if (std::abs(offset_ns) < 1000 && !phc_servo.locked) {
-                        std::cout << "[PHC Discipline] ✓ Locked to GPS (offset < 1µs)\n";
-                        phc_servo.locked = true;
-                    } else if (std::abs(offset_ns) > 10000 && phc_servo.locked) {
-                        // Lost lock if offset exceeds 10µs
-                        phc_servo.locked = false;
-                        if (verbose) {
-                            std::cout << "[PHC Discipline] ⚠ Lock lost (offset > 10µs)\n";
+                    if (phc_servo.servo_state == LOCKED_GPS || phc_servo.servo_state == RECOVERY_GPS) {
+                        // ─────────────────────────────────────────────────────────────────
+                        // LOCKED_GPS / RECOVERY_GPS: Normal PI servo using GPS PPS
+                        // ─────────────────────────────────────────────────────────────────
+                        phc_servo.integral += offset_ns;
+                        
+                        // Anti-windup: Clamp integral to prevent accumulation
+                        if (phc_servo.integral > phc_servo.integral_max) {
+                            phc_servo.integral = phc_servo.integral_max;
+                        } else if (phc_servo.integral < -phc_servo.integral_max) {
+                            phc_servo.integral = -phc_servo.integral_max;
+                        }
+                        
+                        // Calculate frequency adjustment from PI controller
+                        double adjustment = phc_servo.kp * offset_ns + phc_servo.ki * phc_servo.integral;
+                        int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
+                        
+                        // Clamp frequency adjustment to safe bounds
+                        if (freq_ppb > phc_servo.freq_max_ppb) {
+                            freq_ppb = phc_servo.freq_max_ppb;
+                        } else if (freq_ppb < -phc_servo.freq_max_ppb) {
+                            freq_ppb = -phc_servo.freq_max_ppb;
+                        }
+                        
+                        // PI servo output is TOTAL frequency (calibration already applied)
+                        int32_t total_freq_ppb = phc_servo.cumulative_freq_ppb + freq_ppb;
+                        
+                        // Clamp total to hardware limits
+                        const int32_t max_total_freq = 500000;
+                        if (total_freq_ppb > max_total_freq) total_freq_ppb = max_total_freq;
+                        if (total_freq_ppb < -max_total_freq) total_freq_ppb = -max_total_freq;
+                        
+                        ptp_hal.adjust_phc_frequency(total_freq_ppb);
+                        
+                        // ═══════════════════════════════════════════════════════════════════
+                        // Lock Detection (deb.md: ±100ns phase AND ±5ppb frequency)
+                        // ═══════════════════════════════════════════════════════════════════
+                        bool phase_locked = std::abs(offset_ns) < phc_servo.phase_lock_threshold_ns;
+                        bool freq_locked = std::abs(freq_ppb) < phc_servo.freq_lock_threshold_ppb;
+                        
+                        if (phc_servo.servo_state == LOCKED_GPS) {
+                            if (phase_locked && freq_locked) {
+                                phc_servo.consecutive_locked++;
+                                if (phc_servo.consecutive_locked >= phc_servo.lock_stability_samples && !phc_servo.locked) {
+                                    std::cout << "[Servo Lock] ✓ LOCKED (phase=" << offset_ns << "ns < ±" 
+                                             << phc_servo.phase_lock_threshold_ns << "ns, freq=" << freq_ppb 
+                                             << "ppb < ±" << phc_servo.freq_lock_threshold_ppb << "ppb)\n";
+                                    phc_servo.locked = true;
+                                }
+                            } else {
+                                // Reset consecutive counter if criteria not met
+                                if (phc_servo.consecutive_locked > 0) {
+                                    phc_servo.consecutive_locked = 0;
+                                }
+                                // Lost lock if was previously locked
+                                if (phc_servo.locked && (!phase_locked || !freq_locked)) {
+                                    phc_servo.locked = false;
+                                    std::cout << "[Servo Lock] ⚠ Lock LOST (phase=" << offset_ns << "ns, freq=" 
+                                             << freq_ppb << "ppb)\n";
+                                }
+                            }
+                        }
+                        
+                        if (verbose && (sync_counter % 10 == 0)) {
+                            const char* state_str = (phc_servo.servo_state == LOCKED_GPS) ? "LOCKED_GPS" :
+                                                   (phc_servo.servo_state == HOLDOVER_RTC) ? "HOLDOVER_RTC" : "RECOVERY_GPS";
+                            std::cout << "[PHC Discipline] State=" << state_str 
+                                     << ", Offset=" << offset_ns << "ns, Freq=" << freq_ppb 
+                                     << "ppb, Lock=" << (phc_servo.locked ? "YES" : "NO") << "\n";
+                        }
+                        
+                    } else if (phc_servo.servo_state == HOLDOVER_RTC) {
+                        // ─────────────────────────────────────────────────────────────────
+                        // HOLDOVER_RTC: Slow-bandwidth servo using RTC SQW PPS
+                        // (deb.holdover.md: RTC is "flywheel frequency/phase reference")
+                        // ─────────────────────────────────────────────────────────────────
+                        
+                        // 1. Freeze GPS mapping anchors (do NOT rebuild from RTC)
+                        //    This is critical to prevent ±1 second slips in mapping
+                        //    The GPS PPS-UTC association is frozen until GPS returns
+                        
+                        // 2. Get RTC SQW PPS time (if available for nanosecond precision)
+                        uint64_t rtc_seconds = 0;
+                        uint32_t rtc_nanoseconds = 0;
+                        bool rtc_pps_available = false;
+                        
+                        if (rtc_adapter.is_sqw_available()) {
+                            rtc_pps_available = rtc_adapter.get_time(&rtc_seconds, &rtc_nanoseconds, true);  // wait_for_edge=true
+                        }
+                        
+                        if (rtc_pps_available) {
+                            // 3. Calculate PHC-RTC offset
+                            uint64_t phc_sec = 0;
+                            uint32_t phc_nsec = 0;
+                            if (ptp_hal.get_phc_time(&phc_sec, &phc_nsec)) {
+                                int64_t rtc_offset_ns = static_cast<int64_t>(phc_sec - rtc_seconds) * 1000000000LL +
+                                                       static_cast<int64_t>(phc_nsec - rtc_nanoseconds);
+                                
+                                // 4. Check 100ms phase limit (deb.holdover.md safety check)
+                                if (std::abs(rtc_offset_ns) > phc_servo.holdover_phase_limit_ns) {
+                                    std::cout << "[Holdover] ⚠️ RTC-PHC error exceeds limit: " 
+                                             << (rtc_offset_ns / 1000000.0) << " ms > ±100ms\n"
+                                             << "  PHC may have drifted excessively; consider stepping time\n";
+                                }
+                                
+                                // 5. Slow-bandwidth servo (minutes time constant)
+                                //    Use VERY low gains to avoid over-correcting
+                                //    Expert: Freeze or heavily slow down integrator
+                                const double holdover_kp = 0.001;  // 100x slower than GPS servo
+                                const double holdover_ki = 0.0;    // Freeze integrator in holdover
+                                
+                                // Calculate adjustment (proportional only, frozen integral)
+                                double adjustment = holdover_kp * rtc_offset_ns;
+                                int32_t freq_ppb = static_cast<int32_t>(adjustment / 1000.0);
+                                
+                                // Clamp to very conservative limits during holdover
+                                const int32_t holdover_freq_max = 1000;  // ±1 ppm max during holdover
+                                if (freq_ppb > holdover_freq_max) freq_ppb = holdover_freq_max;
+                                if (freq_ppb < -holdover_freq_max) freq_ppb = -holdover_freq_max;
+                                
+                                // Add to calibrated base (do NOT change integral)
+                                int32_t total_freq_ppb = phc_servo.cumulative_freq_ppb + freq_ppb;
+                                const int32_t max_total_freq = 500000;
+                                if (total_freq_ppb > max_total_freq) total_freq_ppb = max_total_freq;
+                                if (total_freq_ppb < -max_total_freq) total_freq_ppb = -max_total_freq;
+                                
+                                ptp_hal.adjust_phc_frequency(total_freq_ppb);
+                                
+                                if (verbose && (sync_counter % 10 == 0)) {
+                                    std::cout << "[PHC Discipline] State=HOLDOVER_RTC (RTC SQW PPS discipline)\n"
+                                             << "  RTC-PHC Offset=" << (rtc_offset_ns / 1000.0) << "µs, Freq=" << freq_ppb << "ppb\n"
+                                             << "  Integrator FROZEN (will reset on GPS recovery)\n";
+                                }
+                            }
+                        } else {
+                            // RTC SQW PPS not available - just hold last frequency
+                            std::cout << "[Holdover] ⚠️ RTC SQW PPS not available - holding last frequency\n"
+                                     << "  (Consider enabling RTC SQW for better holdover performance)\n";
+                            // No adjustment - just keep cumulative_freq_ppb as is
+                            ptp_hal.adjust_phc_frequency(phc_servo.cumulative_freq_ppb);
                         }
                     }
-                    
-                    if (verbose && (sync_counter % 10 == 0)) {
-                        std::cout << "[PHC Discipline] Offset: " << offset_ns << " ns, Freq adj: " << freq_ppb 
-                                 << " ppb, Integral: " << (phc_servo.integral / 1000000.0) << " ms\n";
+
+                } else {
+                    // EXPERT FIX: Servo frozen due to PPS dropout - hold last frequency command
+                    if (verbose) {
+                        std::cout << "[PHC Discipline] Servo FROZEN (PPS dropout) - holding last frequency\\n";
                     }
                 }
                 

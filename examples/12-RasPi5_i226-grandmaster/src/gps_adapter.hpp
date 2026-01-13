@@ -74,6 +74,8 @@ struct PpsData {
     uint64_t sequence;       ///< PPS sequence number
     uint32_t jitter_nsec;    ///< Estimated jitter (nanoseconds)
     bool     valid;          ///< PPS signal is valid
+    bool     dropout_detected; ///< Missed PPS pulse(s) detected (seq_delta != 1)
+    uint32_t seq_delta;      ///< Sequence delta from last pulse (1 = normal, >1 = dropout)
 };
 
 /**

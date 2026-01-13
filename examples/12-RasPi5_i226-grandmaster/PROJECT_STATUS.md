@@ -10,6 +10,28 @@
 
 ## 📊 Current Status
 
+### 🎯 Implementation Strategy (from deb.md analysis)
+
+**Phase 1: Verify Current Implementation** ✅ DONE (2026-01-13)
+- [x] Check scaling (ppm → ppb conversion) ✅ CORRECT (multiply by 1000)
+- [x] Verify calibration results (2-7 ppm) ✅ REASONABLE for i226 TCXO
+- [x] Confirm servo locks (±1µs) ✅ WORKING
+- [x] Understand both documents (deb.md + deb.fefinement.md) are complementary ✅ CONFIRMED
+
+**Phase 2: Add Expert Enhancements** (from deb.md) ⏳ PLANNED
+- [ ] Implement frequency-error servo **in parallel** with current PI servo
+- [ ] Add EMA filtering on frequency error (alpha=0.1)
+- [ ] Implement missed PPS detection (seq_delta check)
+- [ ] Add servo state machine (HOLDOVER/LOCKING/LOCKED)
+- [ ] Tighten lock threshold (±100ns phase, ±5ppb freq)
+
+**Phase 3: Compare and Validate**
+- [ ] Run both servos in parallel (log both outputs)
+- [ ] Compare: lock time, jitter rejection, frequency stability, phase offset variance
+- [ ] Switch to frequency-error servo if superior (retain 20-pulse calibration)
+
+---
+
 ### ✅ Completed Tasks
 
 1. **Hardware Verification** (from console.log analysis)
@@ -55,8 +77,33 @@
    - CPU affinity for RT thread isolation
 
 ### ⏳ In Progress / Next Steps
+0. **Expert Document Analysis** (Completed 2026-01-13)
+   - ✅ **deb.md & deb.fefinement.md compatibility verified**
+     - Both documents are complementary (NOT contradictory)
+     - deb.md: Software approach (Linux kernel APIs)
+     - deb.fefinement.md: Hardware details (Intel registers)
+   - ✅ **Scaling verified correct**: `ppm × 1000 → ppb` (line 977)
+   - ✅ **No 51k ppm issue**: Our drift 2-7 ppm (reasonable for i226)
+   - ✅ **Implementation solid**: Locks to ±1µs, ready for enhancements
+1. **PHC Servo Enhancement** (Current - 2026-01-12)
+   - ✅ PI servo on phase offset implemented and working
+     - Kp=0.7, Ki=0.00003 (anti-windup: ±10s integral clamp)
+     - Lock threshold: ±1µs phase error
+     - Step correction for offsets >100ms
+   - ✅ 20-pulse frequency calibration (2-7 ppm accuracy)
+   - ✅ Servo state structure enhanced with expert-recommended fields:
+     - `last_phase_err_ns`: For frequency error calculation
+     - `freq_ema`: EMA-filtered frequency error (ppb)
+     - `last_pps_seq`: For GPS dropout detection
+     - `servo_state`: HOLDOVER/LOCKING/LOCKED tracking
+     - `consecutive_locked`: Stability counter
+   - ⏳ **Next**: Implement frequency-error servo alongside PI servo (deb.md Session 4)
+     - Measure frequency error: `df[n] = (phase_err[n] - phase_err[n-1]) / Δt`
+     - Apply EMA filter: `freq_ema = 0.1 * df[n] + 0.9 * freq_ema`
+     - Lock criteria: `|phase_err| < 100ns AND |freq_ema| < 5ppb`
+     - Missed PPS detection: Check `seq_delta != 1`
 
-1. **DEBUG Verification Phase** (Current - 2026-01-12)
+2. **DEBUG Verification Phase** (Parallel - 2026-01-12)
    - ✅ DEBUG instrumentation added to verify expert assumptions from deb.md
    - [ ] Test with DEBUG logging to prove:
      - ±1s discontinuities contaminate drift averages

@@ -67,6 +67,18 @@ Based on [console.log](console.log) analysis:
   
 - ✅ **PTP Grandmaster** (`ptp_grandmaster.cpp`):
   - **Threaded Architecture** (RT thread, worker thread, main thread):
+  - **PHC Discipline to GPS**:
+    - ✅ 20-pulse frequency calibration (2-7 ppm accuracy)
+    - ✅ PI servo on phase offset (Kp=0.7, Ki=0.00003)
+    - ✅ Step correction for offsets >100ms
+    - ✅ Smooth tracking with ±1µs lock threshold
+    - ✅ Anti-windup protection (±10s integral clamp)
+    - ⏳ Expert frequency-error servo ready (deb.md Session 4):
+      - Frequency error = derivative of phase error
+      - EMA filtering (alpha=0.1) for jitter rejection
+      - Tighter lock: ±100ns phase AND ±5ppb frequency
+      - Explicit servo state (HOLDOVER/LOCKING/LOCKED)
+      - Missed PPS detection via sequence delta
     - **RT Thread** (CPU2, SCHED_FIFO 80): PPS wait + PHC sampling <10ms latency
     - **Worker Thread** (CPU0/1/3): GPS NMEA processing (non-blocking main loop)
     - **Main Thread**: PHC calibration, RTC discipline, PTP messaging
@@ -86,6 +98,7 @@ Based on [console.log](console.log) analysis:
 **✅ TESTED AND VERIFIED**:
 - ✅ **RT Thread Architecture** - 97+ PPS captures, <10ms latency, 100% success rate
 - ✅ **PHC Calibration** - 2-7 ppm accuracy (30x improvement from single-threaded)
+- ✅ **PHC PI Servo** - Locks to ±1µs phase error, tracks GPS continuously
 - ✅ **HIGH LATENCY Eliminated** - 0 warnings (was 63-171ms before threading)
 - ✅ **RTC Drift Measurement** - ~1 ppm typical, visible logging every 10s
 - ✅ **Worker Thread** - GPS NMEA processing isolated from main loop
