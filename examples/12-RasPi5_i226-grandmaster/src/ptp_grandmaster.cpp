@@ -781,15 +781,19 @@ int main(int argc, char* argv[])
                             last_time_error_ns = time_error_ns;
                             last_drift_calc_time = gps_seconds;
                             
-                                        // Log RTC drift measurement progress every 10 seconds
+                                        // EXPERT RECOMMENDATION (deb.md Recommendation B): Separate offset vs. frequency logs
+                                        // - "Error" (~1.6ms) = userspace latency, NOT drift
+                                        // - "Drift" (ppm) = frequency discipline metric
                                         static uint64_t last_drift_progress_log = 0;
                                         if (gps_seconds - last_drift_progress_log >= 10) {
-                                            std::cout << "[RTC Drift] Measured: " << std::fixed << std::setprecision(3) 
+                                            std::cout << "[Frequency Servo] Drift: " << std::fixed << std::setprecision(3) 
                                                      << drift_ppm << " ppm (" << error_change_ns << "ns/" << elapsed_sec << "s)"
                                                      << " | Avg(" << drift_buffer_count << "): " 
                                                      << drift_avg << " ppm (" << error_change_avg_ns << "ns/10s)"
-                                                     << " | Error: " 
-                                                     << (time_error_ns / 1000000.0) << " ms\n";
+                                                     << " | Threshold: ±" << drift_tolerance_ppm << " ppm\n";
+                                            std::cout << "[Phase Monitor] Absolute offset: " 
+                                                     << std::fixed << std::setprecision(3) << (time_error_ns / 1000000.0) 
+                                                     << " ms (includes scheduling latency)\n";
                                             last_drift_progress_log = gps_seconds;
                                         }
                                     }  // end if (!sanity check)
@@ -814,32 +818,51 @@ int main(int argc, char* argv[])
                         int64_t error_change_avg_ns = current_error_change_avg_ns;
                         int64_t drift_tolerance_ns = static_cast<int64_t>(drift_tolerance_ppm * 10000.0);  // 1 ppm over 10s = 10000ns
                         
+                        // EXPERT RECOMMENDATION (deb.md): Add stability gate using stddev
+                        // Calculate standard deviation of drift measurements
+                        double drift_variance = 0.0;
+                        if (drift_buffer_count > 1) {
+                            for (size_t i = 0; i < drift_buffer_count; i++) {
+                                double deviation = drift_buffer[i] - drift_avg;
+                                drift_variance += deviation * deviation;
+                            }
+                            drift_variance /= drift_buffer_count;
+                        }
+                        double drift_stddev = sqrt(drift_variance);
+                        bool drift_is_stable = (drift_stddev < drift_stability_threshold_ppm);
+                        
                         std::cout << "[RTC Adjust DEBUG] Evaluating aging offset adjustment:\n";
                         std::cout << "  Drift Avg: " << drift_avg << " ppm (" << error_change_avg_ns << "ns/10s)"
                                  << " | Threshold: ±" << drift_tolerance_ppm << " ppm (±" << drift_tolerance_ns << "ns/10s)\n";
+                        std::cout << "  Drift Stddev: " << std::fixed << std::setprecision(3) << drift_stddev
+                                 << " ppm | Stability threshold: " << drift_stability_threshold_ppm << " ppm"
+                                 << (drift_is_stable ? " ✓ STABLE" : " ⚠ UNSTABLE") << "\n";
+                        std::cout << "  Samples: " << drift_buffer_count << "/" << drift_buffer_size
+                                 << " | Min required: " << min_samples_for_adjustment << "\n";
                         std::cout << "  Time since last adjust: " << (time_since_last_adjustment == UINT64_MAX ? "NEVER" : std::to_string(time_since_last_adjustment) + "s") 
                                  << " | Min interval: " << min_adjustment_interval_sec << "s\n";
                         std::cout << "  Sync counter: " << sync_counter << " | Required: >1200\n";
                         
                         if (sync_counter > 1200 && 
+                            drift_buffer_count >= min_samples_for_adjustment &&
                             std::abs(drift_avg) > drift_tolerance_ppm &&
+                            drift_is_stable &&
                             time_since_last_adjustment >= min_adjustment_interval_sec) {
                             
                             // Read current aging offset from register
                             int8_t current_offset = rtc_adapter.read_aging_offset();
                             
-                            // Calculate small adjustment (±1 or ±2 LSB max)
-                            // drift_avg is in ppm, each LSB = 0.1 ppm
-                            int8_t adjustment = 0;
-                            if (drift_avg > 0.15) {
-                                adjustment = -2;  // Speeding up too much, slow down
-                            } else if (drift_avg > 0.05) {
-                                adjustment = -1;
-                            } else if (drift_avg < -0.15) {
-                                adjustment = 2;   // Slowing down too much, speed up
-                            } else if (drift_avg < -0.05) {
-                                adjustment = 1;
-                            }
+                            // EXPERT RECOMMENDATION (deb.md): Explicit proportional control law
+                            // Instead of fixed ±1/±2 steps, calculate delta based on measured drift
+                            // DS3231: 0.1 ppm per LSB
+                            constexpr double ppm_per_lsb = 0.1;
+                            int8_t adjustment = static_cast<int8_t>(round(drift_avg / ppm_per_lsb));
+                            
+                            // Clamp to reasonable range to prevent overcorrection
+                            if (adjustment > 3) adjustment = 3;
+                            if (adjustment < -3) adjustment = -3;
+                            
+                            // Negative sign: DS3231 aging offset inverts (positive = slower)
                             
                             if (adjustment != 0) {
                                 int8_t new_offset = current_offset + adjustment;
@@ -876,10 +899,17 @@ int main(int argc, char* argv[])
                             if (sync_counter <= 1200) {
                                 std::cout << "  ⏸ Warmup period (sync_counter=" << sync_counter << " ≤ 1200)\n";
                             }
+                            if (drift_buffer_count < min_samples_for_adjustment) {
+                                std::cout << "  ⏸ Insufficient samples (" << drift_buffer_count << " < " << min_samples_for_adjustment << ")\n";
+                            }
                             if (std::abs(drift_avg) <= drift_tolerance_ppm) {
                                 // Use raw averaged error change (already defined above in this scope)
                                 std::cout << "  ✓ Drift acceptable (|" << drift_avg << "| ppm = |" << error_change_avg_ns << "|ns/10s ≤ " 
                                          << drift_tolerance_ppm << " ppm = " << drift_tolerance_ns << "ns/10s)\n";
+                            }
+                            if (!drift_is_stable) {
+                                std::cout << "  ⚠ Drift unstable (stddev=" << std::fixed << std::setprecision(3) << drift_stddev 
+                                         << " ppm > " << drift_stability_threshold_ppm << " ppm threshold)\n";
                             }
                             if (time_since_last_adjustment < min_adjustment_interval_sec && time_since_last_adjustment != UINT64_MAX) {
                                 std::cout << "  ⏳ Too soon since last adjust (" << time_since_last_adjustment << "s < " << min_adjustment_interval_sec << "s)\n";

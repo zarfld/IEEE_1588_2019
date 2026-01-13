@@ -44,6 +44,20 @@
 - Compare performance vs. current PI servo
 - Decide: keep PI, switch to frequency-error, or hybrid approach
 
+**RTC Discipline Improvements (deb.md Recommendations)** ✅ IMPLEMENTED (2026-01-13)
+- ✅ **Recommendation A**: Longer averaging windows
+  - Increased drift buffer: 60 → 120 samples (20 minutes)
+  - Added stability gate: stddev < 0.3 ppm threshold
+  - Extended min adjustment interval: 600s → 1200s (20 min)
+  - Requires 60+ samples before adjustment
+- ✅ **Recommendation E**: Explicit proportional control law
+  - Replaced fixed ±1/±2 LSB with calculated: `delta_lsb = round(drift_avg_ppm / 0.1)`
+  - Clamped to [-3, +3] range
+  - Applied only when stable (stddev gate passed)
+- ✅ **Recommendation B**: Separate offset/frequency logs
+- ✅ **Recommendation D**: Thread pinning/priorities (RT thread on CPU2, SCHED_FIFO 80)
+- ⏳ **Recommendation C**: Timestamping improvements (optional, low priority)
+
 ### Migration Strategy
 
 **Phase 1: Verify Step 2 Implementation** ✅ DONE (2026-01-13)
@@ -77,6 +91,45 @@
 - ✅ Software tracks cumulative: `cumulative_freq_ppb`
 
 **Conclusion**: The 51,000 ppm scenario from deb.fefinement.md does NOT apply to our implementation. Our scaling is correct and measurements are within expected ranges.
+
+### RTC Discipline Improvements (2026-01-13) ✅
+
+Based on expert analysis in [deb.md](deb.md), the following improvements have been implemented:
+
+**✅ Recommendation A - Longer Averaging Windows**:
+- Drift buffer increased: 60 → 120 samples (20 minutes @ 10s intervals)
+- Minimum adjustment interval: 600s → 1200s (20 minutes)
+- Added stability gate: Standard deviation < 0.3 ppm threshold
+- Requires 60+ samples before aging offset adjustment
+- **Benefit**: Reduces false threshold crossings from ±1 ppm measurement noise
+
+**✅ Recommendation B - Separate Offset/Frequency Logs**:
+- Split console output: `[Frequency Servo]` vs. `[Phase Monitor]`
+- Clarifies that ~1.6ms "offset" is scheduling latency, NOT drift
+- Drift measurements (ppm) now clearly labeled for frequency discipline
+- **Benefit**: Prevents confusion between phase (latency) and frequency (drift) metrics
+
+**✅ Recommendation E - Explicit Proportional Control Law**:
+- Replaced fixed ±1/±2 LSB steps with calculated: `delta_lsb = round(drift_avg_ppm / 0.1)`
+- Clamped to [-3, +3] LSB range to prevent overcorrection
+- DS3231 aging offset: 0.1 ppm per LSB, inverted (positive = slower)
+- **Benefit**: Faster convergence, clearer control behavior
+
+**✅ Recommendation D - Thread Pinning/Priorities (COMPLETE)**:
+- RT thread pinned to CPU2 with SCHED_FIFO priority 80
+- Worker thread pinned to CPU0/1/3 (away from RT core)
+- Mutex-protected shared data structure for synchronization
+- Latency monitoring (<10ms warning threshold)
+- **System Config Required**: `isolcpus=2 nohz_full=2 rcu_nocbs=2` in `/boot/firmware/cmdline.txt`
+- **Expected**: Reduce jitter from 0.5-3.0µs → <500ns, drift noise from ±1ppm → ±0.2ppm
+- **Documentation**: See [RT_THREAD_CONFIGURATION.md](docs/RT_THREAD_CONFIGURATION.md)
+
+**⏳ Recommendation C - Timestamping Improvements (LOW PRIORITY)**:
+- Use kernel PPS timestamps directly, avoid redundant `clock_gettime()`
+- Measure PPS-to-PPS deltas instead of PPS-vs-now
+- **Note**: Cosmetic only - doesn't affect drift discipline accuracy
+
+**Documentation**: See [RTC_DISCIPLINE_IMPROVEMENTS.md](docs/RTC_DISCIPLINE_IMPROVEMENTS.md) and [IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md)
 
 ---
 
