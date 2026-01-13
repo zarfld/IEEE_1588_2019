@@ -461,6 +461,25 @@ bool GpsAdapter::update_pps_data()
     uint64_t new_assert_sec = static_cast<uint64_t>(pps_info.assert_timestamp.tv_sec);
     uint32_t new_assert_nsec = static_cast<uint32_t>(pps_info.assert_timestamp.tv_nsec);
     
+    // STEP 1: Calculate seq_delta to detect missed PPS pulses (per deb.md)
+    // "One missed wakeup would pollute the frequency for minutes"
+    uint64_t seq_delta = 0;
+    bool dropout_detected = false;
+    
+    if (pps_data_.valid && pps_data_.sequence > 0) {
+        // Calculate how many pulses occurred since last fetch
+        seq_delta = pps_info.assert_sequence - pps_data_.sequence;
+        
+        // Dropout if seq_delta != 1 (missed pulse or overflow)
+        if (seq_delta != 1) {
+            dropout_detected = true;
+        }
+    } else {
+        // First valid PPS pulse - no previous reference
+        seq_delta = 1;
+        dropout_detected = false;
+    }
+    
     // Calculate jitter from previous pulse (if valid and consecutive)
     uint32_t current_jitter = 0;
     if (pps_data_.valid && pps_data_.sequence > 0) {
