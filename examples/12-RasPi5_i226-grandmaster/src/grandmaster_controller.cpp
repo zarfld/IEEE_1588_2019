@@ -165,10 +165,11 @@ bool GrandmasterController::set_initial_time() {
     if (!gps_ || !phc_ || !rtc_) return false;
     
     // Wait for GPS adapter to establish PPS-UTC lock (critical for valid time)
-    // LAYER 11 FIX: Increased timeout from 30s to 60s to ensure lock establishment
-    // Lock requires ~10 PPS samples, but timing can vary with GPS update processing
-    std::cout << "[Controller] Waiting for GPS PPS-UTC lock (max 60s)...\n";
-    for (int i = 0; i < 60; i++) {
+    // LAYER 11 FIX: Increased timeout from 30s→60s→120s to ensure lock establishment
+    // Lock requires ~10 PPS samples, but timing varies significantly with GPS update processing
+    // and NMEA message arrival patterns. 120s provides adequate margin.
+    std::cout << "[Controller] Waiting for GPS PPS-UTC lock (max 120s)...\n";
+    for (int i = 0; i < 120; i++) {
         gps_->update();
         if (gps_->is_locked()) {
             std::cout << "[Controller] ✓ GPS PPS-UTC lock established after " << i << " seconds\n";
