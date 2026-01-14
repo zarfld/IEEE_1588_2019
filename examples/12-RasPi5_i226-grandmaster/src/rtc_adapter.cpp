@@ -99,8 +99,72 @@ bool RtcAdapter::initialize()
     }
 
     // Open I2C bus for DS3231 direct access (aging offset)
-    // Raspberry Pi 5: DS3231 on GPIO I2C bus 14 (dtoverlay=i2c-rtc-gpio, dmesg shows 14-0068)
-    const char* i2c_device = "/dev/i2c-14";
+    // Auto-detect I2C bus by scanning /sys/class/rtc/rtcN/name
+    const char* i2c_device = nullptr;
+    char i2c_path[64];
+    int detected_bus = -1;
+    
+    // Try to detect bus from /sys/class/rtc entries
+    for (int rtc_num = 0; rtc_num < 10; rtc_num++) {
+        char rtc_name_path[128];
+        snprintf(rtc_name_path, sizeof(rtc_name_path), "/sys/class/rtc/rtc%d/name", rtc_num);
+        
+        FILE* f = fopen(rtc_name_path, "r");
+        if (f) {
+            char name[128];
+            if (fgets(name, sizeof(name), f)) {
+                // Look for "rtc-ds1307 XX-0068" or "ds1307 XX-0068" pattern
+                int bus_num;
+                if (sscanf(name, "rtc-ds1307 %d-0068", &bus_num) == 1 ||
+                    sscanf(name, "ds1307 %d-0068", &bus_num) == 1) {
+                    detected_bus = bus_num;
+                    fclose(f);
+                    std::cout << "[RTC Init] Detected DS3231 on I2C bus " << detected_bus 
+                              << " (from " << rtc_name_path << ")\n";
+                    break;
+                }
+            }
+            fclose(f);
+        }
+    }
+    
+    // If not detected via sysfs, try scanning I2C buses
+    if (detected_bus < 0) {
+        std::cout << "[RTC Init] Scanning I2C buses for DS3231...\n";
+        for (int bus = 0; bus < 20; bus++) {
+            snprintf(i2c_path, sizeof(i2c_path), "/dev/i2c-%d", bus);
+            int test_fd = open(i2c_path, O_RDWR);
+            if (test_fd >= 0) {
+                if (ioctl(test_fd, I2C_SLAVE_FORCE, 0x68) == 0) {
+                    // Try to read register 0x00 (seconds)
+                    uint8_t reg = 0x00;
+                    if (write(test_fd, &reg, 1) == 1) {
+                        uint8_t value;
+                        if (read(test_fd, &value, 1) == 1) {
+                            // Verify it looks like BCD seconds (0x00-0x59)
+                            if ((value & 0x7F) <= 0x59) {
+                                detected_bus = bus;
+                                close(test_fd);
+                                std::cout << "[RTC Init] Found DS3231 on I2C bus " << bus << "\n";
+                                break;
+                            }
+                        }
+                    }
+                }
+                close(test_fd);
+            }
+        }
+    }
+    
+    // Open detected or fallback I2C bus
+    if (detected_bus >= 0) {
+        snprintf(i2c_path, sizeof(i2c_path), "/dev/i2c-%d", detected_bus);
+        i2c_device = i2c_path;
+    } else {
+        std::cerr << "[RTC Init] WARNING: Could not auto-detect DS3231 I2C bus, using default /dev/i2c-14\n";
+        i2c_device = "/dev/i2c-14";  // Fallback
+    }
+    
     i2c_fd_ = open(i2c_device, O_RDWR);
     if (i2c_fd_ < 0) {
         std::cerr << "[RTC Init] ERROR: Failed to open I2C device " << i2c_device 
