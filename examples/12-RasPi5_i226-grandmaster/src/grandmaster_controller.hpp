@@ -172,6 +172,7 @@ private:
     uint64_t announce_count_;
     uint64_t step_count_;
     int64_t last_offset_ns_;
+    uint32_t cycles_since_step_;  // CRITICAL: Don't run servo immediately after step
     
     // Private helper methods
     

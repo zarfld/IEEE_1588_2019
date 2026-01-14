@@ -41,6 +41,7 @@ GrandmasterController::GrandmasterController(
     , announce_count_(0)
     , step_count_(0)
     , last_offset_ns_(0)
+    , cycles_since_step_(999)  // Start high so servo runs immediately
 {
 }
 
@@ -382,53 +383,57 @@ void GrandmasterController::run() {
         // and unnecessary step corrections.
         //
         // SOLUTION: Only update servo when PPS sequence advances (new GPS sample).
-        // During 100ms convergence loops, skip iterations with no new GPS data.
-        if (pps_check.sequence == last_processed_pps_seq && last_processed_pps_seq != 0) {
-            // No new GPS sample available, skip this iteration
+        // CRITICAL (expert deb.md): Only process offset on NEW PPS edges!
+        // "Your loop prints multiple times between pulses. Only produce a new servo input when pps_seq changed."
+        PpsData pps;
+        bool pps_valid = gps_->get_pps_data(&pps, nullptr);
+        
+        if (pps.sequence == last_processed_pps_seq && last_processed_pps_seq != 0) {
+            // No new PPS edge, skip servo processing (expert requirement)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
         
-        // 1. Get GPS time and PPS status (NEW sample available!)
-        uint64_t gps_sec = 0;
-        uint32_t gps_nsec = 0;
-        bool gps_valid = gps_->get_ptp_time(&gps_sec, &gps_nsec);
-        
-        PpsData pps;
-        bool pps_valid = gps_->get_pps_data(&pps, nullptr);
-        
-        // Remember this PPS sequence so we don't process it again
+        // NEW PPS EDGE DETECTED - Process offset measurement
         last_processed_pps_seq = pps.sequence;
         
-        // Debug first few loops
-        static int debug_count = 0;
-        if (debug_count++ < 5) {
-            std::cout << "[Controller] Loop " << loop_count 
-                     << " GPS=" << gps_sec << "." << gps_nsec
-                     << " valid=" << gps_valid
-                     << " PPS_seq=" << pps.sequence
-                     << " PPS_valid=" << pps_valid << "\n";
-        }
+        // 1. Get GPS UTC time at PPS edge (integer seconds only!)
+        uint64_t gps_tai_sec = 0;  // get_ptp_time() returns TAI
+        uint32_t gps_nsec = 0;     // NOW returns 0 (PPS = integer second boundary)
+        bool gps_valid = gps_->get_ptp_time(&gps_tai_sec, &gps_nsec);
         
-        // 2. Get PHC time
+        // Convert TAI to UTC for offset calculation
+        const uint32_t TAI_UTC_OFFSET = 37;
+        uint64_t gps_utc_sec = gps_tai_sec - TAI_UTC_OFFSET;
+        
+        // 2. Read PHC time AT PPS EDGE (expert: "immediately read PHC right after the pulse")
         uint64_t phc_sec = 0;
         uint32_t phc_nsec = 0;
         bool phc_valid = phc_->get_time(&phc_sec, &phc_nsec);
         
-        if (!gps_valid || !phc_valid) {
+        // Debug first few PPS edges
+        static int debug_count = 0;
+        if (debug_count++ < 5) {
+            std::cout << "[Controller] PPS #" << pps.sequence 
+                     << " GPS_UTC=" << gps_utc_sec << "." << std::setfill('0') << std::setw(9) << gps_nsec
+                     << " (integer sec at PPS edge)"
+                     << " PHC=" << phc_sec << "." << std::setfill('0') << std::setw(9) << phc_nsec
+                     << " (read at PPS edge)\n";
+        }
+        
+        if (!gps_valid || !phc_valid || !pps_valid) {
             std::cerr << "[Controller] WARNING: Time read failed (GPS=" 
-                     << gps_valid << ", PHC=" << phc_valid << ")\n";
+                     << gps_valid << ", PHC=" << phc_valid << ", PPS=" << pps_valid << ")\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
         
-        // 3. Calculate offset
-        int64_t offset_ns = calculate_offset(gps_sec, gps_nsec, phc_sec, phc_nsec);
+        // 3. Calculate offset: GPS_UTC(integer sec at PPS) - PHC(at PPS edge)
+        // Expert: "offset_ns = utc_ns - phc_ns" where utc_ns = pps_seq mapping (integer seconds)
+        int64_t offset_ns = calculate_offset(gps_utc_sec, gps_nsec, phc_sec, phc_nsec);
         last_offset_ns_ = offset_ns;
         
         // DEBUG: Show detailed timing in UTC nanoseconds (consistent time base)
-        // Convert GPS (TAI) back to UTC for consistent comparison
-        uint64_t gps_utc_sec = gps_sec - 37;  // TAI - 37s = UTC (current offset)
         uint64_t gps_utc_ns = gps_utc_sec * 1000000000ULL + gps_nsec;
         uint64_t phc_ns = phc_sec * 1000000000ULL + phc_nsec;
         
@@ -443,9 +448,9 @@ void GrandmasterController::run() {
                      << " PPS_seq=" << pps.sequence << "\n";
         }
         
-        // 4. Update state machine
+        // 4. Update state machine (pass TAI time for state tracking)
         state_machine_->update(pps_valid, gps_valid, offset_ns, 
-                             (double)cumulative_freq_ppb_, gps_sec);
+                             (double)cumulative_freq_ppb_, gps_tai_sec);
         ServoState current_state = state_machine_->get_state();
         
         // 5. Apply correction based on offset magnitude
@@ -454,16 +459,32 @@ void GrandmasterController::run() {
             if (!gps_->is_locked()) {
                 std::cout << "[Controller] WARNING: Large offset detected but GPS not locked yet, skipping step\n";
             } else {
-                // Large offset: apply step correction
-                apply_step_correction(gps_sec, gps_nsec);
+                // Large offset: apply step correction (pass TAI time, will be converted inside)
+                apply_step_correction(gps_tai_sec, gps_nsec);
                 pps_seq_when_stepped = pps.sequence;  // Record PPS when we stepped
+                
+                // CRITICAL FIX (expert guidance): After stepping, IMMEDIATELY apply frequency correction!
+                // The calibration measured PHC drift (~166 ppm), so apply it NOW to prevent immediate re-step.
+                // Without this, the PHC continues drifting at ~160ppm, hits 100ms offset again in ~600 seconds,
+                // and steps repeatedly without ever correcting frequency.
+                if (calibration_complete_) {
+                    std::cout << "[Controller] Applying calibration frequency after step: " 
+                             << cumulative_freq_ppb_ << " ppb\n";
+                    phc_->adjust_frequency(cumulative_freq_ppb_);
+                }
             }
-            
-            // CRITICAL: Skip rest of loop - will wait for 3 PPS pulses on next iteration
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            continue;
+        }
+        
+        // ALWAYS run servo correction (even after step) to track offset changes
+        // Expert: "Servo should always process offset measurements, not just when offset is small"
+        // BUT: Skip for several cycles after a step to let PHC frequency settle
+        // (clock_settime() resets frequency to 0, we reapply calibration, but servo needs time)
+        cycles_since_step_++;
+        const uint32_t SETTLE_CYCLES = 10;  // Skip servo for 10 cycles (~10 seconds) after step
+        if (cycles_since_step_ < SETTLE_CYCLES) {
+            std::cout << "[Controller] Skipping servo (settling after step, cycle " 
+                     << cycles_since_step_ << "/" << SETTLE_CYCLES << ")\n";
         } else {
-            // Small offset: apply servo correction
             apply_servo_correction(offset_ns);
         }
         
@@ -586,6 +607,14 @@ void GrandmasterController::apply_step_correction(uint64_t gps_tai_sec, uint32_t
     // 3. Reset cumulative frequency to calibration baseline
     cumulative_freq_ppb_ = calibration_drift_ppb_;
     phc_->adjust_frequency(cumulative_freq_ppb_);
+    
+    // 4. Reset settle counter - DON'T run servo for several cycles
+    // CRITICAL (expert guidance): After clock_settime(), the frequency adjustment
+    // gets reset to ZERO by the kernel. We've re-applied the calibration frequency,
+    // but the servo should NOT run for ~10 cycles to let the system settle.
+    // Running servo immediately after a step causes it to add its own large correction
+    // on top of calibration, creating oscillations and repeated stepping.
+    cycles_since_step_ = 0;
     
     step_count_++;
 }

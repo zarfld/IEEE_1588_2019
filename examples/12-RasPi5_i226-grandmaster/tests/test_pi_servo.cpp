@@ -54,7 +54,7 @@ int main() {
         tests_total++;
         
         PI_Servo servo(default_config);
-        ServoState state;
+        ServoDiagnostics state;
         servo.get_state(&state);
         
         bool success = (state.integral_ns == 0.0) &&
@@ -194,14 +194,14 @@ int main() {
         }
         
         // Verify state accumulated
-        ServoState before;
+        ServoDiagnostics before;
         servo.get_state(&before);
         
         // Reset servo
         servo.reset();
         
         // Verify state cleared
-        ServoState after;
+        ServoDiagnostics after;
         servo.get_state(&after);
         
         bool success = (before.integral_ns != 0.0) &&  // State was built up
@@ -246,7 +246,7 @@ int main() {
         int consecutive = servo.get_consecutive_locked();
         
         // Debug: Show what's happening
-        ServoState state;
+        ServoDiagnostics state;
         servo.get_state(&state);
         std::cout << "Debug: Last correction=" << state.last_correction_ppb 
                   << " ppb, locked=" << locked 

@@ -142,8 +142,10 @@ bool PhcAdapter::adjust_frequency(int32_t freq_ppb)
     tx.modes = ADJ_FREQUENCY;
     tx.freq = static_cast<long>(freq_ppb) * 65536L / 1000L;
     
-    if (clock_adjtime(CLOCK_REALTIME, &tx) < 0) {
-        std::cerr << "[PhcAdapter] clock_adjtime failed: " << strerror(errno) << std::endl;
+    // CRITICAL (Layer 7 fix): Use PHC file descriptor, NOT CLOCK_REALTIME!
+    // CLOCK_REALTIME adjusts system clock, we need to adjust the hardware PHC
+    if (clock_adjtime(phc_fd_, &tx) < 0) {
+        std::cerr << "[PhcAdapter] clock_adjtime(phc_fd=" << phc_fd_ << ") failed: " << strerror(errno) << std::endl;
         return false;
     }
     

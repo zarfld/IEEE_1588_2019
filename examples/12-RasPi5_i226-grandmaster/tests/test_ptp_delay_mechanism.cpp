@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <arpa/inet.h>  // htons, ntohs
 
 // Mock PTP message structures (will be replaced with real implementation)
 struct PTPHeader {

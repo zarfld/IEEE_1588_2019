@@ -155,7 +155,8 @@ private:
     bool calibrated_;
     uint32_t baseline_pps_seq_;
     int64_t baseline_phc_ns_;
-    int32_t cumulative_freq_ppb_;
+    int32_t cumulative_freq_ppb_;      ///< Clamped frequency applied to hardware
+    int32_t measured_drift_ppb_;       ///< Actual measured drift (not clamped)
     uint32_t iterations_;
     uint32_t correlation_failures_;
     

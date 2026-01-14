@@ -881,29 +881,21 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
         
-        // CRITICAL BUG #14 FIX: Return GPS/UTC fractional seconds, not PHC fractional seconds!
+        // CRITICAL FIX (expert deb.md): PPS marks integer second boundary!
         // 
-        // The PPS pulse marks a UTC second boundary, so GPS time at the PPS edge is:
-        //   GPS time = <integer seconds>.000000000 (with sub-microsecond jitter)
+        // A PPS edge defines a UTC second transition:
+        //   GPS_UTC at PPS = <integer_seconds>.000000000
         //
-        // WRONG (previous implementation):
-        //   *nanoseconds = pps_data_.assert_nsec;  // PHC capture timestamp
+        // MUST NOT include fractional seconds from NMEA timing or PHC capture timestamp!
+        // Fractional GPS_UTC creates fake drift (expert: "offset ramps smoothly negative").
         //
-        // This used the PHC's nanosecond timestamp of when it captured the PPS edge.
-        // If PHC is offset from GPS by ~0.9s, PPS gets timestamped as PHC_second.900000000,
-        // making GPS time appear to be GPS_second.900000000 instead of GPS_second.000000000.
-        // This ~0.9s offset triggered continuous step corrections forever!
+        // The phase measurement happens in the controller by reading PHC *at the PPS edge*,
+        // then computing: offset = GPS_UTC(integer) - PHC(at PPS edge).
         //
-        // CORRECT:
-        // Return ~0 nanoseconds since PPS marks second boundary. We could return
-        // pps_data_.assert_nsec only if PHC is already synchronized (offset <1ms),
-        // but for robustness during convergence, return 0 with small jitter estimate.
+        // Expert guidance: "For PPS discipline, treat NMEA as 'what second number is this?' (label),
+        //                   NOT 'what fractional second is it?' (phase). Phase comes from PPS!"
         //
-        // We preserve sub-microsecond jitter info by returning the low bits of assert_nsec
-        // (the jitter), while zeroing the high bits (the systematic offset).
-        // For a 1PPS signal with ±1µs jitter, assert_nsec % 1000000 gives us the jitter.
-        //
-        *nanoseconds = pps_data_.assert_nsec % 1000000;  // Return jitter only (0-1000µs range)
+        *nanoseconds = 0;  // PPS edge = integer second boundary (expert requirement)
         
         return true;
     }

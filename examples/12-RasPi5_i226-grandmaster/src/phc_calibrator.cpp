@@ -18,6 +18,7 @@ PhcCalibrator::PhcCalibrator(const PhcCalibratorConfig& config)
     , baseline_pps_seq_(0)
     , baseline_phc_ns_(0)
     , cumulative_freq_ppb_(0)
+    , measured_drift_ppb_(0)
     , iterations_(0)
     , correlation_failures_(0)
     , last_drift_ppm_(0.0)
@@ -189,9 +190,15 @@ int PhcCalibrator::update_calibration(uint32_t pps_sequence, int64_t phc_timesta
         return result;
     }
     
+    // CRITICAL (Layer 6 fix): Store actual measured drift, NOT clamped cumulative
+    // The cumulative may have been clamped to ±500000 ppb during iterations,
+    // but we need to remember the actual measured drift for step corrections
+    measured_drift_ppb_ = final_correction_ppb;
+    
     std::cout << "[PhcCalibrator] ✓ Complete (" << reason << ")! Final drift: " 
               << std::fixed << std::setprecision(1) << drift_ppm << " ppm\n"
               << "  Final correction applied: " << final_correction_ppb << " ppb\n"
+              << "  Measured drift (for step restore): " << measured_drift_ppb_ << " ppb\n"
               << "  Final cumulative freq: " << cumulative_freq_ppb_ << " ppb\n";
     
     calibrated_ = true;
@@ -226,6 +233,7 @@ void PhcCalibrator::reset()
     baseline_pps_seq_ = 0;
     baseline_phc_ns_ = 0;
     cumulative_freq_ppb_ = 0;
+    measured_drift_ppb_ = 0;
     iterations_ = 0;
     correlation_failures_ = 0;
     last_drift_ppm_ = 0.0;
@@ -238,7 +246,9 @@ void PhcCalibrator::reset()
 int32_t PhcCalibrator::get_cumulative_frequency() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return cumulative_freq_ppb_;
+    // CRITICAL (Layer 6 fix): Return measured drift, NOT clamped cumulative
+    // Step corrections need the actual drift, not the hardware-clamped value
+    return measured_drift_ppb_;
 }
 
 double PhcCalibrator::calculate_drift_ppm(int64_t phc_delta_ns, int64_t ref_delta_ns) const
