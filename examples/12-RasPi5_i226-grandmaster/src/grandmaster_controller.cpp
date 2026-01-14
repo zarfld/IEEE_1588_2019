@@ -82,12 +82,16 @@ bool GrandmasterController::initialize() {
     // 3. Create control engines
     std::cout << "[Controller] Creating control engines...\n";
     
-    // PI Servo: Kp=0.7, Ki=0.3, integral_max=50ms, freq_max=100ppm
+    // PI Servo: MUCH smaller gains for GPS disciplining (calibration already handles bulk drift)
+    // Expert: After calibration removes ~80ppm drift, servo only needs to correct small residuals
+    // Kp=0.01 means -10ms offset → -100ppb correction (gentle)
+    // Ki=0.0001 provides slow integration
+    // freq_max=10ppm prevents runaway
     PIServoConfig servo_config;
-    servo_config.kp = 0.7;
-    servo_config.ki = 0.3;
-    servo_config.integral_max_ns = 50000000;
-    servo_config.freq_max_ppb = 100000;
+    servo_config.kp = 0.01;                   // Was 0.7 - WAY too aggressive after calibration
+    servo_config.ki = 0.0001;                 // Was 0.3 - caused integral windup
+    servo_config.integral_max_ns = 10000000;  // 10ms max integral (was 50ms)
+    servo_config.freq_max_ppb = 10000;        // 10ppm max per sample (was 100ppm - caused runaway)
     servo_ = new PI_Servo(servo_config);
     
     // PHC Calibrator
@@ -475,16 +479,21 @@ void GrandmasterController::run() {
             }
         }
         
+        // CRITICAL FIX (Layer 9): Only increment cycle counter on NEW PPS edges!
+        // Previously incremented every loop, causing servo to run hundreds of times per second
+        // and accumulate corrections incorrectly. Settling cycles are meant to be PPS cycles.
+        
         // ALWAYS run servo correction (even after step) to track offset changes
         // Expert: "Servo should always process offset measurements, not just when offset is small"
         // BUT: Skip for several cycles after a step to let PHC frequency settle
         // (clock_settime() resets frequency to 0, we reapply calibration, but servo needs time)
         cycles_since_step_++;
-        const uint32_t SETTLE_CYCLES = 10;  // Skip servo for 10 cycles (~10 seconds) after step
+        const uint32_t SETTLE_CYCLES = 10;  // Skip servo for 10 PPS cycles (~10 seconds) after step
         if (cycles_since_step_ < SETTLE_CYCLES) {
-            std::cout << "[Controller] Skipping servo (settling after step, cycle " 
+            std::cout << "[Controller] Skipping servo (settling after step, PPS cycle " 
                      << cycles_since_step_ << "/" << SETTLE_CYCLES << ")\n";
         } else {
+            // Only run servo on NEW PPS edges (offset measurement is per-PPS)
             apply_servo_correction(offset_ns);
         }
         
@@ -621,10 +630,16 @@ void GrandmasterController::apply_step_correction(uint64_t gps_tai_sec, uint32_t
 
 // Apply servo correction
 void GrandmasterController::apply_servo_correction(int64_t offset_ns) {
-    if (!servo_) return;
+    if (!servo_) {
+        std::cerr << "[Servo] ERROR: servo_ is null!\n";
+        return;
+    }
     
     // 1. Calculate servo correction
     int32_t correction_ppb = servo_->calculate_correction(offset_ns);
+    
+    std::cout << "[Servo] offset=" << offset_ns << "ns correction=" << correction_ppb 
+              << "ppb current_freq=" << cumulative_freq_ppb_ << "ppb\n";
     
     // 2. Update cumulative frequency
     int32_t new_freq_ppb = cumulative_freq_ppb_ + correction_ppb;
@@ -632,13 +647,17 @@ void GrandmasterController::apply_servo_correction(int64_t offset_ns) {
     // 3. Clamp to PHC limits (±500 ppm for i226)
     int32_t max_freq = phc_->get_max_frequency_ppb();
     if (new_freq_ppb > max_freq) {
+        std::cout << "[Servo] Clamping " << new_freq_ppb << " to " << max_freq << " ppb\n";
         new_freq_ppb = max_freq;
     } else if (new_freq_ppb < -max_freq) {
+        std::cout << "[Servo] Clamping " << new_freq_ppb << " to " << -max_freq << " ppb\n";
         new_freq_ppb = -max_freq;
     }
     
     // 4. Apply to PHC
     phc_->adjust_frequency(new_freq_ppb);
+    
+    std::cout << "[Servo] Applied new_freq=" << new_freq_ppb << " ppb to PHC\n";
     
     // 5. Update cumulative frequency (CRITICAL: persist the correction)
     cumulative_freq_ppb_ = new_freq_ppb;

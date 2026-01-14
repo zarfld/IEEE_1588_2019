@@ -110,8 +110,14 @@ bool PhcAdapter::set_time(uint64_t sec, uint32_t nsec)
     ts.tv_sec = static_cast<time_t>(sec);
     ts.tv_nsec = static_cast<long>(nsec);
     
-    if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
-        std::cerr << "[PhcAdapter] clock_settime failed: " << strerror(errno) << std::endl;
+    // CRITICAL (Layer 10 fix!): Use PHC clockid, not CLOCK_REALTIME
+    // clock_settime(CLOCK_REALTIME) sets system clock, not PHC!
+    // Same as frequency adjustment, convert fd→clockid_t
+    clockid_t clkid = ((~(clockid_t)phc_fd_) << 3) | 3;
+    
+    if (clock_settime(clkid, &ts) != 0) {
+        std::cerr << "[PhcAdapter] clock_settime(clockid=" << clkid 
+                  << ") failed: " << strerror(errno) << std::endl;
         return false;
     }
     
@@ -135,17 +141,22 @@ bool PhcAdapter::adjust_frequency(int32_t freq_ppb)
         freq_ppb = -MAX_FREQUENCY_PPB;
     }
     
+    // CRITICAL (Layer 8 fix): Convert PHC fd to clockid_t for clock_adjtime()
+    // Modern Linux kernels expose PHC as POSIX clocks via special clock IDs.
+    // Formula: clockid = ((~(clockid_t)(fd) << 3) | 3)
+    // This converts the file descriptor into a valid POSIX clock ID.
+    clockid_t clkid = ((~(clockid_t)phc_fd_) << 3) | 3;
+    
     // Convert ppb to Linux timex units (1 ppb = 2^16 / 1e9 = 0.065536)
-    // freq (timex units) = freq_ppb * 65536 / 1000
     struct timex tx;
     memset(&tx, 0, sizeof(tx));
     tx.modes = ADJ_FREQUENCY;
     tx.freq = static_cast<long>(freq_ppb) * 65536L / 1000L;
     
-    // CRITICAL (Layer 7 fix): Use PHC file descriptor, NOT CLOCK_REALTIME!
-    // CLOCK_REALTIME adjusts system clock, we need to adjust the hardware PHC
-    if (clock_adjtime(phc_fd_, &tx) < 0) {
-        std::cerr << "[PhcAdapter] clock_adjtime(phc_fd=" << phc_fd_ << ") failed: " << strerror(errno) << std::endl;
+    if (clock_adjtime(clkid, &tx) < 0) {
+        std::cerr << "[PhcAdapter] clock_adjtime(clockid=" << clkid 
+                  << ", freq=" << freq_ppb << " ppb) failed: " 
+                  << strerror(errno) << std::endl;
         return false;
     }
     
