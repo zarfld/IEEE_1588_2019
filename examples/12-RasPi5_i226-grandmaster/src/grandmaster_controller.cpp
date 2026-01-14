@@ -159,6 +159,22 @@ bool GrandmasterController::wait_for_gps_fix() {
 bool GrandmasterController::set_initial_time() {
     if (!gps_ || !phc_ || !rtc_) return false;
     
+    // Wait for GPS adapter to establish PPS-UTC lock (critical for valid time)
+    std::cout << "[Controller] Waiting for GPS PPS-UTC lock...\n";
+    for (int i = 0; i < 30; i++) {
+        gps_->update();
+        if (gps_->is_locked()) {
+            std::cout << "[Controller] GPS PPS-UTC lock established\n";
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    
+    if (!gps_->is_locked()) {
+        std::cerr << "[Controller] WARNING: GPS PPS-UTC lock not established, time may be unreliable\n";
+        // Continue anyway - calibration might help establish lock
+    }
+    
     // Get GPS time
     uint64_t gps_sec;
     uint32_t gps_nsec;
@@ -369,9 +385,14 @@ void GrandmasterController::run() {
                 continue;
             }
             
-            // Large offset: apply step correction
-            apply_step_correction(gps_sec, gps_nsec);
-            pps_seq_when_stepped = current_pps_seq;  // Record PPS when we stepped
+            // Only step if GPS adapter has established PPS-UTC lock
+            if (!gps_->is_locked()) {
+                std::cout << "[Controller] WARNING: Large offset detected but GPS not locked yet, skipping step\n";
+            } else {
+                // Large offset: apply step correction
+                apply_step_correction(gps_sec, gps_nsec);
+                pps_seq_when_stepped = current_pps_seq;  // Record PPS when we stepped
+            }
             
             // CRITICAL: Skip rest of loop - wait for 3 new PPS pulses
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -474,10 +495,14 @@ void GrandmasterController::apply_step_correction(uint64_t gps_sec, uint32_t gps
     }
     
     // 1. Set PHC time to GPS time
-    phc_->set_time(gps_sec, gps_nsec);
+    bool step_success = phc_->set_time(gps_sec, gps_nsec);
     
-    // Notify GPS adapter of timescale change
-    gps_->notify_phc_stepped(step_delta_ns);
+    // Notify GPS adapter of timescale change ONLY if step succeeded
+    if (step_success && have_old_time) {
+        gps_->notify_phc_stepped(step_delta_ns);
+    } else if (!step_success) {
+        std::cerr << "[Controller] WARNING: PHC step failed, NOT adjusting GPS adapter timescale\n";
+    }
     
     // 2. Reset servo integrator
     if (servo_) {

@@ -186,6 +186,13 @@ public:
     bool get_base_mapping(uint64_t* expected_utc_sec);
 
     /**
+     * @brief Check if PPS-UTC association is locked
+     * @return true if lock established, false otherwise
+     * @note GPS time is only reliable after lock is established
+     */
+    bool is_locked() const { return pps_utc_locked_; }
+
+    /**
      * @brief Notify GPS adapter of PHC timescale step correction
      * @param step_delta_ns PHC step amount in nanoseconds (new_time - old_time)
      * 
