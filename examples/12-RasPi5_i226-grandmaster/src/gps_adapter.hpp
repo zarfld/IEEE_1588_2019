@@ -196,11 +196,14 @@ public:
      * @brief Notify GPS adapter of PHC timescale step correction
      * @param step_delta_ns PHC step amount in nanoseconds (new_time - old_time)
      * 
-     * When PHC is stepped, PPS timestamps captured before the step are in the old
-     * timescale. This method tracks cumulative step corrections to adjust PPS
-     * timestamps for accurate TAI time calculation.
+     * REMOVED: This method was part of an incorrect approach to tracking PHC steps.
+     * The original implementation tried to adjust PPS timestamps by cumulative_phc_steps_ns_,
+     * which caused continuous stepping bugs. GPS time should be based purely on NMEA+PPS
+     * mapping without PHC timescale adjustments.
+     * 
+     * If PHC timescale tracking is needed in the future, it should be done differently.
      */
-    void notify_phc_stepped(int64_t step_delta_ns);
+    // void notify_phc_stepped(int64_t step_delta_ns);  // REMOVED - see note above
 
 private:
     std::string serial_device_;   ///< GPS serial device path
@@ -229,8 +232,8 @@ private:
     int64_t     association_dt_sum_;        ///< Sum of dt samples
     uint64_t    last_nmea_time_;            ///< Last NMEA time processed (UTC seconds)
     
-    // PHC timescale tracking
-    int64_t     cumulative_phc_steps_ns_;   ///< Total PHC step corrections (ns)
+    // PHC timescale tracking REMOVED - see get_ptp_time() for explanation
+    // int64_t     cumulative_phc_steps_ns_;   ///< REMOVED - incorrect approach
     
     // Private helper methods
     bool open_serial_port();

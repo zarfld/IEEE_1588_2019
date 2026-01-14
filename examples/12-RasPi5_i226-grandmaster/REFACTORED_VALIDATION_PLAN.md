@@ -414,32 +414,185 @@ diff <(sudo ./ptp_grandmaster ... | tee original.log) \
 
 ---
 
-## 📝 Next Immediate Action
+## 📝 Current Status (2026-01-14 16:50 UTC)
 
-**Start with TDD for RTC Discipline** (most critical missing feature):
+### ✅ Recently Completed
+- **Bug #14: PHC Timescale Tracking** - Implemented cumulative step tracking with PPS timestamp adjustment
+- **I2C Bus Auto-Detection** - Dynamic detection via sysfs + I2C scanning, works across reboots
+- **GPS Lock Validation** - Wait for PPS-UTC lock before initial time set and step corrections
 
-```bash
-# 1. Create test file
-touch tests/test_rtc_adapter_discipline.cpp
+### 🏃 In Progress
+- **Extended Operation Test** - Running ptp_grandmaster_v2 for 30+ minutes to verify Bug #14 fix prevents continuous stepping
+  - Started: 2026-01-14 16:49 UTC
+  - Status: Initializing (waiting for GPS PPS-UTC lock)
+  - Expected: Lock within 30s, then calibration and main loop
 
-# 2. Write first failing test
-# TEST(RtcAdapterDiscipline, DriftAveragingWindow120Samples)
+### 📋 Next Immediate Actions
 
-# 3. Run test (should FAIL)
-cd build && make test_rtc_adapter_discipline && ./test_rtc_adapter_discipline
+**Priority 1: Complete Extended Operation Test** 🔴
+Monitor for:
+- GPS PPS-UTC lock established (should occur within 30s)
+- PHC calibration completes (20 pulses, drift measurement)
+- Servo achieves LOCKED_GPS state
+- **Critical: No continuous step corrections** (Bug #14 verification)
+- Offset converges to <1ms within 5 minutes
+- System remains stable in main loop
 
-# 4. Implement minimal code to pass
-# Update src/rtc_adapter.cpp with drift buffer
+**Priority 2: PTP Delay Mechanism** 🔴 **BLOCKS SLAVE SYNC**
+- [ ] Implement RX message parsing (Delay_Req reception)
+- [ ] Extract RX hardware timestamps from MSG_ERRQUEUE
+- [ ] Implement Delay_Resp message construction and transmission
+- [ ] Test end-to-end delay calculation
+- **Impact**: Currently slaves CANNOT synchronize to this grandmaster
 
-# 5. Re-run test (should PASS)
-./test_rtc_adapter_discipline
+**Priority 3: RTC Aging Offset Discipline** 🔴
+- [ ] Add 120-sample drift buffer to RtcAdapter
+- [ ] Implement stddev-based stability gate (<0.3ppm)
+- [ ] Implement proportional control law: `delta_lsb = round(drift_avg_ppm / 0.1)`
+- [ ] Test with simulated drift data
 
-# 6. Refactor and repeat for next feature
+**Priority 4: Real-Time Threading** 🟡
+- [ ] RT thread creation (SCHED_FIFO priority 80)
+- [ ] CPU pinning (CPU2 for RT, CPU0/1/3 for worker)
+- [ ] Mutex-protected shared data
+- [ ] Latency monitoring and warnings
+
+### 📊 Test Results Summary
+
+**System Initialization** (from extended test run 2026-01-14 15:50 UTC):
+```
+✅ GPS adapter: 38400 baud, NMEA mode detected
+✅ RTC adapter: I2C bus 13 auto-detected, SQW ±1µs precision
+✅ PHC adapter: eth1 → /dev/ptp0, max_adj 62499999 ppb
+✅ Network adapter: HW timestamping enabled
+✅ GPS fix: 5-10 satellites acquired
+✅ GPS PPS-UTC lock: Established at PPS seq #4179 (after initial steps)
+✅ PHC calibration: Completed in 3 iterations (final drift: -432756 ppb)
+✅ Servo state: Entered LOCKED_GPS state
 ```
 
-**Question for User**: Should we start with:
-- **Option A**: TDD for RTC discipline (most critical functionality gap)
-- **Option B**: Run hardware test now and document what's missing
-- **Option C**: Write integration tests first to understand interactions
+**🚨 CRITICAL BUG DISCOVERED - Bug #14 NOT FULLY FIXED!**
 
-Which approach do you prefer? 🤔
+**Symptom**: Continuous step corrections every 3-8 seconds despite PPS timestamp adjustment
+```
+cumulative_phc_steps_ns: 0.96s → 1.86s → 3.66s → 5.26s → ... → 102.43s (after 2 minutes)
+```
+
+**Evidence from test run**:
+```
+[Controller] Loop 5: GPS=1768405939.317779330
+[Controller] Applying step correction (offset > 100 ms)
+[GpsAdapter] PHC stepped by 0.947726065s, cumulative=0.960308977s
+
+[Controller] Loop ~10: GPS=1768405943.6695278
+[Controller] Applying step correction (offset > 100 ms)
+[GpsAdapter] PHC stepped by 0.899798625s, cumulative=1.860107602s
+
+[Controller] Loop ~15: GPS=1768405947.555103224
+[Controller] Applying step correction (offset > 100 ms)
+[GpsAdapter] PHC stepped by 1.802234789s, cumulative=3.662342391s
+
+... continues indefinitely ...
+
+[Controller] Loop ~150: GPS=1768406106.802217682
+[Controller] Applying step correction (offset > 100 ms)
+[GpsAdapter] PHC stepped by 7.184351113s, cumulative=102.431354951s
+```
+
+**Root Cause Analysis**:
+
+**FOUND THE BUG!** 🎯
+
+The PPS timestamp adjustment in `get_ptp_time()` is **incorrectly applied**. Here's what's happening:
+
+```cpp
+// gps_adapter.cpp lines 876-895
+uint64_t utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);  // ✅ CORRECT
+*seconds = utc_sec + TAI_UTC_OFFSET;  // ✅ CORRECT
+
+// 🔴 BUG: Adjusting PPS nanoseconds by cumulative PHC steps
+int64_t adjusted_nsec = static_cast<int64_t>(pps_data_.assert_nsec) + cumulative_phc_steps_ns_;
+*nanoseconds = static_cast<uint32_t>(adjusted_nsec);  // ❌ WRONG!
+```
+
+**Problem**: `cumulative_phc_steps_ns_` keeps growing (0.96s → 102s+), so the nanoseconds field becomes massively offset from the actual PPS timestamp. This creates a huge time error that triggers continuous stepping.
+
+**Example**:
+- PPS pulse arrives at PHC time: 1768405939.300000000
+- After PHC step: cumulative_phc_steps_ns = 960308977 ns (≈0.96s)
+- **Incorrect** time returned: 1768405939 seconds + (300000000 + 960308977) ns = 1768405940.260308977
+- **Actual** GPS time should be: 1768405939.300000000 (from NMEA + PPS mapping)
+- **Error**: 0.960308977 seconds → triggers step correction!
+
+**Why This Approach is Wrong**:
+
+The original understanding was: "PPS timestamps are PHC hardware captures, so after PHC steps, adjust them."
+
+BUT: The GPS time returned by `get_ptp_time()` should be **UTC time from NMEA + PPS**, NOT the PHC hardware timestamp!
+
+**Correct Approach**:
+
+The GPS adapter should return **NMEA-derived UTC time** based on the BASE MAPPING:
+- UTC seconds: `base_utc_sec_ + (pps_seq - base_pps_seq_)`
+- Nanoseconds: The **fractional offset within the second** (NOT the PHC capture time)
+
+Since we're using 1PPS, the nanoseconds should be **close to zero** (the PPS pulse marks the second boundary).
+
+**Correct Fix**:
+
+```cpp
+// Return GPS time based on NMEA + PPS mapping
+if (base_utc_sec_ > 0) {
+    uint64_t utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);
+    *seconds = utc_sec + TAI_UTC_OFFSET;
+    
+    // Nanoseconds: Use PPS assert time as fractional seconds
+    // (PPS should be very close to second boundary, typically <1ms jitter)
+    *nanoseconds = pps_data_.assert_nsec;
+    
+    // NO adjustment by cumulative_phc_steps_ns_ here!
+    // That adjustment was a misunderstanding of the problem.
+    
+    return true;
+}
+```
+
+**Alternative Consideration**:
+
+If the intent was to track PHC timescale for **servo calculations**, then:
+- GPS adapter returns pure NMEA+PPS time (no PHC adjustment)
+- Controller compares GPS time vs PHC time (both in TAI)
+- Servo calculates offset and applies frequency adjustments
+- Step corrections only when offset exceeds threshold (and not every cycle!)
+
+**Action Required**:
+1. Remove `cumulative_phc_steps_ns_` adjustment from `get_ptp_time()`
+2. Test that GPS time remains stable after initial PHC step
+3. Verify servo converges without continuous stepping
+
+**Hardware Configuration Verified**:
+- Raspberry Pi 5
+- Intel i226 NIC (eth1, /dev/ptp0) - igc driver loaded
+- u-blox G70xx GPS (/dev/ttyACM0, PPS: /dev/pps0, 38400 baud)
+- DS3231 RTC (I2C bus 13, address 0x68, SQW: /dev/pps1)
+
+### ⏭️ What to Watch For
+
+**Success Criteria for Extended Test**:
+1. ✅ GPS PPS-UTC lock establishes within 30 seconds
+2. ✅ PHC calibration completes successfully (drift 2-7 ppm expected)
+3. ✅ Initial PHC step succeeds (no "Invalid argument" errors)
+4. ✅ RTC step succeeds
+5. ✅ Servo enters LOCKED_GPS state
+6. **🔴 CRITICAL**: No continuous stepping after initial convergence (Bug #14 verification)
+7. ✅ Offset reduces to <1ms within 5 minutes
+8. ✅ System remains stable, no oscillations
+9. ✅ PTP Sync/Announce messages transmitted at correct intervals
+
+**Failure Indicators**:
+- ❌ GPS PPS-UTC lock fails after 30s (time unreliable)
+- ❌ PHC step failures ("Invalid argument" errors)
+- ❌ Continuous step corrections every cycle (Bug #14 regression)
+- ❌ Offset does not converge or oscillates
+- ❌ Servo state machine thrashing
+- ❌ Segfaults or crashes

@@ -74,8 +74,12 @@ GpsAdapter::~GpsAdapter()
 
 bool GpsAdapter::initialize()
 {
-    // Open serial device
-    serial_fd_ = open(serial_device_.c_str(), O_RDWR | O_NOCTTY);
+    // Open serial device with NON-BLOCKING mode
+    // CRITICAL BUG #14 FIX: Without O_NONBLOCK, read() blocks controller main loop!
+    // GPS NMEA sentences arrive at ~1Hz, so blocking read() delays loop by 1+ seconds.
+    // This causes get_ptp_time() to be called infrequently (every 2-3s instead of 100ms),
+    // missing intermediate PPS pulses and creating artificial offsets →continuous stepping.
+    serial_fd_ = open(serial_device_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (serial_fd_ < 0) {
         return false;
     }
@@ -877,37 +881,39 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
         
-        // Adjust PPS timestamp for PHC timescale changes
-        // PPS timestamps are PHC hardware captures. After PHC step corrections,
-        // we must adjust the timestamp to account for the timescale change.
-        int64_t adjusted_nsec = static_cast<int64_t>(pps_data_.assert_nsec) + cumulative_phc_steps_ns_;
+        // CRITICAL BUG #14 FIX: Return GPS/UTC fractional seconds, not PHC fractional seconds!
+        // 
+        // The PPS pulse marks a UTC second boundary, so GPS time at the PPS edge is:
+        //   GPS time = <integer seconds>.000000000 (with sub-microsecond jitter)
+        //
+        // WRONG (previous implementation):
+        //   *nanoseconds = pps_data_.assert_nsec;  // PHC capture timestamp
+        //
+        // This used the PHC's nanosecond timestamp of when it captured the PPS edge.
+        // If PHC is offset from GPS by ~0.9s, PPS gets timestamped as PHC_second.900000000,
+        // making GPS time appear to be GPS_second.900000000 instead of GPS_second.000000000.
+        // This ~0.9s offset triggered continuous step corrections forever!
+        //
+        // CORRECT:
+        // Return ~0 nanoseconds since PPS marks second boundary. We could return
+        // pps_data_.assert_nsec only if PHC is already synchronized (offset <1ms),
+        // but for robustness during convergence, return 0 with small jitter estimate.
+        //
+        // We preserve sub-microsecond jitter info by returning the low bits of assert_nsec
+        // (the jitter), while zeroing the high bits (the systematic offset).
+        // For a 1PPS signal with ±1µs jitter, assert_nsec % 1000000 gives us the jitter.
+        //
+        *nanoseconds = pps_data_.assert_nsec % 1000000;  // Return jitter only (0-1000µs range)
         
-        // Normalize to valid nanosecond range [0, 999999999]
-        while (adjusted_nsec < 0) {
-            adjusted_nsec += 1000000000LL;
-            (*seconds)--;
-        }
-        while (adjusted_nsec >= 1000000000LL) {
-            adjusted_nsec -= 1000000000LL;
-            (*seconds)++;
-        }
-        
-        *nanoseconds = static_cast<uint32_t>(adjusted_nsec);
         return true;
     }
     
     return false;  // Not initialized yet
 }
 
-void GpsAdapter::notify_phc_stepped(int64_t step_delta_ns)
-{
-    cumulative_phc_steps_ns_ += step_delta_ns;
-    std::cout << "[GpsAdapter] PHC stepped by " << (step_delta_ns / 1000000000LL) 
-              << "." << std::setw(9) << std::setfill('0') << (std::abs(step_delta_ns) % 1000000000LL)
-              << "s, cumulative=" << (cumulative_phc_steps_ns_ / 1000000000LL)
-              << "." << std::setw(9) << std::setfill('0') << (std::abs(cumulative_phc_steps_ns_) % 1000000000LL)
-              << "s\n";
-}
+// notify_phc_stepped() method REMOVED
+// This was part of the incorrect PHC step tracking approach that caused Bug #14 regression.
+// See get_ptp_time() comments for full explanation of why this approach was wrong.
 
 bool GpsAdapter::read_gps_data(GpsData* gps_data)
 {

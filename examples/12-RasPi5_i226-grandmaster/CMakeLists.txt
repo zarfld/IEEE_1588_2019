@@ -180,6 +180,11 @@ add_executable(test_grandmaster_controller_simple
 target_link_libraries(test_grandmaster_controller_simple pthread rt)
 target_compile_options(test_grandmaster_controller_simple PRIVATE -Wall -Wextra -O2)
 
+# PTP Delay Mechanism tests (CRITICAL - blocks slave synchronization)
+add_executable(test_ptp_delay_mechanism tests/test_ptp_delay_mechanism.cpp)
+target_link_libraries(test_ptp_delay_mechanism pthread)
+target_compile_options(test_ptp_delay_mechanism PRIVATE -Wall -Wextra -O2)
+
 
 # Print configuration
 message(STATUS "")

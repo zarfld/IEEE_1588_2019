@@ -171,35 +171,50 @@ bool GrandmasterController::set_initial_time() {
     }
     
     if (!gps_->is_locked()) {
-        std::cerr << "[Controller] WARNING: GPS PPS-UTC lock not established, time may be unreliable\n";
-        // Continue anyway - calibration might help establish lock
+        std::cerr << "[Controller] ERROR: GPS PPS-UTC lock not established!\n";
+        std::cerr << "[Controller] CRITICAL: Cannot step PHC before PPS-UTC lock (expert guidance: deb.md)\n";
+        std::cerr << "[Controller] PHC will remain at system time until lock is established\n";
+        // DO NOT step before lock! (expert guidance from deb.md)
+        // Before lock we don't know if GPS second label is correct.
+        // Stepping with wrong second causes permanent ~1s offsets.
+        return false;  // Fail initialization - must have lock
     }
     
-    // Get GPS time
-    uint64_t gps_sec;
+    std::cout << "[Controller] ✓ GPS PPS-UTC lock established - safe to proceed\n";
+    
+    // Get GPS time (this returns TAI: UTC + 37 seconds)
+    uint64_t gps_tai_sec;
     uint32_t gps_nsec;
-    if (!gps_->get_ptp_time(&gps_sec, &gps_nsec)) {
+    if (!gps_->get_ptp_time(&gps_tai_sec, &gps_nsec)) {
         std::cerr << "[Controller] ERROR: Failed to get GPS time\n";
         return false;
     }
     
-    std::cout << "[Controller] GPS time: " << gps_sec << "." 
+    // CRITICAL FIX (expert guidance from deb.md):
+    // Convert TAI to UTC for PHC stepping!
+    // The servo computes offsets in UTC (GPS_UTC = TAI - 37),
+    // so PHC MUST also be in UTC, otherwise we get permanent ~37s offset.
+    const uint32_t TAI_UTC_OFFSET = 37;  // seconds (valid 2017-2025)
+    uint64_t gps_utc_sec = gps_tai_sec - TAI_UTC_OFFSET;
+    
+    std::cout << "[Controller] GPS time (TAI): " << gps_tai_sec << "." 
+              << std::setfill('0') << std::setw(9) << gps_nsec << " s\n";
+    std::cout << "[Controller] GPS time (UTC): " << gps_utc_sec << "." 
               << std::setfill('0') << std::setw(9) << gps_nsec << " s\n";
     
-    // 1. Step PHC to GPS time
-    std::cout << "[Controller] Stepping PHC to GPS time...\n";
-    if (!phc_->set_time(gps_sec, gps_nsec)) {
+    // 1. Step PHC to GPS UTC time (NOT TAI!)
+    std::cout << "[Controller] Stepping PHC to GPS UTC time...\n";
+    if (!phc_->set_time(gps_utc_sec, gps_nsec)) {
         std::cerr << "[Controller] ERROR: Failed to set PHC time\n";
         return false;
     }
-    std::cout << "[Controller] ✓ PHC synchronized to GPS\n";
+    std::cout << "[Controller] ✓ PHC synchronized to GPS (UTC timescale)\n";
     
-    // 2. Step RTC to GPS time
-    std::cout << "[Controller] Stepping RTC to GPS time...\n";
+    // 2. Step RTC to GPS UTC time (already converted above)
+    std::cout << "[Controller] Stepping RTC to GPS UTC time...\n";
     RtcTime rtc_time;
-    // Convert PTP timestamp (TAI) to UTC for RTC
-    // TAI-UTC offset = 37 seconds (valid for 2017-2025)
-    uint64_t utc_sec = gps_sec - 37;
+    // Use UTC seconds (already converted from TAI above)
+    uint64_t utc_sec = gps_utc_sec;
     
     // Convert Unix timestamp to calendar time (simplified - assumes epoch 1970)
     uint64_t days = utc_sec / 86400;
@@ -241,6 +256,8 @@ bool GrandmasterController::calibrate_phc() {
     // Calibration loop (handled by PhcCalibrator state machine)
     // Max time: 5 iterations × 20 pulses × 1 sec/pulse = 100 seconds + margin
     bool baseline_set = false;
+    uint32_t last_processed_pps_seq = 0;  // Track last PPS sequence we processed
+    
     for (int attempt = 0; attempt < 120; attempt++) {  // 120 seconds max (was 30)
         // UPDATE GPS DATA to get fresh PPS!
         gps_->update();
@@ -251,6 +268,29 @@ bool GrandmasterController::calibrate_phc() {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
+        
+        // CRITICAL FIX (expert guidance from deb.md): Only process NEW PPS pulses!
+        // The calibrator must count actual PPS edges (sequence changes), not "valid reads".
+        // If we call update_calibration() with the same sequence multiple times, it will
+        // think "20 pulses elapsed" when only 18 PPS edges actually happened, producing
+        // impossible drift measurements like "-99936 ppm" (actually a measurement bug).
+        if (pps.sequence == last_processed_pps_seq && last_processed_pps_seq != 0) {
+            // No new PPS pulse yet, wait for next edge
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+        
+        // Check for PPS dropout (sequence jumped by >1)
+        if (last_processed_pps_seq != 0 && (pps.sequence - last_processed_pps_seq) > 1) {
+            std::cerr << "[Controller] WARNING: PPS dropout detected (seq jumped from " 
+                     << last_processed_pps_seq << " to " << pps.sequence << ")\n";
+            if (baseline_set) {
+                std::cout << "[Controller] Restarting calibration due to dropout...\n";
+                baseline_set = false;  // Restart calibration
+            }
+        }
+        
+        last_processed_pps_seq = pps.sequence;  // Remember this sequence
         
         // Get PHC timestamp
         uint64_t phc_sec;
@@ -263,15 +303,15 @@ bool GrandmasterController::calibrate_phc() {
         int64_t phc_ns = static_cast<int64_t>(phc_sec) * 1000000000LL 
                        + static_cast<int64_t>(phc_nsec);
         
-        // Start calibration ONCE, then update on subsequent iterations
+        // Start calibration ONCE, then update on subsequent NEW PPS edges
         if (!baseline_set) {
             calibrator_->start_calibration(pps.sequence, phc_ns);
             baseline_set = true;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // Don't sleep here - immediately wait for next PPS edge
             continue;
         }
         
-        // Update calibration with new measurements
+        // Update calibration with NEW measurement (guaranteed new PPS edge)
         int result = calibrator_->update_calibration(pps.sequence, phc_ns);
         
         // Check if calibration complete
@@ -310,6 +350,8 @@ void GrandmasterController::run() {
     std::cout << "[Controller] Starting main control loop...\n";
     
     uint32_t loop_count = 0;
+    static uint32_t pps_seq_when_stepped = 0;  // Track when we last stepped PHC
+    static uint32_t last_processed_pps_seq = 0;  // Track last GPS sample we processed
     
     while (running_) {
         loop_count++;
@@ -317,13 +359,46 @@ void GrandmasterController::run() {
         // CRITICAL: Update GPS data to fetch new NMEA sentences and PPS timestamps!
         gps_->update();
         
-        // 1. Get GPS time and PPS status
+        // CRITICAL BUG #14 FIX: Check if we need to wait for PPS stabilization BEFORE fetching GPS time
+        // After PHC step, PPS timestamps are captured in OLD timescale. We must wait for 3 complete
+        // PPS pulses in the NEW timescale before measuring offset again.
+        const PpsData& pps_check = gps_->get_pps_data();
+        if (pps_seq_when_stepped != 0) {
+            uint32_t pulses_since_step = pps_check.sequence - pps_seq_when_stepped;
+            if (pulses_since_step < 3) {
+                // Still waiting for PPS to stabilize - skip entire loop iteration
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;  // Don't fetch GPS time yet!
+            } else {
+                // 3 pulses have passed, reset the wait
+                pps_seq_when_stepped = 0;
+            }
+        }
+        
+        // CRITICAL BUG #14 ROOT CAUSE FIX: Only process new GPS samples!
+        // GPS time is derived from PPS sequence, which only updates once per second.
+        // If we run the servo loop at 10 Hz but GPS updates at 1 Hz, we'll process
+        // the same stale GPS time 10 times, causing incorrect offset calculations
+        // and unnecessary step corrections.
+        //
+        // SOLUTION: Only update servo when PPS sequence advances (new GPS sample).
+        // During 100ms convergence loops, skip iterations with no new GPS data.
+        if (pps_check.sequence == last_processed_pps_seq && last_processed_pps_seq != 0) {
+            // No new GPS sample available, skip this iteration
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+        
+        // 1. Get GPS time and PPS status (NEW sample available!)
         uint64_t gps_sec = 0;
         uint32_t gps_nsec = 0;
         bool gps_valid = gps_->get_ptp_time(&gps_sec, &gps_nsec);
         
         PpsData pps;
         bool pps_valid = gps_->get_pps_data(&pps, nullptr);
+        
+        // Remember this PPS sequence so we don't process it again
+        last_processed_pps_seq = pps.sequence;
         
         // Debug first few loops
         static int debug_count = 0;
@@ -351,50 +426,40 @@ void GrandmasterController::run() {
         int64_t offset_ns = calculate_offset(gps_sec, gps_nsec, phc_sec, phc_nsec);
         last_offset_ns_ = offset_ns;
         
+        // DEBUG: Show detailed timing in UTC nanoseconds (consistent time base)
+        // Convert GPS (TAI) back to UTC for consistent comparison
+        uint64_t gps_utc_sec = gps_sec - 37;  // TAI - 37s = UTC (current offset)
+        uint64_t gps_utc_ns = gps_utc_sec * 1000000000ULL + gps_nsec;
+        uint64_t phc_ns = phc_sec * 1000000000ULL + phc_nsec;
+        
+        static int timing_debug_count = 0;
+        if (timing_debug_count++ % 10 == 0 || std::abs(offset_ns) > 100000000) {
+            std::cout << "[TIMING #" << timing_debug_count << "] "
+                     << "GPS_UTC=" << gps_utc_sec << "." << std::setfill('0') << std::setw(9) << gps_nsec 
+                     << " (" << gps_utc_ns << "ns) "
+                     << "PHC=" << phc_sec << "." << std::setfill('0') << std::setw(9) << phc_nsec
+                     << " (" << phc_ns << "ns) "
+                     << "offset=" << offset_ns << "ns"
+                     << " PPS_seq=" << pps.sequence << "\n";
+        }
+        
         // 4. Update state machine
         state_machine_->update(pps_valid, gps_valid, offset_ns, 
                              (double)cumulative_freq_ppb_, gps_sec);
         ServoState current_state = state_machine_->get_state();
         
         // 5. Apply correction based on offset magnitude
-        // CRITICAL BUG #13 FIX: After stepping PHC, PPS timestamps are invalid!
-        // 
-        // Root cause: PPS timestamps captured in OLD PHC timescale, but GPS adapter
-        // returns time using these timestamps. After PHC step, comparing:
-        //   GPS time (TAI with OLD PPS nanoseconds) vs current PHC time (NEW timescale)
-        // This creates artificial ~100ms+ offsets even though clocks are synchronized!
-        //
-        // Solution: Wait for 3 complete PPS cycles after step before measuring offset:
-        //   Pulse N:   Captured before step (OLD timescale) - INVALID
-        //   Pulse N+1: Transition pulse - QUESTIONABLE  
-        //   Pulse N+2: First pulse in NEW timescale - QUESTIONABLE
-        //   Pulse N+3: Fully stabilized - VALID
-        //
-        static uint32_t pps_seq_when_stepped = 0;
-        
-        // Get current PPS sequence
-        const PpsData& pps_data = gps_->get_pps_data();
-        uint32_t current_pps_seq = pps_data.sequence;
-        
         if (std::abs(offset_ns) > config_.step_threshold_ns) {
-            // Check if we recently stepped and need to wait for PPS stabilization
-            uint32_t pulses_since_step = current_pps_seq - pps_seq_when_stepped;
-            if (pps_seq_when_stepped != 0 && pulses_since_step < 3) {
-                // Still waiting for PPS to stabilize after step (need 3 clean pulses)
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                continue;
-            }
-            
             // Only step if GPS adapter has established PPS-UTC lock
             if (!gps_->is_locked()) {
                 std::cout << "[Controller] WARNING: Large offset detected but GPS not locked yet, skipping step\n";
             } else {
                 // Large offset: apply step correction
                 apply_step_correction(gps_sec, gps_nsec);
-                pps_seq_when_stepped = current_pps_seq;  // Record PPS when we stepped
+                pps_seq_when_stepped = pps.sequence;  // Record PPS when we stepped
             }
             
-            // CRITICAL: Skip rest of loop - wait for 3 new PPS pulses
+            // CRITICAL: Skip rest of loop - will wait for 3 PPS pulses on next iteration
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         } else {
@@ -468,40 +533,49 @@ int64_t GrandmasterController::calculate_offset(
 }
 
 // Apply step correction
-void GrandmasterController::apply_step_correction(uint64_t gps_sec, uint32_t gps_nsec) {
-    static uint64_t last_gps_sec = 0;
+void GrandmasterController::apply_step_correction(uint64_t gps_tai_sec, uint32_t gps_nsec) {
+    // CRITICAL FIX (expert guidance from deb.md):
+    // Convert GPS time from TAI to UTC before stepping PHC!
+    // The input gps_tai_sec is in TAI (from get_ptp_time()),
+    // but PHC must be in UTC to match offset calculation (GPS_UTC - PHC).
+    const uint32_t TAI_UTC_OFFSET = 37;  // seconds (valid 2017-2025)
+    uint64_t gps_utc_sec = gps_tai_sec - TAI_UTC_OFFSET;
+    
+    static uint64_t last_gps_utc_sec = 0;
     static uint32_t last_gps_nsec = 0;
     
-    if (gps_sec == last_gps_sec && gps_nsec == last_gps_nsec) {
+    if (gps_utc_sec == last_gps_utc_sec && gps_nsec == last_gps_nsec) {
         std::cout << "[Controller] WARNING: GPS time not updating! Same as last step: "
-                 << gps_sec << "." << gps_nsec << "\n";
+                 << gps_utc_sec << "." << gps_nsec << " (UTC)\n";
     }
-    last_gps_sec = gps_sec;
+    last_gps_utc_sec = gps_utc_sec;
     last_gps_nsec = gps_nsec;
     
     std::cout << "[Controller] Applying step correction (offset > " 
-             << (config_.step_threshold_ns / 1000000) << " ms) to GPS time: "
-             << gps_sec << "." << gps_nsec << "\n";
+             << (config_.step_threshold_ns / 1000000) << " ms)\n";
+    std::cout << "[Controller]   GPS (TAI): " << gps_tai_sec << "." << gps_nsec << " s\n";
+    std::cout << "[Controller]   GPS (UTC): " << gps_utc_sec << "." << gps_nsec << " s\n";
+    std::cout << "[Controller]   Stepping PHC to UTC timescale\n";
     
-    // Calculate step delta before executing
-    uint64_t old_phc_sec;
-    uint32_t old_phc_nsec;
-    bool have_old_time = phc_->get_time(&old_phc_sec, &old_phc_nsec);
-    int64_t step_delta_ns = 0;
-    if (have_old_time) {
-        int64_t old_time_ns = static_cast<int64_t>(old_phc_sec) * 1000000000LL + old_phc_nsec;
-        int64_t new_time_ns = static_cast<int64_t>(gps_sec) * 1000000000LL + gps_nsec;
-        step_delta_ns = new_time_ns - old_time_ns;
+    // NO LONGER calculating step delta or notifying GPS adapter
+    // The notify_phc_stepped() approach was incorrect and caused Bug #14 regression.
+    // GPS time should be purely based on NMEA+PPS mapping, not adjusted for PHC steps.
+    
+    // SANITY CHECK (expert recommended guardrail):
+    // If TAI-UTC difference is not ~37s, something is very wrong
+    int64_t tai_utc_delta = gps_tai_sec - gps_utc_sec;
+    if (std::abs(tai_utc_delta - 37) > 2) {
+        std::cerr << "[Controller] ERROR: TAI-UTC delta is " << tai_utc_delta 
+                 << "s (expected ~37s)!\n";
+        std::cerr << "[Controller] Refusing to step - timescale corruption detected!\n";
+        return;
     }
     
-    // 1. Set PHC time to GPS time
-    bool step_success = phc_->set_time(gps_sec, gps_nsec);
+    // 1. Set PHC time to GPS UTC time (NOT TAI!)
+    bool step_success = phc_->set_time(gps_utc_sec, gps_nsec);
     
-    // Notify GPS adapter of timescale change ONLY if step succeeded
-    if (step_success && have_old_time) {
-        gps_->notify_phc_stepped(step_delta_ns);
-    } else if (!step_success) {
-        std::cerr << "[Controller] WARNING: PHC step failed, NOT adjusting GPS adapter timescale\n";
+    if (!step_success) {
+        std::cerr << "[Controller] WARNING: PHC step failed\n";
     }
     
     // 2. Reset servo integrator
