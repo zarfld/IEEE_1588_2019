@@ -37,8 +37,11 @@
 | PI servo (phase-based) | ✅ | ✅ (PI_Servo) | PASS | Unit tested (10/10) |
 | Anti-windup | ✅ | ✅ | PASS | Unit tested |
 | Lock detection | ✅ | ✅ | PASS | Unit tested |
-| Frequency-error servo (df/dt) | ✅ **IMPLEMENTED** (lines 1042-1077) | ❌ **MISSING** | ⚠️ FAIL | 🟡 High priority |
-| EMA filter (freq_ema) | ✅ **IMPLEMENTED** (alpha=0.3) | ❌ **MISSING** | ⚠️ FAIL | 🟡 High priority |
+| 3-Phase Servo (idd_3phaseDrift.md) | ❌ **NOT IN ORIGINAL** | ❌ **MISSING** | ⚠️ FAIL | 🔴 **NEW REQUIREMENT** |
+|  ├─ Phase A: Offset Correction | N/A | ❌ | ⚠️ FAIL | Step once, reset baseline |
+|  ├─ Phase B: Drift Baseline (NO ADJ!) | N/A | ❌ | ⚠️ FAIL | 20 PPS pure measurement |
+|  ├─ Phase C: Drift Evaluation (df/dt) | N/A | ❌ | ⚠️ FAIL | EMA filter, slew only |
+| Servo type CLI switch (--servo-type) | N/A | ❌ **MISSING** | ⚠️ FAIL | 🟡 High priority |
 | **Real-Time Threading** | | | | |
 | RT thread (SCHED_FIFO 80) | ✅ | ❌ **MISSING** | ⚠️ FAIL | 🟡 High |
 | CPU pinning (isolcpus=2) | ✅ | ❌ **MISSING** | ⚠️ FAIL | 🟡 High |

@@ -37,13 +37,24 @@
 - GPS recovery: 10-sample reacquisition window
 - Expert compliance: deb.holdover.md "RTC as flywheel frequency reference"
 
-**Step 3: Frequency-Error Servo** ⏳ IN PROGRESS (2026-01-14)
-- Parallel implementation alongside PI servo for comparison
-- Calculate: `df[n] = (phase_err[n] - phase_err[n-1]) / Δt`
-- Apply EMA filter: `freq_ema = 0.1 * df[n] + 0.9 * freq_ema`
-- Extended logging: Detailed 60-second comparison reports
-- **Status**: Code implemented, ready for testing in validation run
-- **Next**: Validate with calibration re-enabled, then compare performance metrics
+**Step 3: 3-Phase Servo Implementation** ⏳ PLANNED (2026-01-14)
+- **Separate servo class** with explicit phase state machine
+- **Phase A (Offset Correction)**:
+  - Smooth offset over N samples
+  - Step if `|offset| > 100ms`
+  - Reset drift baseline after step
+- **Phase B (Drift Baseline)**: ⚠️ **CRITICAL**
+  - **NO frequency adjustments for 20 PPS pulses!**
+  - Pure measurement: `drift_ppb = (PHC_delta - Ref_delta) / Ref_delta * 1e9`
+  - Store `freq_ppb_baseline`
+- **Phase C (Drift Evaluation)**:
+  - Calculate: `df[n] = (offset[n] - offset[n-1]) / Δt`
+  - EMA filter: `df_ema = α*df + (1-α)*df_ema` (α ≈ 0.05-0.2)
+  - Apply: `freq_total = freq_ppb_baseline + df_ema`
+  - Step only if `|offset| > 500ms`
+- **Command-line switch**: `--servo-type {pi|3phase}`
+- **Status**: Design complete, implementation pending
+- **Next**: Implement ThreePhaseServo class, add CLI parameter
 
 **PHC Calibration Status** ✅ RE-ENABLED (2026-01-14)
 - Calibration bypass removed from code (was `freq_calibrated = true`)
@@ -84,10 +95,33 @@
 2. Log both servo outputs for comparison
 3. Measure: lock time, jitter rejection, frequency stability
 
-**Phase 3: Switchover Decision** (After Step 3 validated)
-1. Compare PI vs frequency-error performance data
-2. Keep 20-pulse calibration (baseline)
-3. Choose production servo or hybrid approach
+**Phase 4: Implement 3-Phase Servo** (Parallel Implementation)
+1. **Design**: Create servo_3phase.hpp/cpp following idd_3phaseDrift.md specification
+2. **Phase A Implementation**: Offset correction with median/EMA filtering, step policy
+3. **Phase B Implementation**: Drift baseline measurement (20-pulse window, validity checks)
+4. **Phase C Implementation**: Gradient-based drift servo with EMA filtering
+5. **Integration**: Respect PPS-UTC lock rules, measurement window protection
+6. **Cmdline Parameter**: Add `--servo-type [pi|3phase]` for selection
+7. **Testing**: TDD approach with synthetic offset sequences, drift scenarios
+8. **Comparison**: Log both PI and 3-phase outputs in parallel for performance evaluation
+9. **Documentation**: Update ARCHITECTURE.md with final design, performance comparison results
+
+**Phase 5: Implement RT-Threading** (High Priority)
+1. **Design**: Dual-thread architecture per ARCHITECTURE.md (RT thread + Worker thread)
+2. **RT Thread**: SCHED_FIFO priority 80, CPU2 pinning, PPS capture only
+3. **Worker Thread**: SCHED_OTHER, CPU0/1/3 pinning, GPS/servo/network
+4. **Shared Data**: Mutex-protected PpsRtData struct
+5. **System Config**: Document kernel params (isolcpus=2 nohz_full=2 rcu_nocbs=2)
+6. **Latency Monitoring**: Warn if RT thread latency >10ms
+7. **Testing**: Measure PPS jitter improvement (<500ns target vs current 0.5-3.0µs)
+8. **Validation**: 30-minute test showing drift noise ±0.2ppm (vs current ±1ppm)
+9. **Reference**: Original ptp_grandmaster.cpp lines 362-450
+
+**Phase 6: Switchover Decision** (After Phase 3, 4, 5 validated)
+1. Compare PI vs frequency-error vs 3-phase performance data
+2. Compare RT-threading vs single-thread performance
+3. Keep 20-pulse calibration (baseline)
+4. Choose production servo configuration or hybrid approach
 
 ### Scaling Verification Results ✅
 
