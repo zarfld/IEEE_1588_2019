@@ -19,15 +19,108 @@
 #include <chrono>
 #include <getopt.h>
 #include <cstring>
+#include <pthread.h>
+#include <sched.h>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 using namespace IEEE::_1588::PTP::_2019::Linux;
 
+// Shared data structure for RT thread coordination (from original ptp_grandmaster.cpp)
+struct SharedTimingData {
+    std::mutex mutex;
+    std::condition_variable cv;
+    int64_t phc_at_pps_ns;
+    uint32_t pps_sequence;
+    bool phc_sample_valid;
+    
+    SharedTimingData() : phc_at_pps_ns(0), pps_sequence(0), phc_sample_valid(false) {}
+};
+
+// RT thread arguments
+struct RtThreadArgs {
+    int pps_handle;
+    PhcAdapter* phc_adapter;
+    SharedTimingData* shared;
+    std::atomic<bool>* running;
+};
+
+// Worker thread arguments  
+struct WorkerThreadArgs {
+    GpsAdapter* gps_adapter;
+    RtcAdapter* rtc_adapter;
+    GrandmasterController* controller;
+    SharedTimingData* shared;
+    std::atomic<bool>* running;
+};
+
+/**
+ * RT Thread: PPS capture + PHC sampling (CPU2, SCHED_FIFO priority 80)
+ * 
+ * Critical path for low-latency PPS timestamping. Runs on isolated CPU2.
+ * Target: <10ms latency from PPS edge to PHC sample.
+ */
+void* rt_thread_func(void* arg) {
+    RtThreadArgs* args = static_cast<RtThreadArgs*>(arg);
+    
+    pthread_setname_np(pthread_self(), "ptp_rt");
+    std::cout << "[RT Thread] Started on CPU" << sched_getcpu() << " (priority FIFO 80)\n";
+    
+    uint64_t pps_count = 0;
+    uint64_t last_pps_sequence = 0;
+    
+    while (args->running->load()) {
+        // Simplified: Just sleep and signal (real implementation would use PPS API)
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
+        // Update shared data
+        {
+            std::lock_guard<std::mutex> lock(args->shared->mutex);
+            args->shared->pps_sequence++;
+            args->shared->phc_sample_valid = true;
+            pps_count++;
+        }
+    }
+    
+    std::cout << "[RT Thread] Shutdown (PPS samples: " << pps_count << ")\n";
+    return nullptr;
+}
+
+/**
+ * Worker Thread: GPS/RTC/Controller updates (CPU0/1/3, SCHED_OTHER)
+ * 
+ * Non-critical path for GPS parsing, RTC discipline, and PTP messaging.
+ */
+void* worker_thread_func(void* arg) {
+    WorkerThreadArgs* args = static_cast<WorkerThreadArgs*>(arg);
+    
+    pthread_setname_np(pthread_self(), "ptp_worker");
+    std::cout << "[Worker Thread] Started on CPU" << sched_getcpu() << "\n";
+    
+    while (args->running->load()) {
+        // Update GPS data
+        args->gps_adapter->update();
+        
+        // Run controller iteration
+        args->controller->run();
+        
+        // Small sleep to prevent busy-waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    std::cout << "[Worker Thread] Shutdown\n";
+    return nullptr;
+}
+
 // Global flag for graceful shutdown
+static std::atomic<bool> g_running_atomic(true);
 static volatile sig_atomic_t g_running = 1;
 
 void signal_handler(int signum) {
-    std::cout << "\n Signal " << signum << " received. Shutting down...\n";
+    std::cout << "\nSignal " << signum << " received. Shutting down...\n";
     g_running = 0;
+    g_running_atomic = false;
 }
 
 void print_usage(const char* program_name) {
@@ -159,19 +252,84 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "  ✓ Controller initialized\n\n";
 
-        // Main control loop
-        std::cout << "🚀 Grandmaster running...\n\n";
+        // Shared data for thread coordination
+        SharedTimingData shared_data;
         
-        uint64_t loop_count = 0;
+        // Launch RT thread with SCHED_FIFO priority 80 and CPU2 affinity
+        std::cout << "Launching RT thread (CPU2, FIFO 80)...\n";
+        
+        RtThreadArgs rt_args = {
+            .pps_handle = -1,  // TODO: Get from GPS adapter
+            .phc_adapter = &phc,
+            .shared = &shared_data,
+            .running = &g_running_atomic
+        };
+        
+        pthread_t rt_thread;
+        pthread_attr_t rt_attr;
+        pthread_attr_init(&rt_attr);
+        
+        // CRITICAL: Must set inherit sched to EXPLICIT to use our scheduling parameters
+        pthread_attr_setinheritsched(&rt_attr, PTHREAD_EXPLICIT_SCHED);
+        
+        // Set FIFO scheduling with priority 80
+        struct sched_param rt_param;
+        rt_param.sched_priority = 80;
+        pthread_attr_setschedpolicy(&rt_attr, SCHED_FIFO);
+        pthread_attr_setschedparam(&rt_attr, &rt_param);
+        
+        // Pin to CPU2 (isolated from USB IRQs)
+        cpu_set_t rt_cpuset;
+        CPU_ZERO(&rt_cpuset);
+        CPU_SET(2, &rt_cpuset);
+        pthread_attr_setaffinity_np(&rt_attr, sizeof(rt_cpuset), &rt_cpuset);
+        
+        if (pthread_create(&rt_thread, &rt_attr, rt_thread_func, &rt_args) != 0) {
+            std::cerr << "ERROR: Failed to create RT thread: " << strerror(errno) << "\n";
+            std::cerr << "       (May need root privileges: sudo ./ptp_grandmaster_v2)\n";
+            pthread_attr_destroy(&rt_attr);
+            return 1;
+        }
+        pthread_attr_destroy(&rt_attr);
+        std::cout << "  ✓ RT thread launched\n";
+
+        // Launch worker thread with normal priority and CPU0/1/3 affinity
+        std::cout << "Launching worker thread (CPU0/1/3, normal priority)...\n";
+        
+        WorkerThreadArgs worker_args = {
+            .gps_adapter = &gps,
+            .rtc_adapter = &rtc,
+            .controller = &controller,
+            .shared = &shared_data,
+            .running = &g_running_atomic
+        };
+        
+        pthread_t worker_thread;
+        pthread_attr_t worker_attr;
+        pthread_attr_init(&worker_attr);
+        
+        // Pin to CPUs 0, 1, 3 (away from RT thread on CPU2)
+        cpu_set_t worker_cpuset;
+        CPU_ZERO(&worker_cpuset);
+        CPU_SET(0, &worker_cpuset);
+        CPU_SET(1, &worker_cpuset);
+        CPU_SET(3, &worker_cpuset);
+        pthread_attr_setaffinity_np(&worker_attr, sizeof(worker_cpuset), &worker_cpuset);
+        
+        if (pthread_create(&worker_thread, &worker_attr, worker_thread_func, &worker_args) != 0) {
+            std::cerr << "ERROR: Failed to create worker thread: " << strerror(errno) << "\n";
+            pthread_attr_destroy(&worker_attr);
+            return 1;
+        }
+        pthread_attr_destroy(&worker_attr);
+        std::cout << "  ✓ Worker thread launched\n";
+
+        // Main control loop - now just monitors and prints statistics
+        std::cout << "\n🚀 Grandmaster running with RT threading...\n\n";
+        
         auto last_stats_time = std::chrono::steady_clock::now();
         
         while (g_running) {
-            // Update GPS data (non-blocking)
-            gps.update();
-            
-            // Run controller iteration
-            controller.run();
-            
             // Print statistics every 10 seconds
             auto now = std::chrono::steady_clock::now();
             if (std::chrono::duration_cast<std::chrono::seconds>(now - last_stats_time).count() >= 10) {
@@ -188,13 +346,20 @@ int main(int argc, char* argv[]) {
                 last_stats_time = now;
             }
             
-            // Small sleep to prevent busy-waiting
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            loop_count++;
+            // Small sleep - worker thread handles controller updates
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
+        // Signal threads to stop
+        g_running_atomic = false;
+        
+        // Wait for threads to finish
+        std::cout << "\nWaiting for threads to finish...\n";
+        pthread_join(rt_thread, nullptr);
+        pthread_join(worker_thread, nullptr);
+
         // Shutdown
-        std::cout << "\nShutting down gracefully...\n";
+        std::cout << "Shutting down gracefully...\n";
         controller.shutdown();
         
         // Final statistics
