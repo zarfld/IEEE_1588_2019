@@ -461,24 +461,35 @@ void GrandmasterController::run() {
         ServoState current_state = state_machine_->get_state();
         
         // 5. Apply correction based on offset magnitude
+        // LAYER 11 FIX: Step FIRST if offset large, BEFORE servo runs
+        // Pattern: "Always OFFSET correction first (step), THEN frequency adjustment (servo)"
+        // Prevents servo from accumulating huge corrections while offset is > 100ms
         if (std::abs(offset_ns) > config_.step_threshold_ns) {
             // Only step if GPS adapter has established PPS-UTC lock
             if (!gps_->is_locked()) {
                 std::cout << "[Controller] WARNING: Large offset detected but GPS not locked yet, skipping step\n";
+                // Don't run servo either when offset is large - skip this cycle
+                continue;
             } else {
                 // Large offset: apply step correction (pass TAI time, will be converted inside)
                 apply_step_correction(gps_tai_sec, gps_nsec);
                 pps_seq_when_stepped = pps.sequence;  // Record PPS when we stepped
                 
                 // CRITICAL FIX (expert guidance): After stepping, IMMEDIATELY apply frequency correction!
-                // The calibration measured PHC drift (~166 ppm), so apply it NOW to prevent immediate re-step.
-                // Without this, the PHC continues drifting at ~160ppm, hits 100ms offset again in ~600 seconds,
+                // The calibration measured PHC drift (~88 ppm), so apply it NOW to prevent immediate re-step.
+                // Without this, the PHC continues drifting at ~88ppm, hits 100ms offset again in ~1000 seconds,
                 // and steps repeatedly without ever correcting frequency.
                 if (calibration_complete_) {
                     std::cout << "[Controller] Applying calibration frequency after step: " 
                              << cumulative_freq_ppb_ << " ppb\n";
                     phc_->adjust_frequency(cumulative_freq_ppb_);
                 }
+                
+                // LAYER 12 FIX: After stepping and applying calibration, IMMEDIATELY skip to next cycle
+                // This prevents cycles_since_step_ from being incremented on the SAME cycle as the step,
+                // which would cause us to immediately re-measure offset (still large because step takes time)
+                // and step again on the NEXT cycle before PHC has settled!
+                continue;
             }
         }
         

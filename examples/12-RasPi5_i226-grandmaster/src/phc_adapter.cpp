@@ -115,6 +115,10 @@ bool PhcAdapter::set_time(uint64_t sec, uint32_t nsec)
     // Same as frequency adjustment, convert fd→clockid_t
     clockid_t clkid = ((~(clockid_t)phc_fd_) << 3) | 3;
     
+    std::cout << "[PhcAdapter] DEBUG step_time: fd=" << phc_fd_ 
+              << " clockid=" << clkid 
+              << " time=" << sec << "." << nsec << "\n";
+    
     if (clock_settime(clkid, &ts) != 0) {
         std::cerr << "[PhcAdapter] clock_settime(clockid=" << clkid 
                   << ") failed: " << strerror(errno) << std::endl;
@@ -122,6 +126,17 @@ bool PhcAdapter::set_time(uint64_t sec, uint32_t nsec)
     }
     
     std::cout << "[PhcAdapter] Step correction: " << sec << "." << nsec << "s" << std::endl;
+    
+    // DEBUG: Verify step worked by reading back PHC time
+    struct timespec ts_verify;
+    if (clock_gettime(clkid, &ts_verify) == 0) {
+        std::cout << "[PhcAdapter] DEBUG after step: PHC time is now " 
+                  << ts_verify.tv_sec << "." << ts_verify.tv_nsec << std::endl;
+    } else {
+        std::cerr << "[PhcAdapter] DEBUG: clock_gettime failed after step: " 
+                  << strerror(errno) << std::endl;
+    }
+    
     return true;
 }
 
