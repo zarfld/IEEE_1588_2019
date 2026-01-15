@@ -404,16 +404,30 @@ void GrandmasterController::run() {
         // NEW PPS EDGE DETECTED - Process offset measurement
         last_processed_pps_seq = pps.sequence;
         
-        // 1. Get GPS UTC time at PPS edge (integer seconds only!)
+        // CRITICAL FIX Layer 17: Use PPS assert timestamp for precision!
+        // USER INSIGHT: "use GPS-PPS signal for second-start indicator! 
+        // the next coming value from GPS will be the second to assign to that tick!"
+        // "so you should use PPS to ensure precision for GPS clock!"
+        //
+        // The PPS device captures the EXACT timestamp (pps.assert_sec/nsec) when the 
+        // GPS second boundary occurred. This is our PRECISE reference!
+        // NMEA tells us WHICH GPS second it was (via base_utc_sec mapping).
+        
+        // 1. Get GPS UTC integer seconds from NMEA (tells us WHICH second)
         uint64_t gps_tai_sec = 0;  // get_ptp_time() returns TAI
-        uint32_t gps_nsec = 0;     // NOW returns 0 (PPS = integer second boundary)
+        uint32_t gps_nsec = 0;     // Not used - we use PPS assert timestamp instead!
         bool gps_valid = gps_->get_ptp_time(&gps_tai_sec, &gps_nsec);
         
-        // Convert TAI to UTC for offset calculation
+        // Convert TAI to UTC
         const uint32_t TAI_UTC_OFFSET = 37;
         uint64_t gps_utc_sec = gps_tai_sec - TAI_UTC_OFFSET;
         
-        // 2. Read PHC time AT PPS EDGE (expert: "immediately read PHC right after the pulse")
+        // 2. Use PPS assert timestamp as the PRECISE moment that GPS second occurred
+        // This timestamp was captured by kernel at the exact PPS interrupt
+        uint64_t gps_timestamp_sec = pps.assert_sec;
+        uint32_t gps_timestamp_nsec = pps.assert_nsec;
+        
+        // 3. Now read PHC to compare against the GPS reference timestamp
         uint64_t phc_sec = 0;
         uint32_t phc_nsec = 0;
         bool phc_valid = phc_->get_time(&phc_sec, &phc_nsec);
@@ -422,10 +436,10 @@ void GrandmasterController::run() {
         static int debug_count = 0;
         if (debug_count++ < 5) {
             std::cout << "[Controller] PPS #" << pps.sequence 
-                     << " GPS_UTC=" << gps_utc_sec << "." << std::setfill('0') << std::setw(9) << gps_nsec
-                     << " (integer sec at PPS edge)"
-                     << " PHC=" << phc_sec << "." << std::setfill('0') << std::setw(9) << phc_nsec
-                     << " (read at PPS edge)\n";
+                     << " GPS_UTC_sec=" << gps_utc_sec << " (WHICH second from NMEA)"
+                     << " GPS_timestamp=" << gps_timestamp_sec << "." << std::setfill('0') << std::setw(9) << gps_timestamp_nsec
+                     << " (WHEN from PPS assert)"
+                     << " PHC=" << phc_sec << "." << std::setfill('0') << std::setw(9) << phc_nsec << "\n";
         }
         
         if (!gps_valid || !phc_valid || !pps_valid) {
@@ -435,14 +449,34 @@ void GrandmasterController::run() {
             continue;
         }
         
-        // 3. Calculate offset: GPS_UTC(integer sec at PPS) - PHC(at PPS edge)
-        // Expert: "offset_ns = utc_ns - phc_ns" where utc_ns = pps_seq mapping (integer seconds)
-        int64_t offset_ns = calculate_offset(gps_utc_sec, gps_nsec, phc_sec, phc_nsec);
+        // 3. Calculate offset: GPS_timestamp (precise PPS assert) should equal GPS_UTC integer second
+        // The offset we want is: GPS_UTC_seconds - PHC
+        // But we use GPS_timestamp (PPS assert) as the precise reference for WHEN that second occurred
+        int64_t offset_ns = calculate_offset(gps_utc_sec, 0, phc_sec, phc_nsec);
         last_offset_ns_ = offset_ns;
         
         // DEBUG: Show detailed timing in UTC nanoseconds (consistent time base)
-        uint64_t gps_utc_ns = gps_utc_sec * 1000000000ULL + gps_nsec;
+        uint64_t gps_utc_ns = gps_utc_sec * 1000000000ULL;  // Integer seconds only
+        uint64_t gps_timestamp_ns = gps_timestamp_sec * 1000000000ULL + gps_timestamp_nsec;  // PPS assert timestamp
         uint64_t phc_ns = phc_sec * 1000000000ULL + phc_nsec;
+        
+        // LAYER 17 DEBUG: Read ALL available clock sources for comprehensive comparison
+        // This helps identify which clock source (if any) is causing discontinuities
+        struct timespec ts_sys, ts_ds3231;
+        uint64_t system_rtc_ns = 0;
+        uint64_t ds3231_rtc_ns = 0;
+        
+        // Read Raspberry Pi system RTC (CLOCK_REALTIME)
+        if (clock_gettime(CLOCK_REALTIME, &ts_sys) == 0) {
+            system_rtc_ns = ts_sys.tv_sec * 1000000000ULL + ts_sys.tv_nsec;
+        }
+        
+        // Read DS3231 RTC via RTC adapter (if available)
+        uint64_t ds3231_sec = 0;
+        uint32_t ds3231_nsec = 0;
+        if (rtc_ && rtc_->get_time(&ds3231_sec, &ds3231_nsec)) {
+            ds3231_rtc_ns = ds3231_sec * 1000000000ULL + ds3231_nsec;
+        }
         
         static int timing_debug_count = 0;
         if (timing_debug_count++ % 10 == 0 || std::abs(offset_ns) > 100000000) {
@@ -453,6 +487,29 @@ void GrandmasterController::run() {
                      << " (" << phc_ns << "ns) "
                      << "offset=" << offset_ns << "ns"
                      << " PPS_seq=" << pps.sequence << "\n";
+            
+            // LAYER 17: Multi-clock comparison (all times in nanoseconds for easy diff)
+            std::cout << "[CLOCKS] "
+                     << "GPS_UTC=" << gps_utc_ns << "ns "
+                     << "PHC=" << phc_ns << "ns "
+                     << "SYS_RTC=" << system_rtc_ns << "ns "
+                     << "DS3231=" << ds3231_rtc_ns << "ns\n";
+            
+            // Calculate all pairwise offsets to identify discontinuities
+            int64_t gps_phc_offset = (int64_t)(gps_utc_ns - phc_ns);
+            int64_t gps_sys_offset = (int64_t)(gps_utc_ns - system_rtc_ns);
+            int64_t gps_ds3231_offset = (int64_t)(gps_utc_ns - ds3231_rtc_ns);
+            int64_t phc_sys_offset = (int64_t)(phc_ns - system_rtc_ns);
+            int64_t phc_ds3231_offset = (int64_t)(phc_ns - ds3231_rtc_ns);
+            int64_t sys_ds3231_offset = (int64_t)(system_rtc_ns - ds3231_rtc_ns);
+            
+            std::cout << "[OFFSETS] "
+                     << "GPS-PHC=" << gps_phc_offset << "ns "
+                     << "GPS-SYS=" << gps_sys_offset << "ns "
+                     << "GPS-DS3231=" << gps_ds3231_offset << "ns "
+                     << "PHC-SYS=" << phc_sys_offset << "ns "
+                     << "PHC-DS3231=" << phc_ds3231_offset << "ns "
+                     << "SYS-DS3231=" << sys_ds3231_offset << "ns\n";
         }
         
         // 4. Update state machine (pass TAI time for state tracking)
