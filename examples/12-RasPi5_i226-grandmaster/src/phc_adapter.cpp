@@ -10,6 +10,7 @@
 
 #include "phc_adapter.hpp"
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <cstring>
@@ -20,6 +21,14 @@
 #include <linux/ptp_clock.h>
 #include <time.h>
 #include <sys/timex.h>
+
+// PTP ioctl constants (if not defined in kernel headers)
+#ifndef PTP_CLOCK_SETTIME
+#define PTP_CLOCK_SETTIME  _IOW(PTP_CLK_MAGIC, 5, struct ptp_clock_time)
+#endif
+#ifndef PTP_CLOCK_GETTIME
+#define PTP_CLOCK_GETTIME  _IOR(PTP_CLK_MAGIC, 6, struct ptp_clock_time)
+#endif
 
 PhcAdapter::PhcAdapter()
     : initialized_(false)
@@ -82,9 +91,13 @@ bool PhcAdapter::get_time(uint64_t* sec, uint32_t* nsec)
         return false;
     }
     
+    // LAYER 16 FIX: Read from PHC clockid, NOT CLOCK_REALTIME!
+    // BUG: Was reading system clock instead of i226 PHC
+    clockid_t clkid = ((~(clockid_t)phc_fd_) << 3) | 3;
+    
     struct timespec ts;
-    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
-        std::cerr << "[PhcAdapter] clock_gettime failed: " << strerror(errno) << std::endl;
+    if (clock_gettime(clkid, &ts) != 0) {
+        std::cerr << "[PhcAdapter] clock_gettime(PHC clkid=" << clkid << ") failed: " << strerror(errno) << std::endl;
         return false;
     }
     
@@ -106,35 +119,62 @@ bool PhcAdapter::set_time(uint64_t sec, uint32_t nsec)
         return false;
     }
     
-    struct timespec ts;
-    ts.tv_sec = static_cast<time_t>(sec);
-    ts.tv_nsec = static_cast<long>(nsec);
+    // LAYER 13 FIX: Intel i226 doesn't support clock_settime() OR PTP_CLOCK_SETTIME ioctl!
+    // Both return success/fail but don't actually change PHC time.
+    // Use clock_adjtime with ADJ_SETOFFSET mode to set time by offset adjustment.
     
-    // CRITICAL (Layer 10 fix!): Use PHC clockid, not CLOCK_REALTIME
-    // clock_settime(CLOCK_REALTIME) sets system clock, not PHC!
-    // Same as frequency adjustment, convert fd→clockid_t
+    // First get current PHC time
     clockid_t clkid = ((~(clockid_t)phc_fd_) << 3) | 3;
+    struct timespec ts_current;
+    if (clock_gettime(clkid, &ts_current) != 0) {
+        std::cerr << "[PhcAdapter] clock_gettime(PHC clkid=" << clkid << ") failed: " << strerror(errno) << std::endl;
+        return false;
+    }
     
-    std::cout << "[PhcAdapter] DEBUG step_time: fd=" << phc_fd_ 
-              << " clockid=" << clkid 
-              << " time=" << sec << "." << nsec << "\n";
+    std::cout << "[PhcAdapter DEBUG] set_time() called:\n"
+              << "  PHC device: " << device_path_ << " (fd=" << phc_fd_ << ", clkid=" << clkid << ")\n"
+              << "  Target time: " << sec << "." << std::setfill('0') << std::setw(9) << nsec << " (GPS_UTC)\n"
+              << "  Current PHC: " << ts_current.tv_sec << "." << std::setfill('0') << std::setw(9) << ts_current.tv_nsec << "\n";
     
-    if (clock_settime(clkid, &ts) != 0) {
-        std::cerr << "[PhcAdapter] clock_settime(clockid=" << clkid 
-                  << ") failed: " << strerror(errno) << std::endl;
+    // Calculate offset delta (target - current)
+    int64_t delta_sec = static_cast<int64_t>(sec) - ts_current.tv_sec;
+    int64_t delta_nsec = static_cast<int64_t>(nsec) - ts_current.tv_nsec;
+    
+    std::cout << "  Raw delta: " << delta_sec << "." << std::setfill('0') << std::setw(9) 
+              << (delta_nsec < 0 ? -delta_nsec : delta_nsec) << (delta_nsec < 0 ? " (negative nsec)\n" : "\n");
+    
+    // Normalize if nsec underflow/overflow
+    if (delta_nsec < 0) {
+        delta_sec -= 1;
+        delta_nsec += 1000000000;
+    } else if (delta_nsec >= 1000000000) {
+        delta_sec += 1;
+        delta_nsec -= 1000000000;
+    }
+    
+    std::cout << "[PhcAdapter] Stepping PHC (clock_adjtime ADJ_SETOFFSET) delta=" 
+              << delta_sec << "." << std::setfill('0') << std::setw(9) << delta_nsec << "s\n";
+    
+    // Apply offset using clock_adjtime ADJ_SETOFFSET
+    struct timex tx;
+    memset(&tx, 0, sizeof(tx));
+    tx.modes = ADJ_SETOFFSET | ADJ_NANO;
+    tx.time.tv_sec = delta_sec;
+    tx.time.tv_usec = delta_nsec;  // Actually nanoseconds when ADJ_NANO set
+    
+    if (clock_adjtime(clkid, &tx) != 0) {
+        std::cerr << "[PhcAdapter] clock_adjtime ADJ_SETOFFSET failed: " 
+                  << strerror(errno) << std::endl;
         return false;
     }
     
     std::cout << "[PhcAdapter] Step correction: " << sec << "." << nsec << "s" << std::endl;
     
-    // DEBUG: Verify step worked by reading back PHC time
+    // Verify step worked
     struct timespec ts_verify;
     if (clock_gettime(clkid, &ts_verify) == 0) {
-        std::cout << "[PhcAdapter] DEBUG after step: PHC time is now " 
-                  << ts_verify.tv_sec << "." << ts_verify.tv_nsec << std::endl;
-    } else {
-        std::cerr << "[PhcAdapter] DEBUG: clock_gettime failed after step: " 
-                  << strerror(errno) << std::endl;
+        std::cout << "[PhcAdapter] Verified: PHC now at " << ts_verify.tv_sec 
+                  << "." << std::setfill('0') << std::setw(9) << ts_verify.tv_nsec << std::endl;
     }
     
     return true;

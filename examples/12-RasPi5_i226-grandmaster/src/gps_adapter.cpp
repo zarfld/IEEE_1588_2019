@@ -843,32 +843,40 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             if (association_sample_count_ >= 5) {
                 int64_t avg_dt_ms = association_dt_sum_ / association_sample_count_;
                 
-                // Determine association rule and set BASE MAPPING (ONCE!)
+                // ⚠️ LAYER 15 FIX: Determine association rule but DON'T overwrite base mapping!
+                // Base mapping was already set on first NMEA (lines 876-882)
+                // We're just determining if NMEA labels LAST or NEXT PPS
                 if (avg_dt_ms >= 50 && avg_dt_ms <= 950) {
                     // NMEA arrives after PPS → labels LAST PPS
                     nmea_labels_last_pps_ = true;
-                    base_pps_seq_ = pps_data_.sequence;
-                    base_utc_sec_ = nmea_utc_sec;
+                    std::cout << "[Mapping Logic] NMEA labels LAST PPS:\n"
+                             << "  (NMEA came " << avg_dt_ms << "ms AFTER PPS, so it labels that PPS)\n";
                 } else {
                     // NMEA arrives just before PPS → labels NEXT PPS
                     nmea_labels_last_pps_ = false;
-                    base_pps_seq_ = pps_data_.sequence + 1;
-                    base_utc_sec_ = nmea_utc_sec;
+                    std::cout << "[Mapping Logic] NMEA labels NEXT PPS:\n"
+                             << "  (NMEA came " << avg_dt_ms << "ms BEFORE PPS)\n";
                 }
                 
                 pps_utc_locked_ = true;
                 std::cout << "[PPS-UTC Lock] Association locked: NMEA labels "
                           << (nmea_labels_last_pps_ ? "LAST" : "NEXT")
                           << " PPS (avg_dt=" << avg_dt_ms << "ms)\n";
-                std::cout << "[Base Mapping] base_pps_seq=" << base_pps_seq_ 
-                          << " base_utc_sec=" << base_utc_sec_ << " (UTC epoch)\n";
-                std::cout << "[DEBUG Mapping Lock] ⚠️ Base mapping anchors SET at this point\n"
-                          << "  Expert prediction: These should FREEZE until GPS is lost\n"
-                          << "  If mapping changes AFTER lock → causes ±1s second slips\n";
+                std::cout << "[Base Mapping] ✅ FROZEN at PPS_seq=" << base_pps_seq_ 
+                          << " UTC=" << base_utc_sec_ << " (set on first NMEA)\n";
+                std::cout << "[DEBUG Mapping Lock] ⚠️ Base mapping anchors now FROZEN\n"
+                          << "  They will NOT change until GPS is lost\n";
             } else if (base_utc_sec_ == 0) {
                 // First sample only - initialize base tentatively
+                // This executes on FIRST NMEA arrival, before lock
                 base_pps_seq_ = pps_data_.sequence;
-                base_utc_sec_ = nmea_labels_last_pps_ ? nmea_utc_sec : (nmea_utc_sec - 1);
+                // For FIRST sample, assume LAST PPS labeling (will be corrected if wrong)
+                base_utc_sec_ = nmea_utc_sec;
+                std::cout << "[First NMEA] Tentative base mapping:\n"
+                          << "  NMEA UTC time: " << nmea_utc_sec << " (from NMEA sentence)\n"
+                          << "  PPS_seq: " << base_pps_seq_ << " (current PPS sequence)\n"
+                          << "  base_utc_sec: " << base_utc_sec_ << " (assuming NMEA labels LAST PPS)\n"
+                          << "  ⚠️ This will be validated after 5 samples\n";
             }
             // Else: Already have tentative base, accumulating samples, don't overwrite!
             } // End fresh NMEA block
@@ -876,8 +884,34 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
     
     // Return PPS-UTC pair using BASE MAPPING model
     if (base_utc_sec_ > 0) {
+        // DEBUG: Track base mapping usage
+        static uint32_t last_base_pps_seq = 0;
+        static uint64_t last_base_utc_sec = 0;
+        static int base_usage_count = 0;
+        
+        if (base_pps_seq_ != last_base_pps_seq || base_utc_sec_ != last_base_utc_sec) {
+            std::cout << "[GPS Mapping CHANGE #" << ++base_usage_count << "]" 
+                     << " base_pps_seq: " << last_base_pps_seq << " → " << base_pps_seq_
+                     << ", base_utc_sec: " << last_base_utc_sec << " → " << base_utc_sec_
+                     << (pps_utc_locked_ ? " ⚠️ AFTER LOCK!" : " (before lock)") << "\n";
+            last_base_pps_seq = base_pps_seq_;
+            last_base_utc_sec = base_utc_sec_;
+        }
+        
         // Compute UTC for current PPS: UTC(seq) = base_utc + (seq - base_seq)
         uint64_t utc_sec = base_utc_sec_ + (pps_data_.sequence - base_pps_seq_);
+        
+        // DEBUG: Show calculation every 10th call
+        static int calc_debug_count = 0;
+        if (calc_debug_count++ % 10 == 0) {
+            std::cout << "[GPS UTC Calc #" << calc_debug_count << "]" 
+                     << " PPS_seq=" << pps_data_.sequence
+                     << " base_pps_seq=" << base_pps_seq_
+                     << " base_utc_sec=" << base_utc_sec_
+                     << " → UTC_sec=" << utc_sec
+                     << " (" << base_utc_sec_ << " + (" << pps_data_.sequence << " - " << base_pps_seq_ << "))\n";
+        }
+        
         // Convert UTC to TAI
         *seconds = utc_sec + TAI_UTC_OFFSET;
         

@@ -600,6 +600,7 @@ void GrandmasterController::apply_step_correction(uint64_t gps_tai_sec, uint32_t
     std::cout << "[Controller]   GPS (TAI): " << gps_tai_sec << "." << gps_nsec << " s\n";
     std::cout << "[Controller]   GPS (UTC): " << gps_utc_sec << "." << gps_nsec << " s\n";
     std::cout << "[Controller]   Stepping PHC to UTC timescale\n";
+    std::cout << "[Controller DEBUG] Calling phc_adapter->set_time(" << gps_utc_sec << ", " << gps_nsec << ")\n";
     
     // NO LONGER calculating step delta or notifying GPS adapter
     // The notify_phc_stepped() approach was incorrect and caused Bug #14 regression.
