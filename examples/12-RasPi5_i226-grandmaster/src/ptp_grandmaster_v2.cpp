@@ -13,6 +13,7 @@
  */
 
 #include "grandmaster_controller.hpp"
+#include "rtc_drift_discipline.hpp"
 #include <iostream>
 #include <csignal>
 #include <thread>
@@ -48,10 +49,7 @@ struct RtThreadArgs {
 
 // Worker thread arguments  
 struct WorkerThreadArgs {
-    GpsAdapter* gps_adapter;
-    RtcAdapter* rtc_adapter;
     GrandmasterController* controller;
-    SharedTimingData* shared;
     std::atomic<bool>* running;
 };
 
@@ -98,16 +96,10 @@ void* worker_thread_func(void* arg) {
     pthread_setname_np(pthread_self(), "ptp_worker");
     std::cout << "[Worker Thread] Started on CPU" << sched_getcpu() << "\n";
     
-    while (args->running->load()) {
-        // Update GPS data
-        args->gps_adapter->update();
-        
-        // Run controller iteration
-        args->controller->run();
-        
-        // Small sleep to prevent busy-waiting
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    // Controller's run() method contains the main loop - just call it once
+    // It will run until args->running becomes false
+    args->controller->run();
+
     
     std::cout << "[Worker Thread] Shutdown\n";
     return nullptr;
@@ -235,6 +227,17 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "  ✓ Network adapter initialized\n";
 
+        // Create RTC drift discipline controller
+        RtcDriftDisciplineConfig rtc_discipline_config;
+        rtc_discipline_config.buffer_size = 120;        // 20 minutes @ 10s intervals
+        rtc_discipline_config.stability_threshold = 0.3; // 0.3 ppm stddev gate
+        rtc_discipline_config.min_interval_sec = 1200;   // 20 minutes between adjustments
+        
+        RtcDriftDiscipline rtc_discipline(rtc_discipline_config);
+        std::cout << "  ✓ RTC drift discipline initialized "
+                  << "(buffer: " << rtc_discipline_config.buffer_size << " samples, "
+                  << "gate: " << rtc_discipline_config.stability_threshold << " ppm)\n";
+        
         // Create grandmaster controller with custom config
         GrandmasterConfig config;
         config.step_threshold_ns = 100000000;  // 100ms
@@ -242,7 +245,7 @@ int main(int argc, char* argv[]) {
         config.enable_ptp_tx = true;           // Enable PTP message transmission
         
         std::cout << "\nCreating GrandmasterController...\n";
-        GrandmasterController controller(&gps, &rtc, &phc, &network, config);
+        GrandmasterController controller(&gps, &rtc, &rtc_discipline, &phc, &network, config);
 
         // Initialize controller
         std::cout << "Initializing controller...\n";
@@ -251,7 +254,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::cout << "  ✓ Controller initialized\n\n";
-
+        
         // Shared data for thread coordination
         SharedTimingData shared_data;
         
@@ -297,10 +300,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Launching worker thread (CPU0/1/3, normal priority)...\n";
         
         WorkerThreadArgs worker_args = {
-            .gps_adapter = &gps,
-            .rtc_adapter = &rtc,
             .controller = &controller,
-            .shared = &shared_data,
             .running = &g_running_atomic
         };
         

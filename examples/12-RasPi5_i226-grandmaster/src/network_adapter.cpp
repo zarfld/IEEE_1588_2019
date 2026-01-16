@@ -387,6 +387,69 @@ bool NetworkAdapter::join_multicast(const char* multicast_addr)
     return true;
 }
 
+//==============================================================================
+// PTP Message Reception (Delay Mechanism Support)
+//==============================================================================
+
+ssize_t NetworkAdapter::recv_ptp_message(uint8_t* buffer, size_t buffer_size, 
+                                        NetworkTimestamp* rx_timestamp)
+{
+    if (!buffer || !rx_timestamp) {
+        return -1;
+    }
+    
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // Prepare ancillary data buffer for timestamp
+    char control_buf[512];
+    struct iovec iov;
+    struct msghdr msg;
+    
+    std::memset(&msg, 0, sizeof(msg));
+    std::memset(control_buf, 0, sizeof(control_buf));
+    
+    iov.iov_base = buffer;
+    iov.iov_len = buffer_size;
+    
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = control_buf;
+    msg.msg_controllen = sizeof(control_buf);
+    
+    // Non-blocking receive from event socket (port 319)
+    ssize_t received = recvmsg(event_socket_, &msg, MSG_DONTWAIT);
+    
+    if (received < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return 0; // No message available (non-blocking)
+        }
+        return -1; // Error
+    }
+    
+    // Extract hardware RX timestamp from ancillary data
+    if (!extract_rx_timestamp(&msg, rx_timestamp)) {
+        // No hardware timestamp available, use software timestamp
+        rx_timestamp->seconds = 0;
+        rx_timestamp->nanoseconds = 0;
+    }
+    
+    return received;
+}
+
+int NetworkAdapter::parse_message_type(const uint8_t* buffer, size_t length)
+{
+    // PTP message header minimum size is 34 bytes (IEEE 1588-2019)
+    if (!buffer || length < 34) {
+        return -1;
+    }
+    
+    // MessageType is lower 4 bits of byte 0
+    uint8_t message_type_field = buffer[0];
+    uint8_t message_type = message_type_field & 0x0F;
+    
+    return static_cast<int>(message_type);
+}
+
 } // namespace Linux
 } // namespace _2019
 } // namespace PTP

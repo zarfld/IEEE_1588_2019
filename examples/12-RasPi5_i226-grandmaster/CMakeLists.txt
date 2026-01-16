@@ -30,6 +30,7 @@ set(GRANDMASTER_SOURCES
     src/linux_ptp_hal.cpp
     src/gps_adapter.cpp
     src/rtc_adapter.cpp
+    src/drift_observer.cpp
     src/phc_adapter.cpp
     src/network_adapter.cpp
     src/pi_servo.cpp
@@ -83,6 +84,7 @@ target_compile_options(ptp_grandmaster PRIVATE
 set(ADAPTER_SOURCES
     src/gps_adapter.cpp
     src/rtc_adapter.cpp
+    src/drift_observer.cpp
     src/phc_adapter.cpp
     src/network_adapter.cpp
     src/linux_ptp_hal.cpp
@@ -97,6 +99,7 @@ set(REFACTORED_CONTROLLER_SOURCES
 
 add_executable(ptp_grandmaster_v2
     src/ptp_grandmaster_v2.cpp
+    src/rtc_drift_discipline.cpp
     ${ADAPTER_SOURCES}
     ${REFACTORED_CONTROLLER_SOURCES}
 )
@@ -171,6 +174,8 @@ add_executable(test_grandmaster_controller_simple
     src/grandmaster_controller.cpp
     src/gps_adapter.cpp
     src/rtc_adapter.cpp
+    src/drift_observer.cpp
+    src/rtc_drift_discipline.cpp
     src/phc_adapter.cpp
     src/network_adapter.cpp
     src/pi_servo.cpp
@@ -184,6 +189,17 @@ target_compile_options(test_grandmaster_controller_simple PRIVATE -Wall -Wextra 
 add_executable(test_ptp_delay_mechanism tests/test_ptp_delay_mechanism.cpp)
 target_link_libraries(test_ptp_delay_mechanism pthread)
 target_compile_options(test_ptp_delay_mechanism PRIVATE -Wall -Wextra -O2)
+
+# RTC Drift Discipline Integration tests (Priority #1)
+add_executable(test_rtc_discipline_integration 
+    tests/test_rtc_discipline_integration.cpp
+    src/rtc_drift_discipline.cpp
+)
+target_include_directories(test_rtc_discipline_integration PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(test_rtc_discipline_integration pthread)
+target_compile_options(test_rtc_discipline_integration PRIVATE -Wall -Wextra -O2)
 
 
 # Print configuration
@@ -202,3 +218,61 @@ message(STATUS "  - u-blox GPS (/dev/ttyACM0)")
 message(STATUS "  - DS3231 RTC (/dev/rtc1)")
 message(STATUS "  - PPS Input (/dev/pps0)")
 message(STATUS "")
+
+# RTC Discipline tests (Priority 1 - TDD Roadmap 2026-01-15)
+add_executable(test_rtc_discipline 
+    tests/test_rtc_discipline.cpp
+    src/rtc_drift_discipline.cpp
+)
+target_link_libraries(test_rtc_discipline pthread)
+target_compile_options(test_rtc_discipline PRIVATE -Wall -Wextra -O2)
+
+# Real-Time Threading tests (Priority 2 - TDD Roadmap 2026-01-15)
+add_executable(test_rt_threading tests/test_rt_threading.cpp)
+target_link_libraries(test_rt_threading pthread)
+target_compile_options(test_rt_threading PRIVATE -Wall -Wextra -O2)
+
+# Drift Observer tests (TDD RED-GREEN-REFACTOR - 2026-01-16)
+# Uses simple assert-based testing pattern (matches test_pi_servo.cpp)
+add_executable(test_drift_observer
+    tests/test_drift_observer.cpp
+    src/drift_observer.cpp
+)
+target_link_libraries(test_drift_observer pthread)
+target_compile_options(test_drift_observer PRIVATE -Wall -Wextra -O2)
+
+# Integration test: RTC Adapter + DriftObserver
+add_executable(test_rtc_drift_integration
+    tests/test_rtc_drift_integration.cpp
+    src/rtc_adapter.cpp
+    src/drift_observer.cpp
+    src/linux_ptp_hal.cpp
+)
+target_include_directories(test_rtc_drift_integration PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(test_rtc_drift_integration pthread)
+target_compile_options(test_rtc_drift_integration PRIVATE -Wall -Wextra -O2)
+
+# PTP Delay Mechanism Integration tests (Priority 0 - TDD Roadmap 2026-01-16)
+# Tests example's integration with repository's delay mechanism
+add_executable(test_delay_integration
+    tests/test_delay_integration.cpp
+    src/grandmaster_controller.cpp
+    src/network_adapter.cpp
+    src/gps_adapter.cpp
+    src/rtc_adapter.cpp
+    src/drift_observer.cpp
+    src/rtc_drift_discipline.cpp
+    src/phc_adapter.cpp
+    src/pi_servo.cpp
+    src/phc_calibrator.cpp
+    src/servo_state_machine.cpp
+    src/linux_ptp_hal.cpp
+)
+target_include_directories(test_delay_integration PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${IEEE1588_2019_INCLUDE_DIR}
+)
+target_link_libraries(test_delay_integration pthread rt)
+target_compile_options(test_delay_integration PRIVATE -Wall -Wextra -O2)

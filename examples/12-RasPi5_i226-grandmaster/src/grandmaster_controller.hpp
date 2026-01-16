@@ -31,6 +31,7 @@
 #include "pi_servo.hpp"
 #include "phc_calibrator.hpp"
 #include "servo_state_machine.hpp"
+#include "rtc_drift_discipline.hpp"
 
 /**
  * @brief Controller configuration parameters
@@ -77,6 +78,7 @@ public:
      * 
      * @param gps GPS adapter for time reference and PPS
      * @param rtc RTC adapter for holdover
+     * @param rtc_discipline RTC drift discipline for aging offset calibration
      * @param phc PHC adapter for i226 NIC clock
      * @param network Network adapter for PTP message I/O
      * @param config Controller configuration parameters
@@ -84,6 +86,7 @@ public:
     GrandmasterController(
         IEEE::_1588::PTP::_2019::Linux::GpsAdapter* gps,
         IEEE::_1588::PTP::_2019::Linux::RtcAdapter* rtc,
+        RtcDriftDiscipline* rtc_discipline,
         PhcAdapter* phc,
         IEEE::_1588::PTP::_2019::Linux::NetworkAdapter* network,
         const GrandmasterConfig& config = GrandmasterConfig()
@@ -143,11 +146,23 @@ public:
      * @return true if run() loop is active
      */
     bool is_running() const { return running_.load(); }
+    
+    /**
+     * @brief Poll for incoming PTP messages (Delay_Req handling)
+     * 
+     * Polls network for incoming PTP messages and processes:
+     *   - Delay_Req: Respond with Delay_Resp (via repository's PtpPort)
+     *   - Other messages: Log and ignore (future extensions)
+     * 
+     * @note Non-blocking, called from main loop
+     */
+    void poll_rx_messages();
 
 private:
     // Hardware adapters (injected dependencies)
     IEEE::_1588::PTP::_2019::Linux::GpsAdapter* gps_;
     IEEE::_1588::PTP::_2019::Linux::RtcAdapter* rtc_;
+    RtcDriftDiscipline* rtc_discipline_;
     PhcAdapter* phc_;
     IEEE::_1588::PTP::_2019::Linux::NetworkAdapter* network_;
     
@@ -173,6 +188,10 @@ private:
     uint64_t step_count_;
     int64_t last_offset_ns_;
     uint32_t cycles_since_step_;  // CRITICAL: Don't run servo immediately after step
+    
+    // RTC Drift Discipline
+    uint32_t rtc_discipline_count_;
+    std::chrono::steady_clock::time_point last_rtc_discipline_time_;
     
     // Private helper methods
     

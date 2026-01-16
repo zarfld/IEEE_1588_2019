@@ -166,9 +166,9 @@ enum class ServoPhase {
 
 ---
 
-#### RtcAdapter ✅ (Exists, Good Design)
+#### RtcAdapter ✅ (COMPLETE with DriftObserver)
 **File**: `src/rtc_adapter.hpp`, `src/rtc_adapter.cpp`  
-**Responsibility**: DS3231 RTC I2C access + aging offset discipline  
+**Responsibility**: DS3231 RTC I2C access + DriftObserver for aging offset discipline  
 **Interface**:
 ```cpp
 class RtcAdapter {
@@ -178,27 +178,37 @@ public:
     bool set_time(uint64_t sec, uint32_t nsec);
     bool adjust_aging_offset(int delta_lsb);
     bool get_pps_edge(uint64_t* sec, uint32_t* nsec);
+    void update_drift_observer(uint64_t gps_time_ns, uint64_t rtc_time_ns); // DriftObserver
 };
 ```
-**Dependencies**: Linux I2C subsystem  
-**Status**: ✅ Complete, well-designed
+**DriftObserver Features**:
+- 120-sample drift buffer (20 minutes @ 10s intervals)
+- Stability gate: stddev < 0.3 ppm threshold
+- Proportional control: delta_lsb = round(drift_avg_ppm / 0.1) clamped to [-3, +3]
+- Minimum adjustment interval: 1200s (20 minutes)
 
-#### Real-Time Threading Architecture ⏳
+**Dependencies**: Linux I2C subsystem  
+**Status**: ✅ Complete, including intelligent frequency discipline
+
+#### Real-Time Threading Architecture ✅ IMPLEMENTED
 **Responsibility**: Minimize PPS jitter and improve servo stability  
 **Design Pattern**: Dual-thread with priority separation
+**Implementation**: `GrandmasterController::run()` in ptp_grandmaster_v2.cpp
 
 **RT Thread (High Priority)**:
-- **Priority**: SCHED_FIFO priority 80 (real-time scheduling)
-- **CPU Affinity**: Pinned to isolated CPU2
+- **Priority**: SCHED_FIFO priority 80 (real-time scheduling) ✅
+- **CPU Affinity**: Pinned to isolated CPU2 ✅
 - **Responsibility**: PPS timestamp capture ONLY (minimal, deterministic work)
 - **Latency Target**: <10µs per capture
-- **Shared Data**: Updates `PpsRtData` struct (mutex-protected)
+- **Shared Data**: Updates `PpsRtData` struct (mutex-protected) ✅
+- **Log Evidence**: "[RT Thread] Started on CPU2 (priority FIFO 80)"
 
 **Worker Thread (Normal Priority)**:
-- **Priority**: SCHED_OTHER (standard scheduling)
-- **CPU Affinity**: CPU0/1/3 (non-isolated cores)
+- **Priority**: SCHED_OTHER (standard scheduling) ✅
+- **CPU Affinity**: CPU0/1/3 (non-isolated cores) ✅
 - **Responsibility**: GPS parsing, servo calculations, network TX
-- **Shared Data**: Reads `PpsRtData` struct (mutex-protected)
+- **Shared Data**: Reads `PpsRtData` struct (mutex-protected) ✅
+- **Log Evidence**: "[Worker Thread] Started on CPU0"
 
 **Shared Data Structure**:
 ```cpp
@@ -219,12 +229,11 @@ isolcpus=2 nohz_full=2 rcu_nocbs=2
 ```
 
 **Performance Targets**:
-- PPS jitter: <500ns (vs current 0.5-3.0µs)
-- Drift noise: ±0.2ppm (vs current ±1ppm)  
-- Latency monitoring: Warn if >10ms
+- PPS jitter: <500ns target (current measurement TBD)
+- Drift noise: ±0.2ppm target (current measurement TBD)  
+- Latency monitoring: Warn if >10ms ✅
 
-**Reference**: Original ptp_grandmaster.cpp lines 362-450  
-**Status**: ⏳ TO BE IMPLEMENTED (deb.md Recommendation D - HIGH PRIORITY)
+**Status**: ✅ IMPLEMENTED - Validated in GPS_PPS_RETRY_TEST_20260116_200704.log
 
 #### PhcAdapter ✅ (COMPLETE)
 **File**: `src/phc_adapter.hpp`, `src/phc_adapter.cpp`  

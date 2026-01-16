@@ -409,9 +409,14 @@ bool GpsAdapter::initialize()
         }
     }
 
-    // Initialize PPS
+    // Initialize PPS (non-fatal - can be initialized later if device not ready)
     if (!initialize_pps()) {
-        return false;
+        std::cerr << "  WARNING: Failed to initialize GPS PPS device " << pps_device_ << "\n";
+        std::cerr << "           GPS will work without PPS, but timing precision reduced\n";
+        std::cerr << "           PPS may become available after GPS acquires fix\n";
+        // Don't return false - GPS can work without PPS initially
+    } else {
+        std::cout << "  ✓ GPS PPS device " << pps_device_ << " initialized\n";
     }
 
     return true;
@@ -427,6 +432,19 @@ bool GpsAdapter::update()
     if (read_gps_data(&temp_gps_data)) {
         gps_data_ = temp_gps_data;  // Update if successful
         gps_updated = true;
+        
+        // CRITICAL: Retry PPS initialization once GPS acquires fix
+        // GPS must have fix before it outputs PPS signal!
+        static bool pps_init_retry_done = false;
+        if (!pps_init_retry_done && pps_handle_ < 0 && temp_gps_data.fix_quality != GpsFixQuality::NO_FIX) {
+            std::cout << "[GPS] ✓ GPS fix acquired - retrying PPS initialization...\n";
+            if (initialize_pps()) {
+                std::cout << "[GPS] ✓ GPS PPS device " << pps_device_ << " now available after fix!\n";
+                pps_init_retry_done = true;
+            } else {
+                std::cout << "[GPS] ⚠ PPS still not available (will retry on next update)\n";
+            }
+        }
     }
     
     // Fetch PPS timestamp on EVERY update (non-blocking, fast check)
@@ -447,7 +465,7 @@ bool GpsAdapter::update_pps_data()
     static int update_call_count = 0;
     update_call_count++;
     if (update_call_count <= 10 || update_call_count % 50 == 0) {
-        std::cout << "[update_pps_data #" << update_call_count 
+        std::cout << "[GPS_PPS #" << update_call_count 
                   << "] BEFORE: valid=" << pps_data_.valid
                   << " seq=" << pps_data_.sequence << "\n";
     }
@@ -462,14 +480,14 @@ bool GpsAdapter::update_pps_data()
     
     // DEBUG: Show ioctl result
     if (update_call_count <= 10 || update_call_count % 50 == 0) {
-        std::cout << "[update_pps_data #" << update_call_count
+        std::cout << "[GPS_PPS #" << update_call_count
                   << "] ioctl ret=" << ret
                   << " assert_seq=" << pps_info.assert_sequence
                   << " (prev_seq=" << pps_data_.sequence << ")\n";
     }
     
     if (ret < 0) {
-        std::cout << "[update_pps_data #" << update_call_count
+        std::cout << "[GPS_PPS #" << update_call_count
                   << "] ERROR: time_pps_fetch failed (ret=" << ret 
                   << ", errno=" << errno << ")\n";
         pps_data_.valid = false;
@@ -480,7 +498,7 @@ bool GpsAdapter::update_pps_data()
     if (pps_info.assert_sequence == pps_data_.sequence) {
         // No new PPS pulse since last fetch - this is normal
         if (update_call_count <= 10 || update_call_count % 50 == 0) {
-            std::cout << "[update_pps_data #" << update_call_count
+            std::cout << "[GPS_PPS #" << update_call_count
                       << "] No new pulse (seq still " << pps_data_.sequence 
                       << ") returning valid=" << pps_data_.valid << "\n";
         }
@@ -536,7 +554,7 @@ bool GpsAdapter::update_pps_data()
     
     // DEBUG: Show AFTER update
     if (update_call_count <= 10 || update_call_count % 50 == 0) {
-        std::cout << "[update_pps_data #" << update_call_count
+        std::cout << "[GPS_PPS #" << update_call_count
                   << "] AFTER: ✅ NEW PULSE seq=" << pps_data_.sequence
                   << " (delta=" << seq_delta << ")"
                   << " dropout=" << dropout_detected
@@ -589,11 +607,13 @@ bool GpsAdapter::initialize_pps()
 {
     int pps_fd = open(pps_device_.c_str(), O_RDWR);
     if (pps_fd < 0) {
+        std::cerr << "           Cannot open " << pps_device_ << " (errno=" << errno << ": " << strerror(errno) << ")\n";
         return false;
     }
 
     // Create PPS handle
     if (time_pps_create(pps_fd, &pps_handle_) < 0) {
+        std::cerr << "           time_pps_create failed (errno=" << errno << ": " << strerror(errno) << ")\n";
         close(pps_fd);
         return false;
     }
@@ -605,6 +625,7 @@ bool GpsAdapter::initialize_pps()
     params.assert_offset.tv_nsec = 0;
 
     if (time_pps_setparams(pps_handle_, &params) < 0) {
+        std::cerr << "           time_pps_setparams failed (errno=" << errno << ": " << strerror(errno) << ")\n";
         time_pps_destroy(pps_handle_);
         close(pps_fd);
         pps_handle_ = -1;
@@ -839,8 +860,9 @@ bool GpsAdapter::get_ptp_time(uint64_t* seconds, uint32_t* nanoseconds)
             association_dt_sum_ += dt_ms;
             association_sample_count_++;
             
-            // After 5 samples, lock the association
-            if (association_sample_count_ >= 5) {
+            // After 3 samples, lock the association (reduced from 5 for slow NMEA rates)
+            // With 50-second NMEA intervals: 3 samples = 150 seconds minimum
+            if (association_sample_count_ >= 3) {
                 int64_t avg_dt_ms = association_dt_sum_ / association_sample_count_;
                 
                 // ⚠️ LAYER 15 FIX: Determine association rule but DON'T overwrite base mapping!

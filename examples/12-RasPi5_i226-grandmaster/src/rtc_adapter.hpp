@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <string>
 #include <ctime>
+#include "drift_observer.hpp"
 
 namespace IEEE {
 namespace _1588 {
@@ -157,11 +158,20 @@ private:
     int         last_pps_seq_;   ///< Last PPS sequence number
     int         skip_samples_;   ///< Skip N samples after discontinuity (PHC cal/RTC sync)
     
+    // Second-Latching Architecture State
+    uint64_t    latched_rtc_sec_;  ///< DS3231 seconds latched at PPS edge (predictive, confirmed by I2C)
+    int64_t     edge_mono_ns_;     ///< Monotonic timestamp at PPS edge (CLOCK_MONOTONIC_RAW)
+    bool        timeinfo_valid_;   ///< True if latched_rtc_sec confirmed by authoritative DS3231 read
+    uint32_t    pending_seq_;      ///< PPS sequence awaiting TimeInfo confirmation (epoch contamination prevention)
+    
     // Private helper methods
     void convert_rtc_to_ptp(const RtcTime& rtc, uint64_t* seconds);
     void convert_ptp_to_rtc(uint64_t seconds, RtcTime* rtc);
     bool update_drift_estimate(uint64_t gps_seconds, uint64_t rtc_seconds);
     uint32_t calculate_holdover_quality(uint64_t current_time_sec);
+    
+    // DriftObserver for intelligent frequency discipline
+    ptp::DriftObserver drift_observer_;
 
 public:
     // RTC frequency discipline methods (public for manual drift measurement)
@@ -170,6 +180,16 @@ public:
     bool apply_frequency_discipline(double drift_ppm);
     int8_t read_aging_offset();
     bool write_aging_offset(int8_t offset);  // Direct write for incremental adjustments
+    
+    /**
+     * @brief Adjust aging offset by delta LSB value
+     * @param delta_lsb Adjustment to apply (positive = clock runs faster)
+     * @return true on success, false on failure
+     * 
+     * @note Reads current aging offset, adds delta, clamps to [-127, +127], writes back
+     */
+    bool adjust_aging_offset(int8_t delta_lsb);
+    
     double get_temperature();
     
     /**
@@ -185,6 +205,21 @@ public:
      *       false for time queries that must not block (PHC calibration, etc.)
      */
     bool get_time(uint64_t* seconds, uint32_t* nanoseconds, bool wait_for_edge = false);
+    
+    /**
+     * @brief Get PPS edge timestamp directly (for drift measurement)
+     * @param rtc_sec Output: RTC second (from hardware)
+     * @param pps_edge_nsec Output: PPS edge nanoseconds within system second (drifts with RTC oscillator!)
+     * @param wait_for_edge If true, wait for NEXT PPS edge (blocking); if false, use cached (non-blocking)
+     * @return true on success, false on failure
+     * 
+     * CRITICAL: This returns the PPS edge timestamp nanoseconds (last_pps_nsec_) which drifts
+     * with the RTC oscillator frequency. This is the signal needed for sub-second drift measurement.
+     * 
+     * Example: If RTC runs 5 ppm fast, the PPS edge nsec will gradually increase from ~195ms to ~200ms
+     * over time, while the RTC second increments perfectly. This captures the RTC oscillator drift!
+     */
+    bool get_pps_edge_timestamp(uint64_t* rtc_sec, uint32_t* pps_edge_nsec, bool wait_for_edge = false);
     
     // DS3231 Square Wave Output (1Hz) - for high-precision drift measurement
     bool enable_sqw_output(bool enable = true);  ///< Enable/disable 1Hz square wave output
@@ -204,6 +239,49 @@ public:
             return true;
         }
         return false;
+    }
+    
+    /**
+     * @brief Process PPS tick for drift observation
+     * @param gps_time_ns GPS time in nanoseconds
+     * @param rtc_time_ns RTC time in nanoseconds
+     * @return true if sample accepted, false if skipped/rejected
+     * 
+     * @note Feeds DriftObserver, handles spike detection, epoch tracking
+     */
+    bool process_pps_tick(uint64_t gps_time_ns, uint64_t rtc_time_ns);
+    
+    /**
+     * @brief Get drift estimate from observer
+     * @return ptp::Estimate with ready/trustworthy flags and statistics
+     */
+    ptp::Estimate get_drift_estimate() const {
+        return drift_observer_.GetEstimate();
+    }
+    
+    /**
+     * @brief Apply frequency discipline using DriftObserver estimate
+     * @param force If true, apply even if not trustworthy (default: false)
+     * @return true if discipline applied, false if estimate not trustworthy or failed
+     * 
+     * @note Only applies discipline if DriftObserver estimate is trustworthy
+     *       (ready + out of holdoff + low jitter)
+     */
+    bool apply_drift_discipline(bool force = false);
+    
+    /**
+     * @brief Notify observer of events (reference changes, clock steps, etc.)
+     * @param event Event type (see ptp::ObserverEvent)
+     */
+    void notify_event(ptp::ObserverEvent event) {
+        drift_observer_.NotifyEvent(event);
+    }
+    
+    /**
+     * @brief Reset drift observer (clear all state)
+     */
+    void reset_drift_observer() {
+        drift_observer_.Reset();
     }
 };
 

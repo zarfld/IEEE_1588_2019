@@ -118,6 +118,27 @@ public:
                       bool use_event_socket = true);
     
     /**
+     * @brief Poll for incoming PTP message with RX timestamp (non-blocking)
+     * @param buffer Receive buffer for PTP message
+     * @param buffer_size Buffer size in bytes
+     * @param rx_timestamp Output: Hardware RX timestamp
+     * @return Number of bytes received, 0 if no message, -1 on error
+     * 
+     * @note Non-blocking poll using MSG_DONTWAIT
+     * @note Extracts hardware RX timestamp from MSG_ERRQUEUE ancillary data
+     */
+    ssize_t recv_ptp_message(uint8_t* buffer, size_t buffer_size, 
+                            NetworkTimestamp* rx_timestamp);
+    
+    /**
+     * @brief Parse PTP message type from buffer
+     * @param buffer PTP message buffer
+     * @param length Buffer length
+     * @return MessageType extracted from header, or -1 on error
+     */
+    static int parse_message_type(const uint8_t* buffer, size_t length);
+    
+    /**
      * @brief Get pending TX timestamp from error queue
      * @param tx_timestamp Output: Retrieved TX timestamp
      * @param timeout_ms Timeout in milliseconds (0 = non-blocking)

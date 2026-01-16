@@ -20,11 +20,13 @@ using namespace IEEE::_1588::PTP::_2019::Linux;
 GrandmasterController::GrandmasterController(
     GpsAdapter* gps,
     RtcAdapter* rtc,
+    RtcDriftDiscipline* rtc_discipline,
     PhcAdapter* phc,
     NetworkAdapter* network,
     const GrandmasterConfig& config)
     : gps_(gps)
     , rtc_(rtc)
+    , rtc_discipline_(rtc_discipline)
     , phc_(phc)
     , network_(network)
     , servo_(nullptr)
@@ -42,6 +44,8 @@ GrandmasterController::GrandmasterController(
     , step_count_(0)
     , last_offset_ns_(0)
     , cycles_since_step_(999)  // Start high so servo runs immediately
+    , rtc_discipline_count_(0)
+    , last_rtc_discipline_time_(std::chrono::steady_clock::now())
 {
 }
 
@@ -145,16 +149,46 @@ bool GrandmasterController::initialize() {
 bool GrandmasterController::wait_for_gps_fix() {
     if (!gps_) return false;
     
+    std::cout << "[Controller] Waiting for GPS to acquire position fix...\n";
+    std::cout << "[Controller] (This may take 30-60 seconds if GPS has cold start)\n";
+    
     // Wait for GPS fix (up to 60 seconds)
     for (int i = 0; i < 60; i++) {
         gps_->update();
         
+        // Debug: Show GPS status every 5 seconds
+        if (i % 5 == 0 || i < 5) {
+            uint64_t sec;
+            uint32_t nsec;
+            bool has_time = gps_->get_ptp_time(&sec, &nsec);
+            uint8_t sat_count = gps_->get_satellite_count();
+            
+            std::cout << "[Controller] GPS status check " << (i+1) << "/60: "
+                     << "has_fix=" << (gps_->has_fix() ? "YES" : "NO") << ", "
+                     << "satellites=" << static_cast<int>(sat_count) << ", "
+                     << "time_valid=" << (has_time ? "YES" : "NO");
+            
+            if (has_time) {
+                std::cout << " (GPS time: " << sec << "s)";
+            }
+            std::cout << "\n";
+        }
+        
         if (gps_->has_fix()) {
-            std::cout << "[Controller] GPS fix acquired (" 
+            std::cout << "[Controller] ✓ GPS fix acquired (" 
                      << static_cast<int>(gps_->get_satellite_count()) << " satellites)\n";
             return true;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    
+    // Check if we at least have valid time (PPS working) even without position fix
+    uint64_t sec;
+    uint32_t nsec;
+    if (gps_->get_ptp_time(&sec, &nsec)) {
+        std::cout << "[Controller] WARNING: No GPS position fix, but GPS time is valid\n";
+        std::cout << "[Controller] Proceeding with time-only mode (grandmaster still functional)\n";
+        return true;  // Allow operation with just time
     }
     
     return false;
@@ -165,12 +199,19 @@ bool GrandmasterController::set_initial_time() {
     if (!gps_ || !phc_ || !rtc_) return false;
     
     // Wait for GPS adapter to establish PPS-UTC lock (critical for valid time)
-    // LAYER 11 FIX: Increased timeout from 30s→60s→120s to ensure lock establishment
-    // Lock requires ~10 PPS samples, but timing varies significantly with GPS update processing
-    // and NMEA message arrival patterns. 120s provides adequate margin.
-    std::cout << "[Controller] Waiting for GPS PPS-UTC lock (max 120s)...\n";
-    for (int i = 0; i < 120; i++) {
+    // LAYER 11 FIX: Increased timeout from 30s→60s→120s→180s to ensure lock establishment
+    // Lock requires 3 NMEA samples. With NMEA every 50 seconds, need 150s minimum.
+    // 180s provides adequate margin for slow NMEA update rates.
+    std::cout << "[Controller] Waiting for GPS PPS-UTC lock (max 180s)...\n";
+    for (int i = 0; i < 180; i++) {
         gps_->update();
+        
+        // CRITICAL: Must call get_ptp_time() to trigger association detection logic!
+        // The lock establishment code is in get_ptp_time(), not update()
+        uint64_t dummy_sec;
+        uint32_t dummy_nsec;
+        gps_->get_ptp_time(&dummy_sec, &dummy_nsec);
+        
         if (gps_->is_locked()) {
             std::cout << "[Controller] ✓ GPS PPS-UTC lock established after " << i << " seconds\n";
             break;
@@ -220,29 +261,24 @@ bool GrandmasterController::set_initial_time() {
     
     // 2. Step RTC to GPS UTC time (already converted above)
     std::cout << "[Controller] Stepping RTC to GPS UTC time...\n";
-    RtcTime rtc_time;
-    // Use UTC seconds (already converted from TAI above)
-    uint64_t utc_sec = gps_utc_sec;
     
-    // Convert Unix timestamp to calendar time (simplified - assumes epoch 1970)
-    uint64_t days = utc_sec / 86400;
-    uint32_t day_sec = utc_sec % 86400;
-    
-    // Approximate year/month/day (good enough for RTC setting)
-    uint16_t year_estimate = 1970 + (days / 365);  // Rough approximation
-    rtc_time.year = year_estimate;
-    rtc_time.month = 1;  // Default to January (close enough for sync purposes)
-    rtc_time.day = 1;
-    rtc_time.hours = day_sec / 3600;
-    rtc_time.minutes = (day_sec % 3600) / 60;
-    rtc_time.seconds = day_sec % 60;
-    rtc_time.valid = true;
-    
-    if (!rtc_->set_time(rtc_time)) {
-        std::cerr << "[Controller] WARNING: Failed to set RTC time (non-fatal)\n";
-        // Non-fatal - continue even if RTC set fails
+    // CRITICAL FIX: Use sync_from_gps() which handles PPS edge timing correctly!
+    // The GPS PPS edge marks the START of second S, but NMEA arrives ~200ms later.
+    // By the time we write to DS3231 I2C, we're already IN second S.
+    // sync_from_gps() adds +1 second so DS3231 reads S (current) then increments to S+1 at next boundary.
+    // This eliminates the persistent ~1 second GPS-RTC offset!
+    if (!rtc_->sync_from_gps(gps_utc_sec, gps_nsec)) {
+        std::cerr << "[Controller] WARNING: Failed to sync RTC from GPS (non-fatal)\n";
+        // Non-fatal - continue even if RTC sync fails, but drift measurement will have epoch offset
     } else {
-        std::cout << "[Controller] ✓ RTC synchronized to GPS\n";
+        std::cout << "[Controller] ✓ RTC synchronized to GPS (UTC epoch aligned with +1s compensation)\n";
+        std::cout << "[Controller]   GPS-RTC offset eliminated, DriftObserver measuring crystal drift only\n";
+        
+        // Wait for RTC I2C write to complete and stabilize
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // Note: sync_from_gps() already reset DriftObserver and set skip_samples_
+        std::cout << "[Controller] ✓ RTC DriftObserver reset by sync_from_gps() (fresh start)\n";
     }
     
     // 3. Wait for clocks to stabilize (critical for accurate drift measurement)
@@ -478,6 +514,29 @@ void GrandmasterController::run() {
             ds3231_rtc_ns = ds3231_sec * 1000000000ULL + ds3231_nsec;
         }
         
+        // Feed GPS-RTC PPS tick to DriftObserver for holdover monitoring
+        // CRITICAL: Measure RTC oscillator drift (NOT PHC drift - that's separate!)
+        // RTC drift is needed for GPS holdover - when GPS is lost, use RTC+drift correction
+        if (rtc_) {
+            // GPS time at PPS edge (nanoseconds always .000000000 at second boundary)
+            int64_t gps_time_ns = static_cast<int64_t>(gps_utc_sec) * 1000000000LL;
+            
+            // RTC time from DS3231 hardware (NON-BLOCKING)
+            // This returns:
+            //   - seconds: DS3231 hardware time (read via I2C)
+            //   - nanoseconds: sub-second offset from PPS edge
+            // Together they form the complete RTC timestamp for drift measurement
+            uint64_t rtc_sec;
+            uint32_t rtc_nsec;
+            if (rtc_->get_time(&rtc_sec, &rtc_nsec, false)) {  // wait_for_edge=false - NON-BLOCKING!
+                // Build full RTC timestamp
+                // GPS PPS: gps_utc_sec.000000000 (exact second boundary)
+                // RTC:     rtc_sec.rtc_nsec (hardware time + sub-second from PPS)
+                int64_t rtc_time_ns = static_cast<int64_t>(rtc_sec) * 1000000000LL + rtc_nsec;
+                rtc_->process_pps_tick(gps_time_ns, rtc_time_ns);
+            }
+        }
+        
         static int timing_debug_count = 0;
         if (timing_debug_count++ % 10 == 0 || std::abs(offset_ns) > 100000000) {
             std::cout << "[TIMING #" << timing_debug_count << "] "
@@ -584,10 +643,73 @@ void GrandmasterController::run() {
             log_state(offset_ns, cumulative_freq_ppb_, current_state);
         }
         
-        // 8. Sleep until next cycle
+        // 8. Poll for incoming PTP messages (Delay_Req handling)
+        poll_rx_messages();
+        
+        // 9. Sleep until next cycle
         // Use shorter interval during convergence (offset >1ms) for faster servo response
         uint32_t cycle_interval_ms = (std::abs(offset_ns) > 1000000) ? 100 : config_.sync_interval_ms;
         std::this_thread::sleep_for(std::chrono::milliseconds(cycle_interval_ms));
+        
+        // 10. RTC Drift Discipline (every 10 seconds)
+        rtc_discipline_count_++;
+        // Trigger based on elapsed time, not cycle count (cycle time varies 100-1000ms)
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_rtc_discipline_time_).count();
+        
+        if (elapsed >= 10 && rtc_discipline_) {
+                // Get GPS time (TAI)
+                uint64_t gps_tai_sec;
+                uint32_t gps_nsec;
+                if (gps_->get_ptp_time(&gps_tai_sec, &gps_nsec)) {
+                    // Get RTC time (UTC)
+                    uint64_t rtc_seconds;
+                    uint32_t rtc_nanoseconds;
+                    if (rtc_->get_ptp_time(&rtc_seconds, &rtc_nanoseconds)) {
+                        // Convert GPS TAI to UTC for comparison
+                        const uint32_t TAI_UTC_OFFSET = 37;
+                        uint64_t gps_utc_sec = gps_tai_sec - TAI_UTC_OFFSET;
+                        
+                        // Calculate drift (GPS - RTC) in ppm
+                        int64_t time_diff_ns = (static_cast<int64_t>(gps_utc_sec) * 1000000000LL + gps_nsec) -
+                                              (static_cast<int64_t>(rtc_seconds) * 1000000000LL + rtc_nanoseconds);
+                        double drift_ppm = (time_diff_ns / (static_cast<double>(elapsed) * 1e9)) * 1e6;
+                        
+                        std::cout << "[RTC Discipline] GPS=" << gps_utc_sec << "." << gps_nsec 
+                                  << " RTC=" << rtc_seconds << "." << rtc_nanoseconds 
+                                  << " diff=" << time_diff_ns << "ns drift=" << drift_ppm << "ppm\n" << std::flush;
+                        
+                        // Add sample to discipline
+                        rtc_discipline_->add_sample(drift_ppm, gps_tai_sec);
+                        
+                        // Check if adjustment needed
+                        if (rtc_discipline_->should_adjust(gps_tai_sec)) {
+                            int8_t lsb_adjustment = rtc_discipline_->calculate_lsb_adjustment();
+                            
+                            std::cout << "[RTC Discipline] Adjustment needed! LSB=" << static_cast<int>(lsb_adjustment) 
+                                     << " samples=" << rtc_discipline_->get_sample_count()
+                                     << " avg=" << rtc_discipline_->get_average_drift() << "ppm"
+                                     << " stddev=" << rtc_discipline_->get_stddev() << "ppm\n" << std::flush;
+                            
+                            if (rtc_->adjust_aging_offset(lsb_adjustment)) {
+                                std::cout << "[RTC Discipline] ✓ Applied aging offset adjustment: "
+                                         << static_cast<int>(lsb_adjustment) << " LSB\n" << std::flush;
+                            } else {
+                                std::cerr << "[RTC Discipline] ✗ Failed to apply aging offset adjustment\n" << std::flush;
+                            }
+                        } else {
+                            std::cout << "[RTC Discipline] Not ready for adjustment (samples=" 
+                                     << rtc_discipline_->get_sample_count() << ")\n" << std::flush;
+                        }
+                    } else {
+                        std::cerr << "[RTC Discipline] ERROR: Failed to get RTC time\n" << std::flush;
+                    }
+                } else {
+                    std::cerr << "[RTC Discipline] ERROR: Failed to get GPS time\n" << std::flush;
+                }
+                
+                last_rtc_discipline_time_ = now;
+            }
     }
     
     std::cout << "[Controller] Main loop stopped\n";
@@ -737,7 +859,10 @@ void GrandmasterController::apply_servo_correction(int64_t offset_ns) {
 
 // Send Sync message
 void GrandmasterController::send_sync_message() {
-    if (!network_) return;
+    if (!network_) {
+        std::cout << "[Controller] ❌ TX Sync FAILED: network_ is null\n" << std::flush;
+        return;
+    }
     
     // Simple Sync message (IEEE 1588-2019 format)
     // In full implementation, this would construct proper PTP packet
@@ -752,12 +877,20 @@ void GrandmasterController::send_sync_message() {
     
     if (sent > 0) {
         sync_count_++;
+        uint64_t ts_ns = tx_ts.seconds * 1000000000ULL + tx_ts.nanoseconds;
+        std::cout << "[Controller] 📤 TX: Sync message (" << sent << " bytes, hw_ts=" 
+                  << ts_ns << ")\n" << std::flush;
+    } else {
+        std::cout << "[Controller] ❌ TX Sync FAILED: send_packet returned " << sent << "\n" << std::flush;
     }
 }
 
 // Send Announce message
 void GrandmasterController::send_announce_message() {
-    if (!network_) return;
+    if (!network_) {
+        std::cout << "[Controller] ❌ TX Announce FAILED: network_ is null\n" << std::flush;
+        return;
+    }
     
     // Simple Announce message (IEEE 1588-2019 format)
     uint8_t announce_packet[64];
@@ -771,6 +904,11 @@ void GrandmasterController::send_announce_message() {
     
     if (sent > 0) {
         announce_count_++;
+        uint64_t ts_ns = tx_ts.seconds * 1000000000ULL + tx_ts.nanoseconds;
+        std::cout << "[Controller] 📤 TX: Announce message (" << sent << " bytes, hw_ts=" 
+                  << ts_ns << ")\n" << std::flush;
+    } else {
+        std::cout << "[Controller] ❌ TX Announce FAILED: send_packet returned " << sent << "\n" << std::flush;
     }
 }
 
@@ -787,3 +925,58 @@ void GrandmasterController::log_state(int64_t offset_ns, int32_t freq_ppb, Servo
              << ", Offset=" << (offset_ns / 1000) << " μs"
              << ", Freq=" << freq_ppb << " ppb\n";
 }
+
+//==============================================================================
+// PTP Delay Mechanism - RX Message Processing
+//==============================================================================
+
+void GrandmasterController::poll_rx_messages() {
+    if (!network_) {
+        return;
+    }
+    
+    // Debug: Log polling activity periodically
+    static uint64_t poll_count = 0;
+    poll_count++;
+    if (poll_count % 100 == 0) {
+        std::cout << "[RX Poll] Polling for PTP messages (count=" << poll_count << ")\n" << std::flush;
+    }
+    
+    // Poll for incoming PTP messages (non-blocking)
+    uint8_t rx_buffer[512];
+    NetworkTimestamp rx_timestamp;
+    
+    ssize_t received = network_->recv_ptp_message(rx_buffer, sizeof(rx_buffer), &rx_timestamp);
+    
+    if (received <= 0) {
+        // No message or error (non-blocking, expected)
+        return;
+    }
+    
+    // Parse message type
+    int msg_type = NetworkAdapter::parse_message_type(rx_buffer, received);
+    
+    if (msg_type < 0) {
+        std::cerr << "[Controller] Failed to parse message type\n" << std::flush;
+        return;
+    }
+    
+    // Handle Delay_Req messages (0x1)
+    if (msg_type == 0x1) {  // MessageType::Delay_Req
+        // TODO: Wire to repository's PtpPort::process_delay_req()
+        // For now, just log that we received it
+        std::cout << "[Controller] 🎯 RX: Delay_Req message (" << received << " bytes)"
+                 << " RX_TS=" << rx_timestamp.seconds << "." 
+                 << std::setfill('0') << std::setw(9) << rx_timestamp.nanoseconds << "\n" << std::flush;
+        
+        // TODO Phase GREEN: 
+        // 1. Create PtpPort instance
+        // 2. Call ptp_port->process_delay_req(rx_buffer, received, rx_timestamp)
+        // 3. Implement send_delay_resp callback to call network_->send_packet()
+    } else {
+        std::cout << "[Controller] 📨 RX: PTP message type=" << msg_type 
+                 << " (" << received << " bytes)\n" << std::flush;
+    }
+    // Future: Handle other message types (Announce, Sync for slave mode, etc.)
+}
+

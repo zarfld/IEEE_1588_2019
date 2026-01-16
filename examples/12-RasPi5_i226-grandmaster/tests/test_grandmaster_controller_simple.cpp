@@ -38,7 +38,7 @@ int main() {
     // Test 2: Create controller
     total++;
     std::cout << "[TEST 2] Create controller\n";
-    GrandmasterController controller(&gps, &rtc, &phc, &network);
+    GrandmasterController controller(&gps, &rtc, nullptr, &phc, &network);
     std::cout << "[PASS] Controller created\n\n";
     passed++;
     
@@ -59,14 +59,14 @@ int main() {
     config.step_threshold_ns = 50000000;
     config.sync_interval_ms = 500;
     config.enable_ptp_tx = false;
-    GrandmasterController controller2(&gps, &rtc, &phc, &network, config);
+    GrandmasterController controller2(&gps, &rtc, nullptr, &phc, &network, config);
     std::cout << "[PASS] Controller with custom config created\n\n";
     passed++;
     
     // Test 5: Missing adapter detection
     total++;
     std::cout << "[TEST 5] Missing adapter detection\n";
-    GrandmasterController controller3(&gps, &rtc, &phc, nullptr);
+    GrandmasterController controller3(&gps, &rtc, nullptr, &phc, nullptr);
     bool result = controller3.initialize();
     if (!result) {
         std::cout << "[PASS] Correctly rejected missing adapter\n\n";
