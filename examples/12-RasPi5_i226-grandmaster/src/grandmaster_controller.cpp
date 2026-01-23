@@ -961,22 +961,412 @@ void GrandmasterController::poll_rx_messages() {
         return;
     }
     
+    // Handle Sync messages (0x0) - for observability
+    if (msg_type == 0x0) {  // MessageType::Sync
+        // Parse source port identity (bytes 20-29)
+        uint64_t src_clock_id = ((uint64_t)rx_buffer[20] << 56) | ((uint64_t)rx_buffer[21] << 48) |
+                                ((uint64_t)rx_buffer[22] << 40) | ((uint64_t)rx_buffer[23] << 32) |
+                                ((uint64_t)rx_buffer[24] << 24) | ((uint64_t)rx_buffer[25] << 16) |
+                                ((uint64_t)rx_buffer[26] << 8)  | rx_buffer[27];
+        uint16_t src_port = ((uint16_t)rx_buffer[28] << 8) | rx_buffer[29];
+        
+        // Parse sequence ID (bytes 30-31)
+        uint16_t seq_id = ((uint16_t)rx_buffer[30] << 8) | rx_buffer[31];
+        
+        // Filter out our own messages (loopback)
+        // Our clock ID is based on MAC address - should not be all zeros
+        if (src_clock_id == 0) {
+            std::cout << "[Controller] ⚠️  RX: Sync with ZERO clockID - likely our own TX loopback, ignoring\n" << std::flush;
+            return;  // Skip our own messages
+        }
+        
+        std::cout << "[Controller] 📨 RX: Sync message (" << received << " bytes)"
+                  << " from clockID=" << std::hex << std::setfill('0') << std::setw(16) << src_clock_id
+                  << std::dec << " port=" << src_port << " seq=" << seq_id
+                  << " RX_TS=" << rx_timestamp.seconds << "." << std::setfill('0') << std::setw(9) << rx_timestamp.nanoseconds
+                  << "\n" << std::flush;
+    }
+    // Handle Announce messages (0x0B) - BMCA data
+    else if (msg_type == 0x0B) {  // MessageType::Announce
+        // Parse source port identity (bytes 20-29)
+        uint64_t src_clock_id = ((uint64_t)rx_buffer[20] << 56) | ((uint64_t)rx_buffer[21] << 48) |
+                                ((uint64_t)rx_buffer[22] << 40) | ((uint64_t)rx_buffer[23] << 32) |
+                                ((uint64_t)rx_buffer[24] << 24) | ((uint64_t)rx_buffer[25] << 16) |
+                                ((uint64_t)rx_buffer[26] << 8)  | rx_buffer[27];
+        uint16_t src_port = ((uint16_t)rx_buffer[28] << 8) | rx_buffer[29];
+        
+        // Parse sequence ID (bytes 30-31)
+        uint16_t seq_id = ((uint16_t)rx_buffer[30] << 8) | rx_buffer[31];
+        
+        // Parse Announce message body (starts at byte 34)
+        // Origin timestamp (bytes 34-43) - not critical for BMCA
+        
+        // Current UTC offset (bytes 44-45)
+        uint16_t current_utc_offset = ((uint16_t)rx_buffer[44] << 8) | rx_buffer[45];
+        
+        // Grandmaster priority1 (byte 47)
+        uint8_t gm_priority1 = rx_buffer[47];
+        
+        // Grandmaster clock class (byte 48)
+        uint8_t gm_clock_class = rx_buffer[48];
+        
+        // Grandmaster clock accuracy (byte 49)
+        uint8_t gm_clock_accuracy = rx_buffer[49];
+        
+        // Grandmaster clock variance (bytes 50-51)
+        uint16_t gm_clock_variance = ((uint16_t)rx_buffer[50] << 8) | rx_buffer[51];
+        
+        // Grandmaster priority2 (byte 52)
+        uint8_t gm_priority2 = rx_buffer[52];
+        
+        // Grandmaster identity (bytes 53-60)
+        uint64_t gm_identity = ((uint64_t)rx_buffer[53] << 56) | ((uint64_t)rx_buffer[54] << 48) |
+                               ((uint64_t)rx_buffer[55] << 40) | ((uint64_t)rx_buffer[56] << 32) |
+                               ((uint64_t)rx_buffer[57] << 24) | ((uint64_t)rx_buffer[58] << 16) |
+                               ((uint64_t)rx_buffer[59] << 8)  | rx_buffer[60];
+        
+        // Steps removed (bytes 61-62)
+        uint16_t steps_removed = ((uint16_t)rx_buffer[61] << 8) | rx_buffer[62];
+        
+        // Time source (byte 63)
+        uint8_t time_source = rx_buffer[63];
+        
+        // Filter out our own messages (loopback)
+        if (src_clock_id == 0 || gm_identity == 0) {
+            std::cout << "[Controller] ⚠️  RX: Announce with ZERO clockID - likely our own TX loopback, ignoring\n" << std::flush;
+            return;  // Skip our own messages
+        }
+        
+        std::cout << "[Controller] 🔔 RX: Announce message (" << received << " bytes) seq=" << seq_id << "\n"
+                  << "  Source: clockID=" << std::hex << std::setfill('0') << std::setw(16) << src_clock_id << std::dec
+                  << " port=" << src_port << "\n"
+                  << "  BMCA: priority1=" << (int)gm_priority1 << " priority2=" << (int)gm_priority2
+                  << " class=" << (int)gm_clock_class << " accuracy=0x" << std::hex << (int)gm_clock_accuracy << std::dec << "\n"
+                  << "  GM_Identity=" << std::hex << std::setfill('0') << std::setw(16) << gm_identity << std::dec
+                  << " steps=" << steps_removed << " timeSource=0x" << std::hex << (int)time_source << std::dec
+                  << " UTC_offset=" << current_utc_offset << "\n" << std::flush;
+    }
     // Handle Delay_Req messages (0x1)
-    if (msg_type == 0x1) {  // MessageType::Delay_Req
-        // TODO: Wire to repository's PtpPort::process_delay_req()
-        // For now, just log that we received it
+    else if (msg_type == 0x1) {  // MessageType::Delay_Req
         std::cout << "[Controller] 🎯 RX: Delay_Req message (" << received << " bytes)"
                  << " RX_TS=" << rx_timestamp.seconds << "." 
                  << std::setfill('0') << std::setw(9) << rx_timestamp.nanoseconds << "\n" << std::flush;
         
-        // TODO Phase GREEN: 
-        // 1. Create PtpPort instance
-        // 2. Call ptp_port->process_delay_req(rx_buffer, received, rx_timestamp)
-        // 3. Implement send_delay_resp callback to call network_->send_packet()
-    } else {
-        std::cout << "[Controller] 📨 RX: PTP message type=" << msg_type 
-                 << " (" << received << " bytes)\n" << std::flush;
+        // Parse Delay_Req message
+        using namespace IEEE::_1588::PTP::_2019;
+        DelayReqBody delay_req;
+        Types::PortIdentity source_port;
+        
+        if (parse_delay_req(rx_buffer, received, &delay_req, &source_port)) {
+            // Prepare Delay_Resp message (IEEE 1588-2019 Section 13.8)
+            DelayRespBody delay_resp;
+            // Combine seconds_high (16-bit) and seconds_low (32-bit) into 48-bit timestamp
+            delay_resp.receiveTimestamp.seconds_high = (rx_timestamp.seconds >> 32) & 0xFFFF;
+            delay_resp.receiveTimestamp.seconds_low = rx_timestamp.seconds & 0xFFFFFFFF;
+            delay_resp.receiveTimestamp.nanoseconds = rx_timestamp.nanoseconds;
+            delay_resp.requestingPortIdentity = source_port;
+            
+            // Send Delay_Resp
+            auto result = send_delay_resp(delay_resp, source_port);
+            if (!result.isSuccess()) {
+                std::cerr << "[Controller] ⚠️ Failed to send Delay_Resp\n" << std::flush;
+            }
+        } else {
+            std::cerr << "[Controller] ⚠️ Failed to parse Delay_Req\n" << std::flush;
+        }
     }
-    // Future: Handle other message types (Announce, Sync for slave mode, etc.)
+    // Handle Pdelay_Req messages (0x2) - P2P delay mechanism
+    else if (msg_type == 0x2) {  // MessageType::Pdelay_Req
+        // Parse source port identity (bytes 20-29)
+        uint64_t src_clock_id = ((uint64_t)rx_buffer[20] << 56) | ((uint64_t)rx_buffer[21] << 48) |
+                                ((uint64_t)rx_buffer[22] << 40) | ((uint64_t)rx_buffer[23] << 32) |
+                                ((uint64_t)rx_buffer[24] << 24) | ((uint64_t)rx_buffer[25] << 16) |
+                                ((uint64_t)rx_buffer[26] << 8)  | rx_buffer[27];
+        uint16_t src_port = ((uint16_t)rx_buffer[28] << 8) | rx_buffer[29];
+        
+        // Parse sequence ID (bytes 30-31)
+        uint16_t seq_id = ((uint16_t)rx_buffer[30] << 8) | rx_buffer[31];
+        
+        // Parse originTimestamp (bytes 34-43) - not used in response but log it
+        uint16_t origin_ts_sec_high = ((uint16_t)rx_buffer[34] << 8) | rx_buffer[35];
+        uint32_t origin_ts_sec_low = ((uint32_t)rx_buffer[36] << 24) | ((uint32_t)rx_buffer[37] << 16) |
+                                     ((uint32_t)rx_buffer[38] << 8)  | rx_buffer[39];
+        uint32_t origin_ts_nsec = ((uint32_t)rx_buffer[40] << 24) | ((uint32_t)rx_buffer[41] << 16) |
+                                  ((uint32_t)rx_buffer[42] << 8)  | rx_buffer[43];
+        
+        std::cout << "[Controller] 🔄 RX: Pdelay_Req (P2P mechanism) from clockID="
+                  << std::hex << std::setfill('0') << std::setw(16) << src_clock_id << std::dec
+                  << " port=" << src_port << " seq=" << seq_id
+                  << " RX_TS=" << rx_timestamp.seconds << "." << std::setfill('0') << std::setw(9) << rx_timestamp.nanoseconds
+                  << "\n" << std::flush;
+        
+        // Send Pdelay_Resp (IEEE 1588-2019 Section 13.9)
+        send_pdelay_resp(src_clock_id, src_port, seq_id, rx_timestamp);
+        
+        // Note: Pdelay_Resp_Follow_Up should be sent after getting TX timestamp of Pdelay_Resp
+        // For now, send it immediately with TX timestamp = RX timestamp (approximation)
+        send_pdelay_resp_follow_up(src_clock_id, src_port, seq_id, rx_timestamp);
+    }
+    else {
+        std::cout << "[Controller] 📨 RX: PTP message type=" << msg_type 
+                 << " (" << received << " bytes) [unhandled]\n" << std::flush;
+    }
+    // Future: Handle other message types (Follow_Up, Management, Signaling, etc.)
 }
 
+// ============================================================================
+// P2P Delay Mechanism Support (IEEE 1588-2019 Section 11.4)
+// ============================================================================
+
+void GrandmasterController::send_pdelay_resp(
+    uint64_t requesting_clock_id,
+    uint16_t requesting_port_id,
+    uint16_t sequence_id,
+    const IEEE::_1588::PTP::_2019::Types::Timestamp& request_receipt_timestamp) {
+    
+    // Construct Pdelay_Resp message (IEEE 1588-2019 Section 13.9)
+    uint8_t pdelay_resp[54];  // 34 header + 20 body
+    memset(pdelay_resp, 0, sizeof(pdelay_resp));
+    
+    // PTP Header (bytes 0-33)
+    pdelay_resp[0] = 0x03;  // messageType = Pdelay_Resp (3), transportSpecific = 0x0
+    pdelay_resp[1] = 0x02;  // versionPTP = 2
+    pdelay_resp[2] = 0x00;  // messageLength high byte
+    pdelay_resp[3] = 0x36;  // messageLength low byte (54)
+    pdelay_resp[4] = 0x00;  // domainNumber = 0
+    pdelay_resp[5] = 0x00;  // reserved
+    pdelay_resp[6] = 0x00;  // flagField high byte
+    pdelay_resp[7] = 0x08;  // flagField low byte (timescale=PTP)
+    // bytes 8-15: correctionField (all zeros for now)
+    // bytes 16-19: reserved
+    // bytes 20-27: sourcePortIdentity.clockIdentity (our clock ID - use MAC-based)
+    // For now, use a simple clock ID - should get from network adapter
+    pdelay_resp[20] = 0x00; pdelay_resp[21] = 0x80;
+    pdelay_resp[22] = 0xC2; pdelay_resp[23] = 0xFF;
+    pdelay_resp[24] = 0xFE; pdelay_resp[25] = 0x00;
+    pdelay_resp[26] = 0x00; pdelay_resp[27] = 0x01;  // Placeholder clock ID
+    pdelay_resp[28] = 0x00;  // sourcePortIdentity.portNumber high byte
+    pdelay_resp[29] = 0x01;  // sourcePortIdentity.portNumber low byte (port 1)
+    pdelay_resp[30] = (sequence_id >> 8) & 0xFF;  // sequenceId high byte
+    pdelay_resp[31] = sequence_id & 0xFF;         // sequenceId low byte
+    pdelay_resp[32] = 0x05;  // controlField = Other (5)
+    pdelay_resp[33] = 0x7F;  // logMessageInterval = 0x7F (not periodic)
+    
+    // Pdelay_Resp body (bytes 34-53)
+    // requestReceiptTimestamp (bytes 34-43) - timestamp when we received Pdelay_Req
+    uint64_t receipt_sec = request_receipt_timestamp.seconds;
+    pdelay_resp[34] = (receipt_sec >> 40) & 0xFF;  // seconds high 16 bits
+    pdelay_resp[35] = (receipt_sec >> 32) & 0xFF;
+    pdelay_resp[36] = (receipt_sec >> 24) & 0xFF;  // seconds low 32 bits
+    pdelay_resp[37] = (receipt_sec >> 16) & 0xFF;
+    pdelay_resp[38] = (receipt_sec >> 8) & 0xFF;
+    pdelay_resp[39] = receipt_sec & 0xFF;
+    pdelay_resp[40] = (request_receipt_timestamp.nanoseconds >> 24) & 0xFF;  // nanoseconds
+    pdelay_resp[41] = (request_receipt_timestamp.nanoseconds >> 16) & 0xFF;
+    pdelay_resp[42] = (request_receipt_timestamp.nanoseconds >> 8) & 0xFF;
+    pdelay_resp[43] = request_receipt_timestamp.nanoseconds & 0xFF;
+    
+    // requestingPortIdentity (bytes 44-53) - copy from Pdelay_Req source
+    pdelay_resp[44] = (requesting_clock_id >> 56) & 0xFF;
+    pdelay_resp[45] = (requesting_clock_id >> 48) & 0xFF;
+    pdelay_resp[46] = (requesting_clock_id >> 40) & 0xFF;
+    pdelay_resp[47] = (requesting_clock_id >> 32) & 0xFF;
+    pdelay_resp[48] = (requesting_clock_id >> 24) & 0xFF;
+    pdelay_resp[49] = (requesting_clock_id >> 16) & 0xFF;
+    pdelay_resp[50] = (requesting_clock_id >> 8) & 0xFF;
+    pdelay_resp[51] = requesting_clock_id & 0xFF;
+    pdelay_resp[52] = (requesting_port_id >> 8) & 0xFF;
+    pdelay_resp[53] = requesting_port_id & 0xFF;
+    
+    // Send via event socket (port 319) - P2P uses event messages
+    auto result = network_adapter_->send_packet(pdelay_resp, sizeof(pdelay_resp), true);  // event=true
+    if (!result) {
+        std::cout << \"[Controller] ❌ Failed to send Pdelay_Resp: \" << result.error().message << \"\\n\" << std::flush;
+    } else {
+        std::cout << \"[Controller] ✅ TX: Pdelay_Resp to clockID=\"
+                  << std::hex << std::setfill('0') << std::setw(16) << requesting_clock_id << std::dec
+                  << \" port=\" << requesting_port_id << \" seq=\" << sequence_id << \"\\n\" << std::flush;
+    }
+}
+
+void GrandmasterController::send_pdelay_resp_follow_up(
+    uint64_t requesting_clock_id,
+    uint16_t requesting_port_id,
+    uint16_t sequence_id,
+    const IEEE::_1588::PTP::_2019::Types::Timestamp& response_origin_timestamp) {
+    
+    // Construct Pdelay_Resp_Follow_Up message (IEEE 1588-2019 Section 13.11)
+    uint8_t pdelay_resp_fup[54];  // 34 header + 20 body
+    memset(pdelay_resp_fup, 0, sizeof(pdelay_resp_fup));
+    
+    // PTP Header (bytes 0-33)
+    pdelay_resp_fup[0] = 0x0A;  // messageType = Pdelay_Resp_Follow_Up (10), transportSpecific = 0x0
+    pdelay_resp_fup[1] = 0x02;  // versionPTP = 2
+    pdelay_resp_fup[2] = 0x00;  // messageLength high byte
+    pdelay_resp_fup[3] = 0x36;  // messageLength low byte (54)
+    pdelay_resp_fup[4] = 0x00;  // domainNumber = 0
+    pdelay_resp_fup[5] = 0x00;  // reserved
+    pdelay_resp_fup[6] = 0x00;  // flagField high byte
+    pdelay_resp_fup[7] = 0x08;  // flagField low byte (timescale=PTP)
+    // bytes 8-15: correctionField (all zeros for now)
+    // bytes 16-19: reserved
+    // bytes 20-27: sourcePortIdentity.clockIdentity
+    pdelay_resp_fup[20] = 0x00; pdelay_resp_fup[21] = 0x80;
+    pdelay_resp_fup[22] = 0xC2; pdelay_resp_fup[23] = 0xFF;
+    pdelay_resp_fup[24] = 0xFE; pdelay_resp_fup[25] = 0x00;
+    pdelay_resp_fup[26] = 0x00; pdelay_resp_fup[27] = 0x01;
+    pdelay_resp_fup[28] = 0x00;  // sourcePortIdentity.portNumber high byte
+    pdelay_resp_fup[29] = 0x01;  // sourcePortIdentity.portNumber low byte
+    pdelay_resp_fup[30] = (sequence_id >> 8) & 0xFF;  // sequenceId
+    pdelay_resp_fup[31] = sequence_id & 0xFF;
+    pdelay_resp_fup[32] = 0x05;  // controlField = Other (5)
+    pdelay_resp_fup[33] = 0x7F;  // logMessageInterval = 0x7F
+    
+    // Pdelay_Resp_Follow_Up body (bytes 34-53)
+    // responseOriginTimestamp (bytes 34-43) - TX timestamp of Pdelay_Resp
+    uint64_t origin_sec = response_origin_timestamp.seconds;
+    pdelay_resp_fup[34] = (origin_sec >> 40) & 0xFF;
+    pdelay_resp_fup[35] = (origin_sec >> 32) & 0xFF;
+    pdelay_resp_fup[36] = (origin_sec >> 24) & 0xFF;
+    pdelay_resp_fup[37] = (origin_sec >> 16) & 0xFF;
+    pdelay_resp_fup[38] = (origin_sec >> 8) & 0xFF;
+    pdelay_resp_fup[39] = origin_sec & 0xFF;
+    pdelay_resp_fup[40] = (response_origin_timestamp.nanoseconds >> 24) & 0xFF;
+    pdelay_resp_fup[41] = (response_origin_timestamp.nanoseconds >> 16) & 0xFF;
+    pdelay_resp_fup[42] = (response_origin_timestamp.nanoseconds >> 8) & 0xFF;
+    pdelay_resp_fup[43] = response_origin_timestamp.nanoseconds & 0xFF;
+    
+    // requestingPortIdentity (bytes 44-53)
+    pdelay_resp_fup[44] = (requesting_clock_id >> 56) & 0xFF;
+    pdelay_resp_fup[45] = (requesting_clock_id >> 48) & 0xFF;
+    pdelay_resp_fup[46] = (requesting_clock_id >> 40) & 0xFF;
+    pdelay_resp_fup[47] = (requesting_clock_id >> 32) & 0xFF;
+    pdelay_resp_fup[48] = (requesting_clock_id >> 24) & 0xFF;
+    pdelay_resp_fup[49] = (requesting_clock_id >> 16) & 0xFF;
+    pdelay_resp_fup[50] = (requesting_clock_id >> 8) & 0xFF;
+    pdelay_resp_fup[51] = requesting_clock_id & 0xFF;
+    pdelay_resp_fup[52] = (requesting_port_id >> 8) & 0xFF;
+    pdelay_resp_fup[53] = requesting_port_id & 0xFF;
+    
+    // Send via general socket (port 320)
+    auto result = network_adapter_->send_packet(pdelay_resp_fup, sizeof(pdelay_resp_fup), false);  // event=false
+    if (!result) {
+        std::cout << \"[Controller] ❌ Failed to send Pdelay_Resp_Follow_Up\\n\" << std::flush;
+    } else {
+        std::cout << \"[Controller] ✅ TX: Pdelay_Resp_Follow_Up seq=\" << sequence_id << \"\\n\" << std::flush;
+    }
+}
+
+// ============================================================================
+// E2E Delay Mechanism Support (IEEE 1588-2019 Section 11.3)
+// ============================================================================
+
+// Send Delay_Resp message (IEEE 1588-2019 Section 13.8)
+IEEE::_1588::PTP::_2019::Types::PTPResult<void> GrandmasterController::send_delay_resp(
+    const IEEE::_1588::PTP::_2019::DelayRespBody& message,
+    const IEEE::_1588::PTP::_2019::Types::PortIdentity& requesting_port)
+{
+    using namespace IEEE::_1588::PTP::_2019;
+    
+    if (!network_) {
+        return Types::PTPResult<void>::failure(Types::PTPError::Invalid_Parameter);
+    }
+    
+    // Construct Delay_Resp packet (IEEE 1588-2019 Section 13.8)
+    uint8_t resp_packet[64];
+    std::memset(resp_packet, 0, sizeof(resp_packet));
+    
+    // PTP Header (bytes 0-33)
+    resp_packet[0] = 0x09;  // messageType: Delay_Resp
+    resp_packet[1] = 0x02;  // versionPTP: 2
+    resp_packet[2] = 0x00;  // messageLength (high byte)
+    resp_packet[3] = 54;    // messageLength (low byte) = 54 bytes
+    
+    // Bytes 4-7: domain, flags, correction field placeholder
+    resp_packet[4] = 0;     // domainNumber: 0 (default)
+    
+    // Bytes 34-43: receiveTimestamp (from Delay_Req RX timestamp)
+    // IEEE 1588-2019 Timestamp: 6 bytes seconds (48-bit) + 4 bytes nanoseconds
+    uint64_t sec = ((uint64_t)message.receiveTimestamp.seconds_high << 32) | 
+                    message.receiveTimestamp.seconds_low;
+    uint32_t nsec = message.receiveTimestamp.nanoseconds;
+    
+    // Seconds (6 bytes, big-endian) at offset 34
+    resp_packet[34] = (sec >> 40) & 0xFF;
+    resp_packet[35] = (sec >> 32) & 0xFF;
+    resp_packet[36] = (sec >> 24) & 0xFF;
+    resp_packet[37] = (sec >> 16) & 0xFF;
+    resp_packet[38] = (sec >> 8) & 0xFF;
+    resp_packet[39] = sec & 0xFF;
+    
+    // Nanoseconds (4 bytes, big-endian) at offset 40
+    resp_packet[40] = (nsec >> 24) & 0xFF;
+    resp_packet[41] = (nsec >> 16) & 0xFF;
+    resp_packet[42] = (nsec >> 8) & 0xFF;
+    resp_packet[43] = nsec & 0xFF;
+    
+    // Bytes 44-53: requestingPortIdentity (10 bytes)
+    // ClockIdentity (8 bytes)
+    std::memcpy(&resp_packet[44], requesting_port.clock_identity.data(), 8);
+    
+    // PortNumber (2 bytes, big-endian)
+    uint16_t port_num = requesting_port.port_number;
+    resp_packet[52] = (port_num >> 8) & 0xFF;
+    resp_packet[53] = port_num & 0xFF;
+    
+    // Send packet
+    NetworkTimestamp tx_ts;
+    int sent = network_->send_packet(resp_packet, 54, &tx_ts, false);  // Use general socket (port 320)
+    
+    if (sent > 0) {
+        std::cout << "[Controller] 📤 TX: Delay_Resp message (" << sent << " bytes, "
+                  << "RX_TS=" << sec << "." << std::setfill('0') << std::setw(9) << nsec << ")\n" << std::flush;
+        return Types::PTPResult<void>::success();
+    }
+    
+    return Types::PTPResult<void>::failure(Types::PTPError::Network_Error);
+}
+
+// Parse Delay_Req message (IEEE 1588-2019 Section 13.6)
+bool GrandmasterController::parse_delay_req(const uint8_t* packet, size_t length,
+                                           IEEE::_1588::PTP::_2019::DelayReqBody* delay_req,
+                                           IEEE::_1588::PTP::_2019::Types::PortIdentity* source_port)
+{
+    using namespace IEEE::_1588::PTP::_2019;
+    
+    // Minimum Delay_Req length is 44 bytes (header + origin timestamp)
+    if (!packet || length < 44 || !delay_req || !source_port) {
+        return false;
+    }
+    
+    // Verify messageType = 0x01 (Delay_Req)
+    if ((packet[0] & 0x0F) != 0x01) {
+        return false;
+    }
+    
+    // Extract originTimestamp (bytes 34-43, typically zero for Delay_Req)
+    uint64_t sec = ((uint64_t)packet[34] << 40) |
+                   ((uint64_t)packet[35] << 32) |
+                   ((uint64_t)packet[36] << 24) |
+                   ((uint64_t)packet[37] << 16) |
+                   ((uint64_t)packet[38] << 8) |
+                   ((uint64_t)packet[39]);
+    
+    uint32_t nsec = ((uint32_t)packet[40] << 24) |
+                    ((uint32_t)packet[41] << 16) |
+                    ((uint32_t)packet[42] << 8) |
+                    ((uint32_t)packet[43]);
+    
+    delay_req->originTimestamp.seconds_high = (sec >> 32) & 0xFFFF;
+    delay_req->originTimestamp.seconds_low = sec & 0xFFFFFFFF;
+    delay_req->originTimestamp.nanoseconds = nsec;
+    
+    // Extract sourcePortIdentity from PTP header (bytes 20-29)
+    // ClockIdentity (8 bytes)
+    std::memcpy(source_port->clock_identity.data(), &packet[20], 8);
+    
+    // PortNumber (2 bytes, big-endian)
+    source_port->port_number = ((uint16_t)packet[28] << 8) | packet[29];
+    
+    return true;
+}

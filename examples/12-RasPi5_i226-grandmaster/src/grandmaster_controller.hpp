@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <atomic>
+#include <memory>  // For std::unique_ptr
 #include "gps_adapter.hpp"
 #include "rtc_adapter.hpp"
 #include "phc_adapter.hpp"
@@ -32,6 +33,8 @@
 #include "phc_calibrator.hpp"
 #include "servo_state_machine.hpp"
 #include "rtc_drift_discipline.hpp"
+#include "IEEE/1588/PTP/2019/messages.hpp"  // DelayReqBody, DelayRespBody
+#include "IEEE/1588/PTP/2019/types.hpp"  // Types::Timestamp
 
 /**
  * @brief Controller configuration parameters
@@ -270,6 +273,58 @@ private:
      * Transmits on general socket (port 320).
      */
     void send_announce_message();
+    
+    /**
+     * @brief Send Delay_Resp message in response to Delay_Req
+     * 
+     * @param message Delay response body with timestamps
+     * @param requesting_port Source port identity from Delay_Req
+     * @return Success if transmitted
+     */
+    IEEE::_1588::PTP::_2019::Types::PTPResult<void> send_delay_resp(
+        const IEEE::_1588::PTP::_2019::DelayRespBody& message,
+        const IEEE::_1588::PTP::_2019::Types::PortIdentity& requesting_port);
+    
+    /**
+     * @brief Parse Delay_Req message from packet
+     * 
+     * @param packet Raw packet data
+     * @param length Packet length
+     * @param delay_req Output parsed Delay_Req body
+     * @param source_port Output source port identity
+     * @return true if parsing successful
+     */
+    bool parse_delay_req(const uint8_t* packet, size_t length, 
+                        IEEE::_1588::PTP::_2019::DelayReqBody* delay_req,
+                        IEEE::_1588::PTP::_2019::Types::PortIdentity* source_port);
+    
+    /**
+     * @brief Send Pdelay_Resp for P2P delay mechanism (IEEE 1588-2019 Section 11.4)
+     * 
+     * @param requesting_clock_id Clock ID from Pdelay_Req
+     * @param requesting_port_id Port ID from Pdelay_Req
+     * @param sequence_id Sequence ID to echo
+     * @param request_receipt_timestamp RX timestamp of Pdelay_Req
+     */
+    void send_pdelay_resp(
+        uint64_t requesting_clock_id,
+        uint16_t requesting_port_id,
+        uint16_t sequence_id,
+        const IEEE::_1588::PTP::_2019::Types::Timestamp& request_receipt_timestamp);
+    
+    /**
+     * @brief Send Pdelay_Resp_Follow_Up for P2P delay mechanism
+     * 
+     * @param requesting_clock_id Clock ID from Pdelay_Req
+     * @param requesting_port_id Port ID from Pdelay_Req
+     * @param sequence_id Sequence ID to echo
+     * @param response_origin_timestamp TX timestamp of Pdelay_Resp
+     */
+    void send_pdelay_resp_follow_up(
+        uint64_t requesting_clock_id,
+        uint16_t requesting_port_id,
+        uint16_t sequence_id,
+        const IEEE::_1588::PTP::_2019::Types::Timestamp& response_origin_timestamp);
     
     /**
      * @brief Log controller state (if verbose enabled)
