@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::SyncIntegration::reset" name="IEEE::_1588::PTP::_2019::SyncIntegration::reset">
+<area shape="rect" id="Node000001" title="Reset all statistics and health indicators." alt="" coords="5,5,176,60"/>
+<area shape="rect" id="Node000002" href="$df/d62/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncStatistics.html#a92e9c6824fc6deee001a6484407d6712" title="Reset all statistics to initial state." alt="" coords="224,5,384,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="176,30,210,30,210,35,176,35"/>
+</map>

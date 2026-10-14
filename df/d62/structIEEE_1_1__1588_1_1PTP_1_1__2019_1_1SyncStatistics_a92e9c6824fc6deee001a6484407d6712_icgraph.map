@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::SyncStatistics::reset" name="IEEE::_1588::PTP::_2019::SyncStatistics::reset">
+<area shape="rect" id="Node000001" title="Reset all statistics to initial state." alt="" coords="507,45,667,100"/>
+<area shape="rect" id="Node000002" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#a111a9652c40512f6c3f79fcca1e4dfff" title="Reset all statistics and health indicators." alt="" coords="288,5,459,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="493,58,458,51,459,46,494,53"/>
+<area shape="rect" id="Node000003" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#ab18dedbcb23a91f6f1a9f541124ed6f2" title="Start synchronization monitoring." alt="" coords="288,84,459,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="494,92,459,99,458,93,493,87"/>
+<area shape="rect" id="Node000004" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#ae5378f7adda0a2d9a93dcb7979b1a44b" title="Start message flow processing." alt="" coords="5,84,240,139"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="274,114,240,114,240,109,274,109"/>
+</map>

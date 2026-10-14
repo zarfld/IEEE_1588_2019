@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::SyncIntegration::is_running" name="IEEE::_1588::PTP::_2019::SyncIntegration::is_running">
+<area shape="rect" id="Node000001" title="Check if coordinator is running." alt="" coords="288,5,459,60"/>
+<area shape="rect" id="Node000002" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#a1f9a2c20fd265f9e4ce6410017d9b785" title="Get message flow health status." alt="" coords="5,5,240,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="274,35,240,35,240,30,274,30"/>
+</map>

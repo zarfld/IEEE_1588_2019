@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Types::TimeInterval::toNanoseconds" name="IEEE::_1588::PTP::_2019::Types::TimeInterval::toNanoseconds">
+<area shape="rect" id="Node000001" title="Convert to nanoseconds." alt="" coords="277,5,475,60"/>
+<area shape="rect" id="Node000002" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="264,35,230,35,230,30,264,30"/>
+</map>

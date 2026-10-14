@@ -1,0 +1,17 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/Common/utils/health.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/Common/utils/health.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="171,5,413,60"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="204,196,271,221"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="283,61,265,109,245,183,240,181,260,107,278,59"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="315,196,381,221"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="378,58,410,78,436,107,443,128,436,149,416,174,391,192,388,187,412,170,431,147,437,128,431,109,407,82,376,62"/>
+<area shape="rect" id="Node000004" href="$d4/d44/metrics_8hpp.html" title=" " alt="" coords="5,115,200,141"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="240,62,139,112,137,107,238,58"/>
+<area shape="rect" id="Node000006" href="$d4/d35/fault__injection_8hpp.html" title=" " alt="" coords="275,108,421,148"/>
+<area shape="poly" id="edge7_Node000001_Node000006" title=" " alt="" coords="310,59,332,95,327,98,306,62"/>
+<area shape="poly" id="edge4_Node000004_Node000002" title=" " alt="" coords="124,139,207,187,204,191,121,143"/>
+<area shape="poly" id="edge5_Node000004_Node000003" title=" " alt="" coords="139,138,302,190,301,195,138,143"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="75,196,131,221"/>
+<area shape="poly" id="edge6_Node000004_Node000005" title=" " alt="" coords="105,141,105,182,100,182,100,141"/>
+<area shape="poly" id="edge8_Node000006_Node000002" title=" " alt="" coords="323,150,266,190,263,186,320,146"/>
+<area shape="poly" id="edge9_Node000006_Node000003" title=" " alt="" coords="351,148,351,182,345,182,345,148"/>
+</map>

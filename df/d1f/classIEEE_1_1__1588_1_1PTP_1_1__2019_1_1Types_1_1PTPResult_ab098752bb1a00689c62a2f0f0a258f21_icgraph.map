@@ -1,0 +1,52 @@
+<map id="IEEE::_1588::PTP::_2019::Types::PTPResult::failure" name="IEEE::_1588::PTP::_2019::Types::PTPResult::failure">
+<area shape="rect" id="Node000001" title="Create error result (static method)" alt="" coords="583,832,761,887"/>
+<area shape="rect" id="Node000002" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#ad6dee8f51818082ec96a885f99285f80" title="Configure BMCA execution behavior." alt="" coords="311,5,511,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="666,819,657,657,634,433,616,320,594,216,566,131,550,98,533,73,510,55,514,51,537,70,555,96,571,129,599,215,622,319,639,433,662,656,672,818"/>
+<area shape="rect" id="Node000003" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#ac2e95782b8e0968a2c83b5e143d2fd0e" title="Configure synchronization behavior." alt="" coords="326,84,497,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="666,818,653,671,629,471,611,370,589,279,563,203,549,174,533,152,516,138,496,127,498,123,519,133,537,148,553,171,568,201,595,277,617,369,634,470,659,670,671,818"/>
+<area shape="rect" id="Node000004" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#a61764d463d80c5077ec39de2238620a3" title="Force immediate BMCA execution." alt="" coords="294,163,529,217"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="665,819,650,686,624,510,606,422,585,341,560,275,547,250,533,230,520,220,524,216,537,227,551,247,565,273,590,340,611,420,629,509,655,686,670,818"/>
+<area shape="rect" id="Node000005" href="$d5/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1TransparentClock.html#ab7d23f1350caccec3dda50cf2f9813c2" title="Forward PTP message with residence time correction." alt="" coords="313,241,509,296"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="663,819,647,701,619,549,601,473,580,404,558,347,533,309,508,291,511,287,537,306,562,345,585,402,606,471,624,548,652,700,668,818"/>
+<area shape="rect" id="Node000006" href="$dc/dd4/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks.html#ac0e542a5609624685a2a3db7d6ef5ed4" title="Parse Management TLV from buffer." alt="" coords="333,320,489,375"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="668,818,663,730,656,674,644,614,627,553,604,493,572,437,533,388,512,372,488,362,491,357,515,368,537,384,577,434,608,491,632,552,650,613,661,673,669,729,674,818"/>
+<area shape="rect" id="Node000007" href="$dc/dd4/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks.html#a250b7da224170aa029dc2ff5daf2aeb3" title="Parse TLV header from buffer." alt="" coords="333,399,489,453"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="666,819,656,744,634,649,617,600,595,551,567,506,533,467,512,452,489,441,491,436,515,447,536,463,571,503,599,549,622,598,639,648,661,743,671,818"/>
+<area shape="rect" id="Node000008" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a6eea3cfb2fa2d3bf60f457204aac263d" title="Process Management message (dataset GET/SET operations)" alt="" coords="324,477,499,532"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="662,819,648,758,623,685,606,647,586,610,561,576,533,545,498,524,500,519,536,541,565,572,590,607,611,644,628,683,653,757,667,818"/>
+<area shape="rect" id="Node000009" href="$dc/dd4/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1OrdinaryClock.html#a0f1c7a8b05a28a9df0fbd2c7b14c5c53" title="Process received PTP message." alt="" coords="305,556,517,611"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="655,820,637,774,611,722,577,669,533,624,516,613,519,609,536,620,581,666,616,719,642,772,660,818"/>
+<area shape="rect" id="Node000010" href="$d0/d7d/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1BoundaryClock.html#a8d21ce8a95c4f7fcee5ab7853fa6c60e" title="Process received PTP message on specific port." alt="" coords="302,635,521,689"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="644,822,597,760,567,729,533,703,513,692,516,687,536,698,570,726,601,757,648,819"/>
+<area shape="rect" id="Node000011" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#ad1c71f4696ee7b634b9fda2f9fdafad7" title="Process Signaling message (unicast negotiation, PATH_TRACE, etc.)" alt="" coords="328,713,495,768"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="617,827,534,782,494,766,496,761,536,777,619,822"/>
+<area shape="rect" id="Node000012" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#a91b3b67eba6938d8d104b1cf67b4eccb" title="Force immediate synchronization sample." alt="" coords="326,792,497,847"/>
+<area shape="poly" id="edge11_Node000001_Node000012" title=" " alt="" coords="569,846,496,835,497,830,570,841"/>
+<area shape="rect" id="Node000013" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a2811af5d111ab99d5a60d42c96efd4e5" title="Update announce interval." alt="" coords="323,871,500,925"/>
+<area shape="poly" id="edge12_Node000001_Node000013" title=" " alt="" coords="570,877,501,887,500,882,569,872"/>
+<area shape="rect" id="Node000014" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a8899a4df072f1e3753a1d23b2365417e" title="Update sync interval." alt="" coords="328,949,495,1004"/>
+<area shape="poly" id="edge13_Node000001_Node000014" title=" " alt="" coords="617,896,536,939,496,955,494,950,534,934,615,891"/>
+<area shape="rect" id="Node000015" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#a697fef5b98bc6c79c858bd428419018c" title="Start BMCA execution coordination." alt="" coords="326,1028,497,1083"/>
+<area shape="poly" id="edge14_Node000001_Node000015" title=" " alt="" coords="648,900,601,960,570,991,536,1018,498,1037,496,1032,533,1013,566,987,597,957,644,897"/>
+<area shape="rect" id="Node000017" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#ab18dedbcb23a91f6f1a9f541124ed6f2" title="Start synchronization monitoring." alt="" coords="326,1107,497,1161"/>
+<area shape="poly" id="edge16_Node000001_Node000017" title=" " alt="" coords="660,901,642,946,615,998,580,1051,536,1096,498,1118,496,1113,533,1092,576,1047,611,996,637,944,655,899"/>
+<area shape="rect" id="Node000018" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#abf258a80286cd66856b3bcf5ecdfd38f" title="Stop BMCA execution coordination." alt="" coords="327,1185,495,1240"/>
+<area shape="poly" id="edge18_Node000001_Node000018" title=" " alt="" coords="667,900,652,961,628,1034,590,1109,565,1144,536,1175,518,1188,497,1198,495,1194,515,1184,533,1171,561,1141,585,1107,623,1032,647,959,661,899"/>
+<area shape="rect" id="Node000019" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#a98e298d19a63703bf3b6c4360228b2ce" title="Stop synchronization monitoring." alt="" coords="308,1265,515,1305"/>
+<area shape="poly" id="edge20_Node000001_Node000019" title=" " alt="" coords="671,901,662,976,640,1071,623,1120,600,1169,572,1214,536,1253,516,1268,513,1263,533,1249,567,1211,595,1166,618,1118,635,1069,657,975,666,900"/>
+<area shape="rect" id="Node000020" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#a7af857d41454f00a13973561f6b7ef47" title="Periodic tick for BMCA execution and health monitoring." alt="" coords="329,1329,493,1384"/>
+<area shape="poly" id="edge22_Node000001_Node000020" title=" " alt="" coords="673,901,667,986,659,1040,647,1098,630,1157,606,1216,576,1270,537,1319,517,1334,495,1345,493,1340,514,1329,533,1315,571,1267,601,1213,625,1156,642,1097,654,1039,662,986,668,900"/>
+<area shape="rect" id="Node000021" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#ad19e491252ce7b0b2e7695347cde11c1" title="Periodic tick for sync monitoring and servo control." alt="" coords="310,1409,513,1449"/>
+<area shape="poly" id="edge23_Node000001_Node000021" title=" " alt="" coords="668,901,651,1016,624,1164,606,1238,585,1305,562,1359,537,1397,515,1413,511,1409,533,1393,557,1357,580,1303,600,1236,618,1163,646,1015,663,900"/>
+<area shape="rect" id="Node000022" href="$da/d44/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1TLVHeader.html#ae4467c38de8f3a88b72ed79b9d6f4300" title="Validate TLV header." alt="" coords="311,1473,511,1513"/>
+<area shape="poly" id="edge24_Node000001_Node000022" title=" " alt="" coords="670,901,655,1028,628,1196,610,1280,589,1357,565,1419,537,1463,513,1479,510,1475,533,1459,560,1417,584,1355,605,1279,623,1195,650,1028,664,900"/>
+<area shape="rect" id="Node000023" href="$d2/db7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementMessageBody.html#a62575a1c11a38721698204a65d6f2cb4" title="Validate management message body." alt="" coords="288,1537,535,1592"/>
+<area shape="poly" id="edge25_Node000001_Node000023" title=" " alt="" coords="670,901,657,1040,631,1227,613,1321,592,1407,566,1477,552,1505,537,1526,523,1539,519,1535,533,1523,548,1502,562,1475,587,1405,608,1320,626,1226,652,1039,665,900"/>
+<area shape="rect" id="Node000024" href="$dc/dd4/namespaceIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks.html#acbf721ede1d1595c80b913fef8c77a95" title="Validate TLV length field against buffer bounds." alt="" coords="325,1616,498,1671"/>
+<area shape="poly" id="edge26_Node000001_Node000024" title=" " alt="" coords="671,901,660,1055,636,1265,618,1372,596,1469,569,1549,554,1581,537,1605,520,1620,500,1631,497,1626,517,1616,533,1602,549,1578,564,1547,591,1467,613,1371,631,1264,655,1054,666,900"/>
+<area shape="rect" id="Node000016" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#ae5378f7adda0a2d9a93dcb7979b1a44b" title="Start message flow processing." alt="" coords="5,1147,240,1201"/>
+<area shape="poly" id="edge15_Node000015_Node000016" title=" " alt="" coords="313,1087,289,1096,176,1149,174,1144,287,1092,311,1082"/>
+<area shape="poly" id="edge17_Node000017_Node000016" title=" " alt="" coords="313,1150,241,1160,240,1155,312,1145"/>
+<area shape="poly" id="edge19_Node000018_Node000016" title=" " alt="" coords="313,1202,240,1192,240,1187,314,1197"/>
+<area shape="poly" id="edge21_Node000019_Node000016" title=" " alt="" coords="315,1263,287,1254,229,1230,175,1204,177,1199,231,1225,289,1249,317,1258"/>
+</map>

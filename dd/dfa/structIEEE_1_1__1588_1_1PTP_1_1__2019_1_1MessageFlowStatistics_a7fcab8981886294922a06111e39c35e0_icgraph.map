@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::MessageFlowStatistics::reset" name="IEEE::_1588::PTP::_2019::MessageFlowStatistics::reset">
+<area shape="rect" id="Node000001" title="Reset all statistics to initial state." alt="" coords="288,45,507,100"/>
+<area shape="rect" id="Node000002" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#abae1dc0617155c3c96612ff842f5da8c" title="Reset all statistics." alt="" coords="5,5,240,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="274,57,240,52,241,47,275,52"/>
+<area shape="rect" id="Node000003" href="$d3/d1e/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowCoordinator.html#ae5378f7adda0a2d9a93dcb7979b1a44b" title="Start message flow processing." alt="" coords="5,84,240,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="275,93,241,97,240,92,274,87"/>
+</map>

@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['1_200_20december_202_202025_0',['🎉 Release v0.1.0 (December 2, 2025)',['../index.html#autotoc_md1',1,'']]],
+  ['1_201_20overview_1',['1.1 Overview',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md28',1,'']]],
+  ['1_202_20namespace_20structure_2',['1.2 Namespace Structure',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md29',1,'']]],
+  ['1_203_20design_20principles_3',['1.3 Design Principles',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md30',1,'']]],
+  ['1_20basic_20integer_20types_4',['2.1 Basic Integer Types',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md33',1,'']]],
+  ['1_20basic_20slave_20clock_5',['9.1 Basic Slave Clock',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md77',1,'']]],
+  ['1_20bmca_20decision_6',['7.1 BMCA Decision',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md69',1,'']]],
+  ['1_20cmake_20integration_7',['10.1 CMake Integration',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md81',1,'']]],
+  ['1_20default_20data_20set_8',['5.1 Default Data Set',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md58',1,'']]],
+  ['1_20introduction_9',['1. Introduction',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md27',1,'']]],
+  ['1_20message_20types_10',['4.1 Message Types',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md51',1,'']]],
+  ['1_20ordinary_20clock_11',['3.1 Ordinary Clock',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md45',1,'']]],
+  ['1_20ptperror_20enum_12',['8.1 PTPError Enum',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md73',1,'']]],
+  ['1_20state_20callbacks_13',['6.1 State Callbacks',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md65',1,'']]],
+  ['10_201_20cmake_20integration_14',['10.1 CMake Integration',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md81',1,'']]],
+  ['10_202_20fetchcontent_20integration_15',['10.2 FetchContent Integration',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md82',1,'']]],
+  ['10_203_20build_20options_16',['10.3 Build Options',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md83',1,'']]],
+  ['10_20platform_20integration_17',['10. Platform Integration',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md80',1,'']]],
+  ['1588_202019_20–_20precision_20time_20protocol_20ptpv2_20core_20library_18',['IEEE 1588-2019 – Precision Time Protocol (PTPv2) Core Library',['../index.html#autotoc_md0',1,'']]],
+  ['1588_202019_20ptp_20library_19',['IEEE 1588-2019 PTP Library',['../index.html',1,'']]],
+  ['1588_202019_20ptp_20library_20api_20reference_20guide_20',['IEEE 1588-2019 PTP Library - API Reference Guide',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html',1,'']]],
+  ['1588_202019_20section_20references_21',['Appendix B: IEEE 1588-2019 Section References',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md89',1,'']]]
+];

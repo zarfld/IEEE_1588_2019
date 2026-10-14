@@ -1,0 +1,11 @@
+<map id="IEEE::_1588::PTP::_2019::SignalingMessageBody" name="IEEE::_1588::PTP::_2019::SignalingMessageBody">
+<area shape="rect" id="Node000001" title="Signaling Message Body (IEEE 1588&#45;2019 Section 13.10.2)" alt="" coords="5,587,217,667"/>
+<area shape="rect" id="Node000002" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="20,404,203,524"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="114,524,114,570,109,570,109,524"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="35,261,187,341"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="114,341,114,387,109,387,109,341"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="54,133,169,199"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="114,212,114,261,109,261,109,212"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="100,5,123,71"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="114,71,114,117,109,117,109,71"/>
+</map>

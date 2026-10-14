@@ -1,0 +1,14 @@
+<map id="Common::utils::health::detail::last_offset_ns" name="Common::utils::health::detail::last_offset_ns">
+<area shape="rect" id="Node000001" title=" " alt="" coords="707,46,873,86"/>
+<area shape="rect" id="Node000002" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#af3d82132a2848a060a48ea17cd3e3c74" title=" " alt="" coords="277,13,444,53"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="693,61,444,42,444,36,693,56"/>
+<area shape="rect" id="Node000004" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#aec9746d507dc8131538845de04614675" title=" " alt="" coords="492,74,659,114"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="693,81,659,86,659,80,692,76"/>
+<area shape="rect" id="Node000003" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="264,35,229,35,229,30,264,30"/>
+<area shape="rect" id="Node000005" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a039bc597c3de1a97c0f78590dc2a51f8" title=" " alt="" coords="277,77,444,117"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="478,98,444,98,444,93,478,93"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="270,76,221,63,222,57,271,71"/>
+<area shape="rect" id="Node000006" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,85,217,125"/>
+<area shape="poly" id="edge6_Node000005_Node000006" title=" " alt="" coords="264,103,217,104,217,99,264,97"/>
+</map>

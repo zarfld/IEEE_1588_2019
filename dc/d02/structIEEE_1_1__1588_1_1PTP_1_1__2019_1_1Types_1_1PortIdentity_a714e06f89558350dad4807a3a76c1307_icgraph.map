@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::Types::PortIdentity::validate" name="IEEE::_1588::PTP::_2019::Types::PortIdentity::validate">
+<area shape="rect" id="Node000001" title="Validate port identity fields." alt="" coords="292,84,483,139"/>
+<area shape="rect" id="Node000002" href="$da/d7c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1DelayRespBody.html#a6236945466a2b89b84877b755b9e17ff" title="Validate delay response message." alt="" coords="39,5,211,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="282,83,210,61,212,56,283,77"/>
+<area shape="rect" id="Node000003" href="$d2/d6a/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespBody.html#ab248d75568694c9ea373bfea8f200ef8" title="Validate peer delay response message." alt="" coords="35,84,214,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="278,114,214,114,214,109,278,109"/>
+<area shape="rect" id="Node000004" href="$d6/d6d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespFollowUpBody.html#af8ca846093cffd802c2383d9d01308b7" title="Validate peer delay response follow&#45;up message." alt="" coords="5,163,244,217"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="283,145,217,165,216,160,281,140"/>
+</map>

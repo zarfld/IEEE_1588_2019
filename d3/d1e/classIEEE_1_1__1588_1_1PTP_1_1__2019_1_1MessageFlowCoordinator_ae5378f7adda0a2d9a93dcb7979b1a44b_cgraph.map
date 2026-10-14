@@ -1,0 +1,29 @@
+<map id="IEEE::_1588::PTP::_2019::MessageFlowCoordinator::start" name="IEEE::_1588::PTP::_2019::MessageFlowCoordinator::start">
+<area shape="rect" id="Node000001" title="Start message flow processing." alt="" coords="5,203,240,257"/>
+<area shape="rect" id="Node000002" href="$dd/dfa/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1MessageFlowStatistics.html#a7fcab8981886294922a06111e39c35e0" title="Reset all statistics to initial state." alt="" coords="289,5,508,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,200,204,135,244,100,287,69,296,64,298,68,289,74,247,104,208,139,148,204"/>
+<area shape="rect" id="Node000003" href="$d0/d08/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1servo_1_1ServoIntegration.html#aabd54cad2e3027849bff8e76ecfc195a" title="Start servo controller." alt="" coords="288,84,509,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="175,200,287,148,303,141,305,146,289,152,178,205"/>
+<area shape="rect" id="Node000004" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#a697fef5b98bc6c79c858bd428419018c" title="Start BMCA execution coordination." alt="" coords="313,163,484,217"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="240,210,299,202,300,207,241,216"/>
+<area shape="rect" id="Node000008" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#ab18dedbcb23a91f6f1a9f541124ed6f2" title="Start synchronization monitoring." alt="" coords="313,385,484,440"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="151,256,211,313,249,343,289,370,302,377,299,382,287,375,246,348,208,317,148,259"/>
+<area shape="rect" id="Node000010" href="$d1/db2/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAIntegration.html#abf258a80286cd66856b3bcf5ecdfd38f" title="Stop BMCA execution coordination." alt="" coords="315,241,483,296"/>
+<area shape="poly" id="edge11_Node000001_Node000010" title=" " alt="" coords="241,244,302,252,301,258,240,249"/>
+<area shape="rect" id="Node000011" href="$d1/d29/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncIntegration.html#a98e298d19a63703bf3b6c4360228b2ce" title="Stop synchronization monitoring." alt="" coords="295,321,502,361"/>
+<area shape="poly" id="edge14_Node000001_Node000011" title=" " alt="" coords="178,255,289,305,314,314,313,319,287,310,176,260"/>
+<area shape="rect" id="Node000005" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="557,237,736,292"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="485,213,545,231,543,236,483,218"/>
+<area shape="rect" id="Node000006" href="$dc/d50/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Integration_1_1BMCAStatistics.html#a4a413139463eaddfec90d17e5e85d811" title="Reset all statistics to initial state." alt="" coords="565,159,728,213"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="484,186,551,185,552,190,484,191"/>
+<area shape="rect" id="Node000007" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="557,316,736,371"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="486,211,511,227,528,246,536,264,544,283,559,301,565,306,562,310,555,305,539,286,531,267,523,248,508,231,483,215"/>
+<area shape="poly" id="edge8_Node000008_Node000005" title=" " alt="" coords="483,386,508,371,523,354,531,337,540,320,556,301,560,298,564,302,559,305,544,322,536,339,527,357,511,375,485,390"/>
+<area shape="poly" id="edge10_Node000008_Node000007" title=" " alt="" coords="483,386,543,369,545,374,485,391"/>
+<area shape="rect" id="Node000009" href="$df/d62/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncStatistics.html#a92e9c6824fc6deee001a6484407d6712" title="Reset all statistics to initial state." alt="" coords="567,395,727,449"/>
+<area shape="poly" id="edge9_Node000008_Node000009" title=" " alt="" coords="484,413,553,416,552,421,484,419"/>
+<area shape="poly" id="edge12_Node000010_Node000005" title=" " alt="" coords="483,265,543,264,543,269,483,270"/>
+<area shape="poly" id="edge13_Node000010_Node000007" title=" " alt="" coords="483,291,545,310,543,315,482,296"/>
+<area shape="poly" id="edge15_Node000011_Node000005" title=" " alt="" coords="465,318,509,305,544,294,546,299,510,310,467,323"/>
+<area shape="poly" id="edge16_Node000011_Node000007" title=" " alt="" coords="502,339,544,340,544,345,502,344"/>
+</map>

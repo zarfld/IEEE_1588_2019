@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::PTP::_2019::SyncBody::validate" name="IEEE::_1588::PTP::_2019::SyncBody::validate">
+<area shape="rect" id="Node000001" title="Validate sync message timestamp." alt="" coords="5,53,199,93"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html#a5874260dca7c0dc51aac826383452f13" title="Validate timestamp fields." alt="" coords="247,45,435,100"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="199,70,233,70,233,75,199,75"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#acf151a8e3d48dc72ba72d7793942017f" title="Create error result (alias for failure)" alt="" coords="483,5,661,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="435,54,469,48,470,53,435,59"/>
+<area shape="rect" id="Node000004" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="483,84,661,139"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="435,86,470,92,469,97,435,91"/>
+</map>

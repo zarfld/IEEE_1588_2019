@@ -1,0 +1,9 @@
+<map id="Common::utils::config::rounding_compensation_flag" name="Common::utils::config::rounding_compensation_flag">
+<area shape="rect" id="Node000001" title=" " alt="" coords="539,53,756,93"/>
+<area shape="rect" id="Node000002" href="$d6/d47/namespaceCommon_1_1utils_1_1config.html#a4104eaaedd5621f36f75fb32b41199e6" title=" " alt="" coords="282,5,486,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="525,57,486,51,487,46,525,51"/>
+<area shape="rect" id="Node000004" href="$d6/d47/namespaceCommon_1_1utils_1_1config.html#af2472dfffa9ac8d457f04a24fbef3f97" title=" " alt="" coords="277,84,491,139"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="526,93,491,98,491,93,525,88"/>
+<area shape="rect" id="Node000003" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,5,229,60"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="268,35,230,35,230,30,268,30"/>
+</map>

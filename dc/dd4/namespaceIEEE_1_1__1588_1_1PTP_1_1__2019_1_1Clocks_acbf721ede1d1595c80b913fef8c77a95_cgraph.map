@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::validate_tlv_length" name="IEEE::_1588::PTP::_2019::Clocks::validate_tlv_length">
+<area shape="rect" id="Node000001" title="Validate TLV length field against buffer bounds." alt="" coords="5,45,179,100"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="227,5,405,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="178,55,213,48,214,54,179,60"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="227,84,405,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="179,85,214,91,213,96,178,90"/>
+</map>

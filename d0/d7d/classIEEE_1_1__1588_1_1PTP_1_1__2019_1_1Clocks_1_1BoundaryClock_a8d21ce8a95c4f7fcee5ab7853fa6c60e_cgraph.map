@@ -1,0 +1,44 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::BoundaryClock::process_message" name="IEEE::_1588::PTP::_2019::Clocks::BoundaryClock::process_message">
+<area shape="rect" id="Node000001" title="Process received PTP message on specific port." alt="" coords="5,228,224,283"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="272,5,451,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,226,188,150,227,107,270,69,276,65,279,69,274,73,231,111,192,153,136,229"/>
+<area shape="rect" id="Node000003" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#ab83582f84eb72c45afa389da04eafafd" title="Process received Announce message." alt="" coords="278,84,445,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="151,226,206,187,271,148,281,142,283,147,273,152,209,192,154,230"/>
+<area shape="rect" id="Node000006" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a31e8d5698f3088d9f9cbda5dc8a859f6" title="Process received Delay_Req message." alt="" coords="278,163,445,217"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="218,225,264,213,265,218,219,230"/>
+<area shape="rect" id="Node000008" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="511,293,689,348"/>
+<area shape="poly" id="edge24_Node000001_Node000008" title=" " alt="" coords="224,256,334,263,451,278,498,288,497,293,450,283,334,269,224,261"/>
+<area shape="rect" id="Node000009" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a064d36dd0269a3997979bed8ec622f4b" title="Process received Delay_Resp message." alt="" coords="278,372,445,427"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="155,281,210,318,273,357,286,364,283,368,271,362,207,323,152,285"/>
+<area shape="rect" id="Node000011" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a4ab8635c746ecdc8190cb48fe0762e9f" title="Process received Follow_Up message." alt="" coords="278,451,445,505"/>
+<area shape="poly" id="edge11_Node000001_Node000011" title=" " alt="" coords="136,282,192,357,231,400,274,437,279,441,276,446,270,441,227,403,188,361,131,285"/>
+<area shape="rect" id="Node000018" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a0ae666364c0280a0abbc9f369f708aa4" title="Process received Sync message." alt="" coords="278,293,445,348"/>
+<area shape="poly" id="edge21_Node000001_Node000018" title=" " alt="" coords="219,280,265,293,264,298,218,285"/>
+<area shape="rect" id="Node000004" href="$dd/d39/namespacedetail.html#a162d12447333d9129db6326825711788" title=" " alt="" coords="523,99,677,124"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="445,109,509,109,509,114,445,114"/>
+<area shape="rect" id="Node000005" href="$dd/d39/namespacedetail.html#af252a1f9a94bf9b62e57b592d3268f51" title=" " alt="" coords="787,99,913,124"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="678,109,774,109,774,114,678,114"/>
+<area shape="rect" id="Node000007" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#a5ff024fa34cac7be52ef4263e4976a31" title="Set message type with deterministic execution." alt="" coords="513,163,687,217"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="445,187,499,187,499,193,445,193"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="416,215,452,234,541,284,538,289,449,239,414,220"/>
+<area shape="poly" id="edge10_Node000009_Node000008" title=" " alt="" coords="444,369,503,350,504,355,446,374"/>
+<area shape="rect" id="Node000010" href="$d6/df7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1TimeInterval.html#a35d30c0bb2f6fbed6e21640c0813d272" title="Create from nanoseconds." alt="" coords="501,372,699,427"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="445,397,488,397,488,402,445,402"/>
+<area shape="poly" id="edge20_Node000011_Node000008" title=" " alt="" coords="434,448,449,437,465,418,472,398,480,378,497,357,501,354,505,358,501,361,484,381,477,400,469,420,453,441,437,453"/>
+<area shape="poly" id="edge15_Node000011_Node000010" title=" " alt="" coords="444,448,503,429,504,434,446,453"/>
+<area shape="rect" id="Node000012" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#abd4d1491b89d46b3c1a23c3215e05aa9" title=" " alt="" coords="513,501,687,541"/>
+<area shape="poly" id="edge12_Node000011_Node000012" title=" " alt="" coords="446,490,500,500,499,505,445,496"/>
+<area shape="rect" id="Node000015" href="$da/d3c/namespaceCommon_1_1utils_1_1metrics.html#ad00d54590ea6b9d55d3f7ac3b56fe83c" title=" " alt="" coords="499,451,701,476"/>
+<area shape="poly" id="edge16_Node000011_Node000015" title=" " alt="" coords="445,470,485,468,485,473,445,476"/>
+<area shape="rect" id="Node000017" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#a227085469bb6814ec47bc7bad3cb5ae6" title=" " alt="" coords="513,565,687,605"/>
+<area shape="poly" id="edge18_Node000011_Node000017" title=" " alt="" coords="409,503,500,550,518,557,516,562,498,555,406,508"/>
+<area shape="rect" id="Node000013" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#ad30a8c57a6af65c91d9085ce0a592463" title=" " alt="" coords="749,540,951,565"/>
+<area shape="poly" id="edge13_Node000012_Node000013" title=" " alt="" coords="687,529,737,536,737,541,686,534"/>
+<area shape="rect" id="Node000014" href="$d2/d59/namespaceCommon_1_1utils_1_1logging.html#a0d4c11f80297a0645e32fad0fe3e4272" title=" " alt="" coords="999,533,1172,573"/>
+<area shape="poly" id="edge14_Node000013_Node000014" title=" " alt="" coords="951,550,985,550,985,555,951,555"/>
+<area shape="rect" id="Node000016" href="$d5/d53/namespaceCommon_1_1utils_1_1metrics_1_1detail.html#aa3719e4e32c969a881318a4788803429" title=" " alt="" coords="763,443,937,483"/>
+<area shape="poly" id="edge17_Node000015_Node000016" title=" " alt="" coords="702,461,749,461,749,466,702,466"/>
+<area shape="poly" id="edge19_Node000017_Node000013" title=" " alt="" coords="686,571,737,564,737,570,687,576"/>
+<area shape="poly" id="edge23_Node000018_Node000008" title=" " alt="" coords="445,318,497,318,497,323,445,323"/>
+<area shape="poly" id="edge22_Node000018_Node000010" title=" " alt="" coords="446,346,504,365,503,370,444,351"/>
+</map>

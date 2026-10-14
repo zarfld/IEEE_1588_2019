@@ -1,0 +1,11 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_management" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_management">
+<area shape="rect" id="Node000001" title="Process Management message (dataset GET/SET operations)" alt="" coords="5,55,180,109"/>
+<area shape="rect" id="Node000002" href="$dd/d39/namespacedetail.html#a162d12447333d9129db6326825711788" title=" " alt="" coords="240,5,395,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="179,53,227,39,255,32,256,37,229,45,181,59"/>
+<area shape="rect" id="Node000004" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="228,55,407,109"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="180,79,214,79,214,85,180,85"/>
+<area shape="rect" id="Node000005" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="228,133,407,188"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="173,107,227,126,225,131,171,112"/>
+<area shape="rect" id="Node000003" href="$dd/d39/namespacedetail.html#af252a1f9a94bf9b62e57b592d3268f51" title=" " alt="" coords="455,5,580,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="395,15,441,15,441,21,395,21"/>
+</map>

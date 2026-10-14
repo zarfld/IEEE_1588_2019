@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['2_201_20basic_20integer_20types_0',['2.1 Basic Integer Types',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md33',1,'']]],
+  ['2_202_20ptp_20specific_20types_1',['2.2 PTP-Specific Types',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md34',1,'']]],
+  ['2_202025_2',['🎉 Release v0.1.0 (December 2, 2025)',['../index.html#autotoc_md1',1,'']]],
+  ['2_203_20timestamp_3',['2.3 Timestamp',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md38',1,'']]],
+  ['2_204_20timeinterval_4',['2.4 TimeInterval',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md39',1,'']]],
+  ['2_205_20correctionfield_5',['2.5 CorrectionField',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md40',1,'']]],
+  ['2_206_20port_20states_6',['2.6 Port States',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md41',1,'']]],
+  ['2_207_20clock_20types_7',['2.7 Clock Types',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md42',1,'']]],
+  ['2_20bmca_20comparison_20steps_8',['7.2 BMCA Comparison Steps',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md70',1,'']]],
+  ['2_20common_20message_20header_9',['4.2 Common Message Header',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md52',1,'']]],
+  ['2_20core_20types_20and_20constants_10',['2. Core Types and Constants',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md32',1,'']]],
+  ['2_20current_20data_20set_11',['5.2 Current Data Set',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md59',1,'']]],
+  ['2_20fetchcontent_20integration_12',['10.2 FetchContent Integration',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md82',1,'']]],
+  ['2_20hal_20implementation_20example_13',['6.2 HAL Implementation Example',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md66',1,'']]],
+  ['2_20master_20clock_14',['9.2 Master Clock',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md78',1,'']]],
+  ['2_20namespace_20structure_15',['1.2 Namespace Structure',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md29',1,'']]],
+  ['2_20ptpport_16',['3.2 PtpPort',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md46',1,'']]],
+  ['2_20ptpresult_20template_17',['8.2 PTPResult Template',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md74',1,'']]],
+  ['2019_20–_20precision_20time_20protocol_20ptpv2_20core_20library_18',['IEEE 1588-2019 – Precision Time Protocol (PTPv2) Core Library',['../index.html#autotoc_md0',1,'']]],
+  ['2019_20ptp_20library_19',['IEEE 1588-2019 PTP Library',['../index.html',1,'']]],
+  ['2019_20ptp_20library_20api_20reference_20guide_20',['IEEE 1588-2019 PTP Library - API Reference Guide',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html',1,'']]],
+  ['2019_20section_20references_21',['Appendix B: IEEE 1588-2019 Section References',['../db/d79/md__2home_2runner_2work_2IEEE__1588__2019_2IEEE__1588__2019_208-transition_2user-documentation_2api-reference.html#autotoc_md89',1,'']]],
+  ['2025_22',['🎉 Release v0.1.0 (December 2, 2025)',['../index.html#autotoc_md1',1,'']]]
+];

@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::ManagementMessageBody::getActionField" name="IEEE::_1588::PTP::_2019::ManagementMessageBody::getActionField">
+<area shape="rect" id="Node000001" title="Get action field value from reserved_actionField byte." alt="" coords="300,5,547,60"/>
+<area shape="rect" id="Node000002" href="$d2/db7/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1ManagementMessageBody.html#a62575a1c11a38721698204a65d6f2cb4" title="Validate management message body." alt="" coords="5,5,252,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="286,35,252,35,252,30,286,30"/>
+</map>

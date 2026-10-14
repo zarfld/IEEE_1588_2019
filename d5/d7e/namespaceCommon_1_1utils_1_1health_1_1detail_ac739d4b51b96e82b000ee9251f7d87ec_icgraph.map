@@ -1,0 +1,13 @@
+<map id="Common::utils::health::detail::last_bmca_index" name="Common::utils::health::detail::last_bmca_index">
+<area shape="rect" id="Node000001" title=" " alt="" coords="720,37,905,77"/>
+<area shape="rect" id="Node000002" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a56d813ccf9dfbd6b4f512abe31e86c4d" title=" " alt="" coords="492,5,672,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="706,45,672,40,673,35,707,40"/>
+<area shape="rect" id="Node000003" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#aec9746d507dc8131538845de04614675" title=" " alt="" coords="499,69,665,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="707,75,666,80,665,75,706,69"/>
+<area shape="rect" id="Node000004" href="$d2/d0d/namespaceCommon_1_1utils_1_1health.html#a039bc597c3de1a97c0f78590dc2a51f8" title=" " alt="" coords="277,69,444,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="485,92,444,92,444,87,485,87"/>
+<area shape="rect" id="Node000005" href="$d3/d0d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1SynchronizationData.html#a678490ba0932bf8bcdbe56c5b278e48f" title="Calculate offset from master using timestamps." alt="" coords="5,26,229,81"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="263,78,229,73,230,67,264,72"/>
+<area shape="rect" id="Node000006" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a594179632de9591927ebe2d192e2288e" title="Execute periodic state machine tasks." alt="" coords="18,105,217,145"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="264,106,217,113,217,108,263,101"/>
+</map>

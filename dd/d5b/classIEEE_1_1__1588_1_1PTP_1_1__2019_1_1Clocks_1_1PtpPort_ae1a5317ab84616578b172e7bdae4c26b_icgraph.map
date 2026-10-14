@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::get_time_properties_data_set" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::get_time_properties_data_set">
+<area shape="rect" id="Node000001" title="Get time properties data set per IEEE 1588&#45;2019 Section 8.2.4." alt="" coords="277,5,444,75"/>
+<area shape="rect" id="Node000002" href="$dc/dd4/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1OrdinaryClock.html#a13fba67a91246eeb2374c58d9122522f" title="Get time properties data set per IEEE 1588&#45;2019 Section 8.2.4." alt="" coords="5,13,229,67"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="264,43,229,43,229,37,264,37"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::CommonHeader::setVersion" name="IEEE::_1588::PTP::_2019::CommonHeader::setVersion">
+<area shape="rect" id="Node000001" title="Set PTP version (typically 2 for IEEE 1588&#45;2019)" alt="" coords="268,5,443,60"/>
+<area shape="rect" id="Node000002" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#a243dec37d21b12d026928fae10a9f6e6" title="Initialize message with proper defaults." alt="" coords="5,13,220,53"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="254,35,220,35,220,30,254,30"/>
+</map>

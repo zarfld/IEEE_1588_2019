@@ -1,0 +1,13 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/messages.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/messages.hpp">
+<area shape="rect" id="Node000001" title="IEEE 1588&#45;2019 PTP Message Format Structures." alt="" coords="27,5,237,75"/>
+<area shape="rect" id="Node000002" href="$dd/de3/types_8hpp.html" title="IEEE 1588&#45;2019 PTP v2.1 fundamental data types and constants." alt="" coords="89,123,175,148"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="135,75,135,109,129,109,129,75"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,196,72,221"/>
+<area shape="poly" id="edge5_Node000001_Node000003" title=" " alt="" coords="110,76,80,124,51,184,46,182,75,121,105,74"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="192,196,248,221"/>
+<area shape="poly" id="edge6_Node000001_Node000004" title=" " alt="" coords="160,74,190,121,215,182,210,184,186,124,156,76"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="119,150,66,190,63,185,115,146"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="148,146,197,185,193,189,144,150"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="97,196,167,221"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="135,148,135,182,129,182,129,148"/>
+</map>

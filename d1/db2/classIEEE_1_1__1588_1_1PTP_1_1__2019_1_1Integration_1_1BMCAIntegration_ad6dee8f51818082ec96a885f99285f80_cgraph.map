@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::configure" name="IEEE::_1588::PTP::_2019::Integration::BMCAIntegration::configure">
+<area shape="rect" id="Node000001" title="Configure BMCA execution behavior." alt="" coords="5,45,205,100"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#ab098752bb1a00689c62a2f0f0a258f21" title="Create error result (static method)" alt="" coords="253,5,432,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="205,53,239,47,240,53,206,58"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="253,84,432,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="206,86,240,92,239,97,205,92"/>
+</map>

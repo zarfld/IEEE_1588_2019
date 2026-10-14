@@ -1,0 +1,7 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_delay_req" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::process_delay_req">
+<area shape="rect" id="Node000001" title="Process received Delay_Req message." alt="" coords="5,45,172,100"/>
+<area shape="rect" id="Node000002" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#a5ff024fa34cac7be52ef4263e4976a31" title="Set message type with deterministic execution." alt="" coords="222,5,397,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,55,208,48,209,54,173,60"/>
+<area shape="rect" id="Node000003" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="220,84,399,139"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="173,85,207,91,206,96,172,90"/>
+</map>

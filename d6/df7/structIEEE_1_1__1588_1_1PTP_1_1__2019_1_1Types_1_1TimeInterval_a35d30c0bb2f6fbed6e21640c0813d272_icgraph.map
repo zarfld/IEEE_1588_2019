@@ -1,0 +1,17 @@
+<map id="IEEE::_1588::PTP::_2019::Types::TimeInterval::fromNanoseconds" name="IEEE::_1588::PTP::_2019::Types::TimeInterval::fromNanoseconds">
+<area shape="rect" id="Node000001" title="Create from nanoseconds." alt="" coords="487,163,684,217"/>
+<area shape="rect" id="Node000002" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a064d36dd0269a3997979bed8ec622f4b" title="Process received Delay_Resp message." alt="" coords="272,5,439,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="543,155,494,114,437,74,418,62,420,58,440,69,497,110,546,151"/>
+<area shape="rect" id="Node000004" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a4ab8635c746ecdc8190cb48fe0762e9f" title="Process received Follow_Up message." alt="" coords="272,84,439,139"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="491,161,435,141,437,136,493,156"/>
+<area shape="rect" id="Node000005" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a8c86e43ac020c11a1efa8043aa606bf2" title="Process received Pdelay_Resp message (peer delay response)" alt="" coords="272,163,439,217"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="473,193,439,193,439,187,473,187"/>
+<area shape="rect" id="Node000006" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a7cc9f5b6a271d9894ab1dfbc74ee450e" title="Process received Pdelay_Resp_Follow_Up message (precise t3 timestamp)" alt="" coords="272,242,439,311"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="500,225,440,248,438,243,498,220"/>
+<area shape="rect" id="Node000007" href="$dd/d5b/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PtpPort.html#a0ae666364c0280a0abbc9f369f708aa4" title="Process received Sync message." alt="" coords="272,336,439,391"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="551,229,501,277,440,326,419,338,416,334,437,321,497,273,547,225"/>
+<area shape="rect" id="Node000003" href="$d0/d7d/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1BoundaryClock.html#a8d21ce8a95c4f7fcee5ab7853fa6c60e" title="Process received PTP message on specific port." alt="" coords="5,84,224,139"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="260,67,200,86,198,81,258,62"/>
+<area shape="poly" id="edge4_Node000004_Node000003" title=" " alt="" coords="258,114,224,114,224,109,258,109"/>
+<area shape="poly" id="edge8_Node000007_Node000003" title=" " alt="" coords="277,330,270,325,224,280,184,229,128,140,133,137,188,226,228,276,274,321,280,326"/>
+</map>

@@ -1,0 +1,28 @@
+<map id="IEEE::_1588::PTP::_2019::Types::PTPResult::makeError" name="IEEE::_1588::PTP::_2019::Types::PTPResult::makeError">
+<area shape="rect" id="Node000001" title="Create error result (alias for failure)" alt="" coords="531,163,709,217"/>
+<area shape="rect" id="Node000002" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html#acfa5f3eedb7017790b9646cd6e009368" title="Validate header consistency with deterministic checks." alt="" coords="300,5,475,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="581,155,535,113,481,74,461,62,463,58,484,69,539,109,585,151"/>
+<area shape="rect" id="Node000004" href="$dd/d8c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1AnnounceBody.html#a9eba687b764b366ae8cd9e2c5075b802" title="Validate announce message fields." alt="" coords="304,84,471,139"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="525,161,468,141,470,136,526,156"/>
+<area shape="rect" id="Node000005" href="$dd/d52/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayReqBody.html#aa3fdb1e829644541b9530784270dc3fb" title="Validate peer delay request message." alt="" coords="302,163,473,217"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="517,193,473,193,473,187,517,187"/>
+<area shape="rect" id="Node000006" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html#a5874260dca7c0dc51aac826383452f13" title="Validate timestamp fields." alt="" coords="293,241,481,296"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="526,224,470,244,468,239,525,219"/>
+<area shape="rect" id="Node000012" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html#a714e06f89558350dad4807a3a76c1307" title="Validate port identity fields." alt="" coords="292,320,483,375"/>
+<area shape="poly" id="edge11_Node000001_Node000012" title=" " alt="" coords="584,229,538,270,484,310,461,322,458,318,481,305,535,266,580,225"/>
+<area shape="rect" id="Node000003" href="$d0/de3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PTPMessage.html#ab8bcc56e4cfd00c45bf6da5c959dce25" title="Validate complete message structure." alt="" coords="19,13,231,53"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="286,35,231,35,231,30,286,30"/>
+<area shape="rect" id="Node000007" href="$d2/da3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncBody.html#acf9e7c4cdba384075d31e75f9e4663a4" title="Validate sync message timestamp." alt="" coords="28,98,221,138"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="297,236,290,231,274,210,266,189,259,170,242,152,220,139,223,135,246,148,263,167,271,188,278,207,294,227,300,232"/>
+<area shape="rect" id="Node000008" href="$d4/d80/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1FollowUpBody.html#afb9bb687271f04014b80607c3b2249f3" title="Validate follow&#45;up message timestamp." alt="" coords="43,163,206,217"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="282,240,205,217,207,212,283,235"/>
+<area shape="rect" id="Node000009" href="$da/d7c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1DelayRespBody.html#a6236945466a2b89b84877b755b9e17ff" title="Validate delay response message." alt="" coords="39,241,211,296"/>
+<area shape="poly" id="edge8_Node000006_Node000009" title=" " alt="" coords="280,271,211,271,211,266,280,266"/>
+<area shape="rect" id="Node000010" href="$d2/d6a/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespBody.html#ab248d75568694c9ea373bfea8f200ef8" title="Validate peer delay response message." alt="" coords="35,320,214,375"/>
+<area shape="poly" id="edge9_Node000006_Node000010" title=" " alt="" coords="283,303,215,323,213,318,282,297"/>
+<area shape="rect" id="Node000011" href="$d6/d6d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespFollowUpBody.html#af8ca846093cffd802c2383d9d01308b7" title="Validate peer delay response follow&#45;up message." alt="" coords="5,399,244,453"/>
+<area shape="poly" id="edge10_Node000006_Node000011" title=" " alt="" coords="298,306,294,309,278,329,271,349,263,369,246,389,229,401,226,396,242,385,258,366,266,347,273,326,290,305,295,301"/>
+<area shape="poly" id="edge12_Node000012_Node000009" title=" " alt="" coords="282,319,210,297,212,292,283,313"/>
+<area shape="poly" id="edge13_Node000012_Node000010" title=" " alt="" coords="278,350,214,350,214,345,278,345"/>
+<area shape="poly" id="edge14_Node000012_Node000011" title=" " alt="" coords="283,381,217,401,216,396,281,376"/>
+</map>

@@ -1,0 +1,13 @@
+<map id="IEEE::_1588::PTP::_2019::Types::Timestamp::validate" name="IEEE::_1588::PTP::_2019::Types::Timestamp::validate">
+<area shape="rect" id="Node000001" title="Validate timestamp fields." alt="" coords="292,149,480,203"/>
+<area shape="rect" id="Node000002" href="$d2/da3/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1SyncBody.html#acf9e7c4cdba384075d31e75f9e4663a4" title="Validate sync message timestamp." alt="" coords="28,5,221,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="348,141,300,98,243,60,215,48,218,43,245,55,304,94,351,137"/>
+<area shape="rect" id="Node000003" href="$d4/d80/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1FollowUpBody.html#afb9bb687271f04014b80607c3b2249f3" title="Validate follow&#45;up message timestamp." alt="" coords="43,70,206,125"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="281,147,206,124,207,119,282,142"/>
+<area shape="rect" id="Node000004" href="$da/d7c/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1DelayRespBody.html#a6236945466a2b89b84877b755b9e17ff" title="Validate delay response message." alt="" coords="39,149,211,203"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="278,179,211,179,211,173,278,173"/>
+<area shape="rect" id="Node000005" href="$d2/d6a/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespBody.html#ab248d75568694c9ea373bfea8f200ef8" title="Validate peer delay response message." alt="" coords="35,227,214,282"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="282,210,215,230,213,225,281,205"/>
+<area shape="rect" id="Node000006" href="$d6/d6d/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1PdelayRespFollowUpBody.html#af8ca846093cffd802c2383d9d01308b7" title="Validate peer delay response follow&#45;up message." alt="" coords="5,306,244,361"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="350,215,302,257,245,296,219,308,217,303,243,291,299,252,346,211"/>
+</map>

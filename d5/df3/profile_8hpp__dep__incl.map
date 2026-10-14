@@ -1,0 +1,5 @@
+<map id="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/profile.hpp" name="/home/runner/work/IEEE_1588_2019/IEEE_1588_2019/include/IEEE/1588/PTP/2019/profile.hpp">
+<area shape="rect" id="Node000001" title="Generic PTP profile abstraction supporting multiple external standards (IEEE 1588&#45;2019 core,..." alt="" coords="5,5,216,75"/>
+<area shape="rect" id="Node000002" href="$d3/d46/profile__adapter_8hpp.html" title="Minimal adapter to apply a ProfileConfig to a PTP PortConfiguration." alt="" coords="5,123,216,192"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="113,89,113,122,108,122,108,89"/>
+</map>

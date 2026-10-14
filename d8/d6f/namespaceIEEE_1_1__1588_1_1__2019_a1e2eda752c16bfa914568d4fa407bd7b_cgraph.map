@@ -1,0 +1,9 @@
+<map id="IEEE::_1588::_2019::validate_profile_parameters" name="IEEE::_1588::_2019::validate_profile_parameters">
+<area shape="rect" id="Node000001" title="Validate profile parameters against IEEE 1588&#45;2019 constraints." alt="" coords="5,37,219,77"/>
+<area shape="rect" id="Node000002" href="$de/d9c/structIEEE_1_1__1588_1_1__2019_1_1ProfileConfiguration.html#afe1ac8709d34d283d59c06c4802003b0" title="Validate profile configuration parameters." alt="" coords="267,30,425,85"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="219,55,253,55,253,60,219,60"/>
+<area shape="rect" id="Node000003" href="$d1/d41/structIEEE_1_1__1588_1_1__2019_1_1ProfileResult.html#a63594a46a8596245d5fd3354f94ca684" title=" " alt="" coords="473,5,617,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="425,42,459,36,460,42,426,47"/>
+<area shape="rect" id="Node000004" href="$d1/d41/structIEEE_1_1__1588_1_1__2019_1_1ProfileResult.html#a2aa399e876ed5e605a01c29bafafa743" title=" " alt="" coords="473,69,617,109"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="426,67,460,73,459,78,425,73"/>
+</map>

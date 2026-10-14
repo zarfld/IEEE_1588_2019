@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::TransparentClock::stop" name="IEEE::_1588::PTP::_2019::Clocks::TransparentClock::stop">
+<area shape="rect" id="Node000001" title="Stop clock operation." alt="" coords="5,5,201,60"/>
+<area shape="rect" id="Node000002" href="$df/d1f/classIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PTPResult.html#a873027aad818e35452ddab7583b7a7e5" title="Create successful result (static method)" alt="" coords="249,5,428,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="202,30,235,30,235,35,202,35"/>
+</map>

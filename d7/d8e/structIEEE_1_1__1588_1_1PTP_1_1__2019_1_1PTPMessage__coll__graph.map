@@ -1,0 +1,15 @@
+<map id="IEEE::_1588::PTP::_2019::PTPMessage&lt; BodyType &gt;" name="IEEE::_1588::PTP::_2019::PTPMessage&lt; BodyType &gt;">
+<area shape="rect" id="Node000001" title="Complete PTP Message template combining header and body." alt="" coords="79,1109,315,1229"/>
+<area shape="rect" id="Node000002" href="$d5/dab/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1CommonHeader.html" title="Common PTP Message Header &#45; present in all PTP messages." alt="" coords="105,667,289,1047"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="199,1047,199,1093,194,1093,194,1047"/>
+<area shape="rect" id="Node000003" href="$d9/d23/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1CorrectionField.html" title="Correction Field &#45; time correction in units of nanoseconds * 2^16." alt="" coords="5,404,209,604"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="135,604,147,650,142,652,130,605"/>
+<area shape="rect" id="Node000004" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="233,444,416,564"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="306,565,274,652,269,650,301,563"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="249,261,401,341"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="327,342,327,427,322,427,322,342"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="267,133,382,199"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="327,212,327,261,322,261,322,212"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="313,5,336,71"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="327,71,327,117,322,117,322,71"/>
+</map>

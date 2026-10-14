@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::StateCallbacks" name="IEEE::_1588::PTP::_2019::Clocks::StateCallbacks">
+<area shape="rect" id="Node000001" title="State Machine Callbacks." alt="" coords="5,408,215,668"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="20,5,200,345"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="113,346,113,391,107,391,107,346"/>
+</map>

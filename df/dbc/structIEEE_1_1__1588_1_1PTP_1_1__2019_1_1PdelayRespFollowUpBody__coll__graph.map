@@ -1,0 +1,13 @@
+<map id="IEEE::_1588::PTP::_2019::PdelayRespFollowUpBody" name="IEEE::_1588::PTP::_2019::PdelayRespFollowUpBody">
+<area shape="rect" id="Node000001" title="Pdelay_Resp_Follow_Up message body &#45; precise peer delay response." alt="" coords="89,807,320,887"/>
+<area shape="rect" id="Node000002" href="$d4/d6e/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1Timestamp.html" title="PTP Timestamp &#45; seconds and nanoseconds representation." alt="" coords="5,404,185,744"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="84,743,99,781,108,793,103,796,94,784,79,745"/>
+<area shape="rect" id="Node000003" href="$dc/d02/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Types_1_1PortIdentity.html" title="Port Identity &#45; combination of clock identity and port number." alt="" coords="223,514,405,634"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="320,634,313,708,303,747,287,784,279,796,274,793,282,781,298,746,308,707,314,634"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="238,261,390,341"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="317,341,317,497,311,497,311,341"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="257,133,371,199"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="317,212,317,261,311,261,311,212"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="303,5,325,71"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="317,71,317,117,311,117,311,71"/>
+</map>

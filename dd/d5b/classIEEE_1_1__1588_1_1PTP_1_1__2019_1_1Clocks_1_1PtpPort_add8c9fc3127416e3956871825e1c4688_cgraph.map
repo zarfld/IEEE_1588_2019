@@ -1,0 +1,5 @@
+<map id="IEEE::_1588::PTP::_2019::Clocks::PtpPort::initialize" name="IEEE::_1588::PTP::_2019::Clocks::PtpPort::initialize">
+<area shape="rect" id="Node000001" title="Initialize port state machine." alt="" coords="5,5,172,60"/>
+<area shape="rect" id="Node000002" href="$d6/d79/structIEEE_1_1__1588_1_1PTP_1_1__2019_1_1Clocks_1_1PortStatistics.html#aed142f0da85e70bf12d58a4cb3eb5f99" title="Reset all counters to zero." alt="" coords="220,5,427,60"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,30,206,30,206,35,172,35"/>
+</map>
