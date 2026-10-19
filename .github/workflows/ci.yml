@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload reliability failures CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-srg-data
           path: build/reliability/srg_failures.csv
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload reliability coverage CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-coverage-data
           path: build/reliability/state_transition_coverage.csv
@@ -54,7 +54,7 @@ jobs:
 
       - name: Upload reliability history CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-history
           path: build/reliability/reliability_history.csv
@@ -71,7 +71,7 @@ jobs:
           python3 scripts/ci/check_quality_gates.py --coverage coverage.json --gates quality-gates.yml
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-json
           path: coverage.json
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload reliability failures CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-srg-data-windows
           path: build/reliability/srg_failures.csv
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload reliability coverage CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-coverage-data-windows
           path: build/reliability/state_transition_coverage.csv
@@ -119,7 +119,7 @@ jobs:
 
       - name: Upload reliability history CSV (if present)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reliability-history-windows
           path: build/reliability/reliability_history.csv

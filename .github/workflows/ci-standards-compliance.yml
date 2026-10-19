@@ -117,7 +117,7 @@ jobs:
           mkdir -p reports
           python scripts/github-traceability-report.py > reports/traceability-report.md
       - name: Upload generated artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spec-generated-artifacts
           path: |
@@ -494,7 +494,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload traceability reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: traceability-reports
           path: reports/
@@ -754,7 +754,7 @@ jobs:
           cat compliance-report.md
 
       - name: Upload compliance report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compliance-report
           path: compliance-report.md
@@ -808,7 +808,7 @@ jobs:
           pio run -e esp32dev
 
       - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: esp32-firmware
           path: .pio/build/esp32dev/firmware.bin
