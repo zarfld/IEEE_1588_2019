@@ -50,7 +50,7 @@ jobs:
         run: |
           ALLOW_EMPTY_SPECS=1 python scripts/generators/gen_tests.py
       - name: Upload generated artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spec-generated-artifacts
           path: |
@@ -296,7 +296,7 @@ jobs:
           python -c "import sys, os; val=float(os.environ.get('LINE_PCT','${LINE_PCT:-0}')); min_cov=float(os.environ.get('MIN_TEST_COVERAGE','80')); print(f'Coverage threshold check: {val:.2f}% vs {min_cov:.2f}%'); sys.exit(0 if val>=min_cov else 1)"
       - name: Upload coverage artifacts (Linux)
         if: always() && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-linux
           path: |
@@ -386,7 +386,7 @@ jobs:
         run: |
           ALLOW_EMPTY_SPECS=1 python scripts/integrity_level_scan.py
       - name: Upload integrity scan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integrity-scan
           path: build/integrity-scan.json
@@ -447,7 +447,7 @@ jobs:
 
       - name: Upload binary artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-binaries-${{ matrix.os }}
           path: |
@@ -492,7 +492,7 @@ jobs:
           }
 
       - name: Upload traceability report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: traceability-matrix
           path: reports/traceability-matrix.md
@@ -556,7 +556,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: acceptance-test-results
           path: |
@@ -644,7 +644,7 @@ jobs:
 
       - name: Save SARIF as artifact (fallback)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-sarif
           path: trivy-results.sarif
@@ -759,7 +759,7 @@ jobs:
           cat compliance-report.md
 
       - name: Upload compliance report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compliance-report
           path: compliance-report.md
